@@ -162,24 +162,69 @@ wait_for_port backend 5050 60
 
 
 # ---------------------------------------------------------
-# 5. Backend Cloudflare tunnel
+# 5. Permanent Cloudflare named tunnel
 # ---------------------------------------------------------
 
-start_tunnel backend-tunnel "http://127.0.0.1:5050"
+BACKEND_URL="https://api.eulalens.stream"
+FRONTEND_URL="https://g00110579-afk.github.io/EULALens/"
+CF_TOKEN_FILE="$HOME/.cloudflared/eulalens-backend.token"
 
-BACKEND_URL="$(wait_for_tunnel_url backend-tunnel 45 | tail -1)"
-
-if [[ ! "$BACKEND_URL" =~ ^https://.*\.trycloudflare\.com$ ]]; then
-    echo "[ERROR] Invalid backend tunnel URL:"
-    echo "        $BACKEND_URL"
+if [[ ! -s "$CF_TOKEN_FILE" ]]; then
+    echo "[ERROR] Cloudflare tunnel token not found:"
+    echo "        $CF_TOKEN_FILE"
     exit 1
 fi
 
-echo "[READY] Backend tunnel: $BACKEND_URL"
+if [[ -f "$RUNTIME/backend-tunnel.pid" ]] && \
+   kill -0 "$(cat "$RUNTIME/backend-tunnel.pid")" 2>/dev/null; then
+    echo "[OK] permanent backend tunnel already running"
+else
+    echo "[START] permanent backend tunnel"
+
+    CF_TOKEN="$(cat "$CF_TOKEN_FILE")"
+
+    nohup setsid "$CLOUDFLARED" tunnel \
+        --protocol http2 \
+        run \
+        --token "$CF_TOKEN" \
+        >"$LOGS/backend-tunnel.log" 2>&1 &
+
+    echo $! >"$RUNTIME/backend-tunnel.pid"
+    unset CF_TOKEN
+fi
+
+echo "[WAIT] permanent backend tunnel..."
+
+TUNNEL_READY=0
+for _ in {1..30}; do
+    if curl -fsS --max-time 5 "$BACKEND_URL" >/dev/null 2>&1; then
+        TUNNEL_READY=1
+        break
+    fi
+
+    # A 404 from Express is also proof that the tunnel reached our backend.
+    HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+        --max-time 5 "$BACKEND_URL" 2>/dev/null || true)"
+
+    if [[ "$HTTP_CODE" == "404" ]]; then
+        TUNNEL_READY=1
+        break
+    fi
+
+    sleep 1
+done
+
+if [[ "$TUNNEL_READY" -ne 1 ]]; then
+    echo "[ERROR] Permanent backend tunnel did not become reachable."
+    echo "        Check: $LOGS/backend-tunnel.log"
+    exit 1
+fi
+
+echo "[READY] Permanent backend: $BACKEND_URL"
 
 
 # ---------------------------------------------------------
-# 6. Runtime browser configuration
+# 6. Runtime configuration for optional local frontend use
 # ---------------------------------------------------------
 
 cat >"$RUNTIME/config.js" <<CONFIG
@@ -187,43 +232,6 @@ window.EULALENS_API_BASE = '${BACKEND_URL}';
 CONFIG
 
 echo "[READY] Runtime API configuration created."
-
-
-# ---------------------------------------------------------
-# 7. Frontend
-# ---------------------------------------------------------
-
-if ss -ltn 2>/dev/null | grep -q ":8080 "; then
-    echo "[OK] frontend already running on port 8080"
-else
-    echo "[START] frontend"
-
-    nohup setsid bash -lc "
-        cd '$PROJECT'
-        exec python3 -m http.server 8080 --bind 127.0.0.1
-    " >"$LOGS/frontend.log" 2>&1 &
-
-    echo $! >"$RUNTIME/frontend.pid"
-fi
-
-wait_for_port frontend 8080 30
-
-
-# ---------------------------------------------------------
-# 8. Frontend Cloudflare tunnel
-# ---------------------------------------------------------
-
-start_tunnel frontend-tunnel "http://127.0.0.1:8080"
-
-FRONTEND_URL="$(wait_for_tunnel_url frontend-tunnel 45 | tail -1)"
-
-if [[ ! "$FRONTEND_URL" =~ ^https://.*\.trycloudflare\.com$ ]]; then
-    echo "[ERROR] Invalid frontend tunnel URL:"
-    echo "        $FRONTEND_URL"
-    exit 1
-fi
-
-echo "[READY] Frontend tunnel: $FRONTEND_URL"
 
 
 # ---------------------------------------------------------
@@ -249,5 +257,5 @@ echo
 echo "Logs:"
 echo "  $LOGS"
 echo
-echo "Open the FRONTEND URL in your browser."
+echo "Open the permanent FRONTEND URL in your browser."
 echo "========================================"

@@ -11,10 +11,12 @@ import {
   generateCategoryVideo,
   generateCategoryVideoScript,
   getVideoStatus,
+  cancelCategoryVideo,
   health,
   renderCategoryComicImage
 } from './handlers.js';
 import { errorPayload, getErrorStatus } from './http.js';
+import { cancelHiDreamJob } from './providers/hidream.js';
 
 const app = express();
 
@@ -101,6 +103,7 @@ app.post('/api/categories/comic/start', (req, res) => {
       job.status = 'generating-story';
 
       const comicResult = await generateCategoryComic(req.body);
+      if (job.status === 'canceled') return;
       const comicPayload = comicResult.comic || comicResult;
 
       let selectedComic = comicPayload;
@@ -117,21 +120,25 @@ app.post('/api/categories/comic/start', (req, res) => {
         throw new Error('Qwen did not return a usable comic.');
       }
 
+      if (job.status === 'canceled') return;
       job.status = 'rendering-image';
       job.comic = selectedComic;
 
+      if (job.status === 'canceled') return;
       const renderResult = await renderCategoryComicImage({
         ...req.body,
-        comic: selectedComic
+        comic: selectedComic,
+        jobId
       });
 
+      if (job.status === 'canceled') return;
       job.status = 'ready';
       job.render = renderResult;
       job.completedAt = Date.now();
     } catch (error) {
       const job = comicJobs.get(jobId);
 
-      if (job) {
+      if (job && job.status !== 'canceled') {
         job.status = 'error';
         job.error = error?.message || 'Comic generation failed.';
         job.completedAt = Date.now();
@@ -141,6 +148,33 @@ app.post('/api/categories/comic/start', (req, res) => {
     }
   })();
 });
+
+app.post('/api/categories/comic/jobs/:jobId/cancel', asyncRoute(async (req, res) => {
+  const job = comicJobs.get(req.params.jobId);
+
+  if (!job) {
+    return res.status(404).json({ error: 'Comic job not found.' });
+  }
+
+  if (['ready', 'error', 'canceled'].includes(job.status)) {
+    return res.json(job);
+  }
+
+  const previousStatus = job.status;
+  job.status = 'canceled';
+  job.completedAt = Date.now();
+
+  if (previousStatus === 'rendering-image') {
+    try {
+      await cancelHiDreamJob(job.jobId);
+    } catch (error) {
+      // HiDream may have finished before cancellation arrived.
+      console.warn(`HiDream cancellation for ${job.jobId}:`, error.message);
+    }
+  }
+
+  return res.json(job);
+}));
 
 app.get('/api/categories/comic/jobs/:jobId', (req, res) => {
   const job = comicJobs.get(req.params.jobId);
@@ -175,6 +209,7 @@ app.post('/api/categories/video/start', (req, res) => {
       job.status = 'generating-script';
 
       const scriptResult = await generateCategoryVideoScript(req.body);
+      if (job.status === 'canceled') return;
       const videoScript = scriptResult.video;
 
       if (!videoScript?.modelPrompt) {
@@ -191,8 +226,11 @@ app.post('/api/categories/video/start', (req, res) => {
 
       const videoResult = await generateCategoryVideo({
         ...req.body,
-        category
+        category,
+        jobId
       });
+
+      if (job.status === 'canceled') return;
 
       // LTX returns its own public URL, which may point to an ephemeral
       // tunnel. When the local output path is available, expose the video
@@ -228,7 +266,7 @@ app.post('/api/categories/video/start', (req, res) => {
     } catch (error) {
       const job = videoJobs.get(jobId);
 
-      if (job) {
+      if (job && job.status !== 'canceled') {
         job.status = 'error';
         job.error = error?.message || 'Video generation failed.';
         job.completedAt = Date.now();
@@ -250,6 +288,42 @@ app.get('/api/categories/video/jobs/:jobId', (req, res) => {
 
   return res.json(job);
 });
+
+app.post('/api/categories/video/jobs/:jobId/cancel', asyncRoute(async (req, res) => {
+  const job = videoJobs.get(req.params.jobId);
+
+  if (!job) {
+    return res.status(404).json({ error: 'Video job not found.' });
+  }
+
+  if (['ready', 'error', 'canceled'].includes(job.status)) {
+    return res.status(409).json({
+      error: `Video job is already ${job.status}.`,
+      job
+    });
+  }
+
+  // Mark canceled first so the background task cannot overwrite this state.
+  job.status = 'canceled';
+  job.canceledAt = Date.now();
+  job.completedAt = Date.now();
+
+  try {
+    const result = await cancelCategoryVideo(job.jobId);
+    return res.json({
+      jobId: job.jobId,
+      status: 'canceled',
+      cancellation: result
+    });
+  } catch (error) {
+    // Keep the canceled state, but report that provider cancellation failed.
+    return res.status(502).json({
+      jobId: job.jobId,
+      status: 'canceled',
+      error: error?.message || 'Could not contact the video provider.'
+    });
+  }
+}));
 
 app.post('/api/categories/video/script', asyncRoute(async (req, res) => {
   res.json(await generateCategoryVideoScript(req.body));

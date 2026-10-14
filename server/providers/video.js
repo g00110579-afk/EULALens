@@ -7,7 +7,7 @@ function extractVideoResult(data) {
   return { videoUrl, jobId, status, embeddedSubtitles, dialogueAudio, raw: data };
 }
 
-export async function generateVideo({ category, documentTitle }) {
+export async function generateVideo({ category, documentTitle, jobId }) {
   const provider = process.env.VIDEO_PROVIDER || 'mock';
   const apiUrl = process.env.VIDEO_API_URL;
   const apiKey = process.env.VIDEO_API_KEY;
@@ -34,10 +34,15 @@ export async function generateVideo({ category, documentTitle }) {
   const headers = { 'Content-Type': 'application/json' };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
+  const { Agent } = await import('undici');
+  const dispatcher = new Agent({ headersTimeout: 30 * 60 * 1000 });
+
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers,
+    dispatcher,
     body: JSON.stringify({
+      jobId,
       model: process.env.VIDEO_MODEL || undefined,
       prompt,
       negative_prompt: negativePrompt || undefined,
@@ -76,3 +81,43 @@ export async function checkVideoStatus(jobId) {
 
   return extractVideoResult(await response.json());
 }
+
+export async function cancelVideoGeneration(jobId) {
+  if (!jobId || typeof jobId !== 'string') {
+    throw new Error('A valid video job ID is required.');
+  }
+
+  const generateUrl = process.env.VIDEO_API_URL;
+  if (!generateUrl) {
+    throw new Error('VIDEO_API_URL is not configured.');
+  }
+
+  const cancelUrlObject = new URL(generateUrl);
+  if (!/\/generate\/?$/.test(cancelUrlObject.pathname)) {
+    throw new Error('VIDEO_API_URL must end with /generate.');
+  }
+  cancelUrlObject.pathname = cancelUrlObject.pathname.replace(/\/generate\/?$/, '/cancel');
+  const cancelUrl = cancelUrlObject.toString();
+  const headers = { 'Content-Type': 'application/json' };
+  if (process.env.VIDEO_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.VIDEO_API_KEY}`;
+  }
+
+  const response = await fetch(cancelUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ jobId }),
+    signal: AbortSignal.timeout(10000)
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      payload.error || payload.detail || `Video cancellation failed (${response.status}).`
+    );
+  }
+
+  return payload;
+}
+

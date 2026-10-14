@@ -429,6 +429,35 @@
             filter: brightness(1.15);
         }
 
+        /* Category generation indicators */
+        .category-content-ready {
+            border-color: rgba(52, 211, 153, 0.75) !important;
+            box-shadow: 0 0 12px rgba(52, 211, 153, 0.28),
+                        inset 0 0 8px rgba(52, 211, 153, 0.08);
+        }
+        .category-content-generating {
+            border-color: rgba(111, 217, 201, 0.45) !important;
+        }
+        .category-status-icons {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            font-size: 12px;
+        }
+        .category-generating-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #6fd9c9;
+            display: inline-block;
+            animation: categoryStatusPulse 1.6s ease-in-out infinite;
+        }
+        @keyframes categoryStatusPulse {
+            0%, 100% { opacity: 0.35; }
+            50% { opacity: 1; }
+        }
+
         /* --- PDF upload dropzone --- */
         .upload-dropzone {
             border: 1.5px dashed rgba(111, 217, 201, 0.35);
@@ -541,9 +570,31 @@
             maybeStartTutorial();
         }
 
+        function updateResumeButton() {
+            const button = document.getElementById('resume-analysis-btn');
+            if (!button) return;
+
+            button.classList.toggle(
+                'hidden',
+                activeDocument !== 'live' ||
+                cancelledLiveDocuments.has(categories)
+            );
+        }
+
+        function resumeLiveAnalysis() {
+            if (activeDocument !== 'live' ||
+                cancelledLiveDocuments.has(categories)) return;
+
+            document.getElementById('dashboard-tab').classList.add('hidden');
+            document.getElementById('documents-tab').classList.remove('hidden');
+            updateCancelButton();
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+
         function backToHome() {
             document.getElementById('documents-tab').classList.add('hidden');
             document.getElementById('dashboard-tab').classList.remove('hidden');
+            updateResumeButton();
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
 
@@ -650,13 +701,13 @@
 
             overlayGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
             overlayGrid.innerHTML = scenes.map(scene => {
-                const slots = scene.slots || scene.bubbles || [];
+                const slots = scene.slots || scene.overlaySlots || scene.overlay_slots || scene.bubbles || [];
 
                 const bubbles = slots.map(slot => `
-                    <div class="comic-bubble kind-${slot.kind || 'speech'} pos-${slot.position || 'top-left'}">
-                        ${slot.text || ''}
-                    </div>
-                `).join('');
+                   <div class="comic-bubble kind-${slot.kind || 'speech'} pos-${(slot.position || 'top_left').replace(/-/g, '_')}">
+                       ${slot.text || ''}
+                   </div>
+                 `).join('');
 
                 return `
                     <div class="comic-overlay-cell">
@@ -670,9 +721,87 @@
             comicImg.onload = positionComicOverlay;
         }
 
+        const cancelledLiveDocuments = new WeakSet();
+
+        function isLiveGenerationCurrent(source) {
+            return activeDocument === 'live' &&
+                categories === source &&
+                !cancelledLiveDocuments.has(source);
+        }
+
+        function updateCancelButton() {
+            const button = document.getElementById('cancel-generation-btn');
+            if (!button) return;
+            button.classList.toggle(
+                'hidden',
+                activeDocument !== 'live' ||
+                cancelledLiveDocuments.has(categories)
+            );
+        }
+
+        async function cancelLiveJobs(source) {
+            if (!source || cancelledLiveDocuments.has(source)) return;
+            cancelledLiveDocuments.add(source);
+            updateCancelButton();
+
+            const requests = [];
+
+            for (const cat of source) {
+                for (const kind of ['comic', 'video']) {
+                    const field = kind + 'JobId';
+                    const statusField = kind + 'Status';
+                    const jobId = cat[field];
+
+                    if (cat[statusField] !== 'ready') {
+                        cat[statusField] = 'canceled';
+                    }
+
+                    if (!jobId) continue;
+                    cat[field] = null;
+
+                    requests.push(
+                        fetch(
+                            `${LIVE_API_BASE}/api/categories/${kind}/jobs/${encodeURIComponent(jobId)}/cancel`,
+                            { method: 'POST' }
+                        ).then(response => {
+                            if (!response.ok && response.status !== 409) {
+                                console.warn(
+                                    `Cancellation returned ${response.status}: ${kind} ${jobId}`
+                                );
+                            }
+                        }).catch(error =>
+                            console.warn('Cancellation request failed:', error)
+                        )
+                    );
+                }
+            }
+
+            await Promise.allSettled(requests);
+            updateResumeButton();
+
+            if (categories === source) {
+                const current = getSortedCategories()[0];
+                if (current) updateCategoryDetails(current, { scroll: false });
+            }
+        }
+
+        function cancelCurrentGeneration() {
+            if (activeDocument !== 'live') return;
+
+            const source = categories;
+
+            // Stop further generation and request cancellation of active jobs.
+            void cancelLiveJobs(source);
+
+            // Return to the PDF upload page immediately.
+            backToHome();
+        }
+
         async function ensureLiveComic(cat) {
             // Fixed sample documents keep their existing pre-generated comics.
             if (activeDocument !== 'live' || !cat) return;
+            const source = categories;
+            if (!isLiveGenerationCurrent(source)) return;
 
             // Do not regenerate a finished or currently-running comic.
             if (cat.comicStatus === 'ready' ||
@@ -732,8 +861,16 @@
                 // Keep the job ID on the category for debugging and to avoid
                 // losing track of the running server-side job.
                 cat.comicJobId = jobId;
+                if (!isLiveGenerationCurrent(source)) {
+                    await fetch(
+                        `${LIVE_API_BASE}/api/categories/comic/jobs/${encodeURIComponent(jobId)}/cancel`,
+                        { method: 'POST' }
+                    ).catch(error => console.warn('Late cancellation failed:', error));
+                    return;
+                }
 
                 while (true) {
+                    if (!isLiveGenerationCurrent(source)) return;
                     // Polling uses short HTTP requests, avoiding Cloudflare's
                     // timeout for the long Qwen/HiDream generation process.
                     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -743,6 +880,8 @@
                     );
 
                     const job = await statusResponse.json();
+                    if (!isLiveGenerationCurrent(source)) return;
+                    if (job.status === 'canceled') return;
 
                     if (!statusResponse.ok) {
                         throw new Error(
@@ -768,8 +907,8 @@
                                 'EULA Comic';
 
                             cat.comicScenes =
-                                job.comic.scenes ||
                                 job.comic.panels ||
+                                job.comic.scenes ||
                                 [];
                         }
 
@@ -805,8 +944,8 @@
                             'EULA Comic';
 
                         cat.comicScenes =
-                            selectedComic.scenes ||
                             selectedComic.panels ||
+                            selectedComic.scenes ||
                             [];
 
                         cat.comic = imageUrl.startsWith('http')
@@ -814,6 +953,7 @@
                             : `${LIVE_API_BASE}${imageUrl}`;
 
                         cat.comicStatus = 'ready';
+                        updateCategoryGenerationIndicators();
                         refreshComicUI();
                         return;
                     }
@@ -824,6 +964,7 @@
                 }
 
             } catch (error) {
+                if (!isLiveGenerationCurrent(source)) return;
                 console.error('Live comic generation failed:', error);
 
                 cat.comicStatus = 'error';
@@ -835,6 +976,11 @@
         }
 
         function refreshVideoUI(cat) {
+            // Only the currently displayed category may update the shared player.
+            const activeCategoryId =
+                document.getElementById('active-category')?.dataset.catId;
+            if (!cat || cat.id !== activeCategoryId) return;
+
             const videoEl = document.getElementById('cat-video');
             if (!videoEl) return;
 
@@ -945,8 +1091,11 @@
 
         async function ensureLiveVideo(cat) {
             if (activeDocument !== 'live' || !cat) return;
+            const source = categories;
+            if (!isLiveGenerationCurrent(source)) return;
 
             if (cat.videoStatus === 'ready' && cat.video) {
+                updateCategoryGenerationIndicators();
                 refreshVideoUI(cat);
                 return;
             }
@@ -960,6 +1109,7 @@
             try {
                 cat.videoStatus = 'generating-script';
                 cat.videoError = '';
+                updateCategoryGenerationIndicators();
                 refreshVideoUI(cat);
 
                 const documentTitle =
@@ -1000,8 +1150,16 @@
                 }
 
                 cat.videoJobId = jobId;
+                if (!isLiveGenerationCurrent(source)) {
+                    await fetch(
+                        `${LIVE_API_BASE}/api/categories/video/jobs/${encodeURIComponent(jobId)}/cancel`,
+                        { method: 'POST' }
+                    ).catch(error => console.warn('Late cancellation failed:', error));
+                    return;
+                }
 
                 while (true) {
+                    if (!isLiveGenerationCurrent(source)) return;
                     await new Promise(resolve => setTimeout(resolve, 3000));
 
                     const statusResponse = await fetch(
@@ -1009,6 +1167,8 @@
                     );
 
                     const job = await statusResponse.json();
+                    if (!isLiveGenerationCurrent(source)) return;
+                    if (job.status === 'canceled') return;
 
                     if (!statusResponse.ok) {
                         throw new Error(
@@ -1020,13 +1180,15 @@
                     if (job.status === 'queued' ||
                         job.status === 'generating-script') {
                         cat.videoStatus = 'generating-script';
-                        refreshVideoUI(cat);
+                        updateCategoryGenerationIndicators();
+                refreshVideoUI(cat);
                         continue;
                     }
 
                     if (job.status === 'generating-video') {
                         cat.videoStatus = 'generating-video';
-                        refreshVideoUI(cat);
+                        updateCategoryGenerationIndicators();
+                refreshVideoUI(cat);
                         continue;
                     }
 
@@ -1050,7 +1212,9 @@
                             : `${LIVE_API_BASE}${videoUrl}`;
 
                         cat.videoStatus = 'ready';
-                        refreshVideoUI(cat);
+                        updateCategoryGenerationIndicators();
+                        updateCategoryGenerationIndicators();
+                refreshVideoUI(cat);
                         return;
                     }
 
@@ -1060,12 +1224,14 @@
                 }
 
             } catch (error) {
+                if (!isLiveGenerationCurrent(source)) return;
                 console.error('Live video generation failed:', error);
 
                 cat.videoStatus = 'error';
                 cat.videoError =
                     error.message || 'Could not generate this video.';
 
+                updateCategoryGenerationIndicators();
                 refreshVideoUI(cat);
             }
         }
@@ -1312,6 +1478,8 @@
             };
         }
 
+        let latestUploadId = 0;
+
         async function handleUploadedFile(file) {
             const status = document.getElementById('upload-status');
 
@@ -1319,6 +1487,15 @@
                 status.innerHTML =
                     `<p class="text-sm text-[#D9705E]">Please upload a PDF file.</p>`;
                 return;
+            }
+
+            const uploadId = ++latestUploadId;
+            if (activeDocument === 'live') {
+                const previous = categories;
+                activeDocument = 'uploading';
+                void cancelLiveJobs(previous);
+                updateCancelButton();
+                updateResumeButton();
             }
 
             try {
@@ -1329,6 +1506,7 @@
                     </div>`;
 
                 const text = await extractPdfText(file);
+                if (uploadId !== latestUploadId) return;
 
                 status.innerHTML = `
                     <div class="flex items-center gap-2 text-sm text-on-surface-variant">
@@ -1348,6 +1526,7 @@
                 });
 
                 const result = await response.json();
+                if (uploadId !== latestUploadId) return;
 
                 if (!response.ok) {
                     throw new Error(result.error || `Analysis failed (${response.status}).`);
@@ -1367,6 +1546,8 @@
                 // The six fixed example datasets remain unchanged.
                 activeDocument = 'live';
                 categories = liveCategories;
+                updateCancelButton();
+                updateResumeButton();
 
                 // Show the uploaded PDF in the Original EULA tab.
                 const livePdfUrl = URL.createObjectURL(file);
@@ -1396,6 +1577,37 @@
                 document.getElementById('documents-tab').classList.remove('hidden');
                 window.scrollTo({ top: 0, behavior: 'instant' });
 
+                // Run independent, bounded comic and video pipelines.
+                // Each backend job starts GPU generation as soon as its Qwen script is ready.
+                const runMediaQueue = async (generate, concurrency) => {
+                    let nextIndex = 0;
+
+                    const worker = async () => {
+                        while (nextIndex < liveCategories.length) {
+                            if (!isLiveGenerationCurrent(liveCategories)) {
+                                return;
+                            }
+
+                            const cat = liveCategories[nextIndex++];
+                            try {
+                                await generate(cat);
+                            } catch (error) {
+                                console.error('Media generation worker failed:', error);
+                            }
+                        }
+                    };
+
+                    await Promise.all(
+                        Array.from(
+                            { length: Math.min(concurrency, liveCategories.length) },
+                            () => worker()
+                        )
+                    );
+                };
+
+                void runMediaQueue(ensureLiveComic, 2);
+                void runMediaQueue(ensureLiveVideo, 2);
+
                 // Generate cue cards in the background AFTER opening the results page.
                 // Do not await this request: the user can inspect the analysis immediately.
                 fetch(`${LIVE_API_BASE}/api/categories/cards/batch`, {
@@ -1410,6 +1622,7 @@
                 })
                 .then(async cardsResponse => {
                     const cardsResult = await cardsResponse.json();
+                    if (uploadId !== latestUploadId || categories !== liveCategories) return;
 
                     if (!cardsResponse.ok) {
                         throw new Error(
@@ -1468,6 +1681,7 @@
                     </div>`;
 
             } catch (error) {
+                if (uploadId !== latestUploadId) return;
                 console.error('Live PDF analysis failed:', error);
 
                 status.innerHTML = `
@@ -19902,6 +20116,59 @@
         let activeDocument = 'zoom';
         let categories = zoomCategories;
 
+        function getCategoryGenerationState(cat) {
+            const comicReady = cat.comicStatus === 'ready' && !!cat.comic;
+            const videoReady = cat.videoStatus === 'ready' && !!cat.video;
+            const generating = [
+                'generating-story', 'rendering-image',
+                'generating-script', 'generating-video', 'queued'
+            ].includes(cat.comicStatus) || [
+                'generating-story', 'rendering-image',
+                'generating-script', 'generating-video', 'queued'
+            ].includes(cat.videoStatus);
+
+            return { comicReady, videoReady, generating };
+        }
+
+        function updateCategoryGenerationIndicators() {
+            document.querySelectorAll('[data-generation-category-id]').forEach(el => {
+                const cat = categories.find(
+                    c => String(c.id) === el.dataset.generationCategoryId
+                );
+                if (!cat) return;
+
+                const state = getCategoryGenerationState(cat);
+                const ready = state.comicReady || state.videoReady;
+
+                el.classList.toggle('category-content-ready', ready);
+                el.classList.toggle('category-content-generating', !ready && state.generating);
+
+                const icons = el.querySelector('.category-status-icons');
+                if (icons) {
+                    icons.replaceChildren();
+
+                    if (state.comicReady) {
+                        const icon = document.createElement('span');
+                        icon.textContent = '🎨';
+                        icon.title = 'Comic ready';
+                        icons.appendChild(icon);
+                    }
+                    if (state.videoReady) {
+                        const icon = document.createElement('span');
+                        icon.textContent = '🎬';
+                        icon.title = 'Video ready';
+                        icons.appendChild(icon);
+                    }
+                    if (state.generating) {
+                        const dot = document.createElement('span');
+                        dot.className = 'category-generating-dot';
+                        dot.title = 'Content generating';
+                        icons.appendChild(dot);
+                    }
+                }
+            });
+        }
+
         function renderQuickIndex() {
             const grid = document.getElementById('quick-index-grid');
             grid.innerHTML = '';
@@ -19920,13 +20187,15 @@
                 }
                 const btn = document.createElement('button');
                 btn.className = 'text-left px-2 py-1 rounded-md border border-transparent hover:bg-white/5 transition-colors flex justify-between items-center group text-on-surface-variant hover:text-on-surface text-xs';
-                btn.innerHTML = `<span class="font-label-md truncate">${cat.name}</span><span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1" style="background-color:${riskColor[cat.risk] || '#10B981'}"></span>`;
+                btn.dataset.generationCategoryId = cat.id;
+                btn.innerHTML = `<span class="font-label-md truncate">${cat.name}</span><span class="category-status-icons"></span><span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1" style="background-color:${riskColor[cat.risk] || '#10B981'}"></span>`;
                 btn.onclick = () => {
                     updateCategoryDetails(cat);
                     document.getElementById('quick-index-dropdown').classList.remove('open');
                 };
                 grid.appendChild(btn);
             });
+            updateCategoryGenerationIndicators();
         }
 
         // --- Category ticker (replaces the old 3D globe): categories scroll by like
@@ -19957,7 +20226,12 @@
                 const renderPills = () => rowCats.map(cat => {
                     const pill = document.createElement('button');
                     pill.className = `ticker-pill glass-panel severity-${cat.risk} border rounded-full px-4 py-2 font-label-md text-xs md:text-sm`;
-                    pill.textContent = cat.name;
+                    pill.dataset.generationCategoryId = cat.id;
+                    const name = document.createElement('span');
+                    name.textContent = cat.name;
+                    const icons = document.createElement('span');
+                    icons.className = 'category-status-icons';
+                    pill.append(name, icons);
                     pill.onclick = () => selectFromCategoriesDialog(cat.id);
                     return pill;
                 });
@@ -19974,6 +20248,7 @@
             const medium = categories.filter(c => c.risk === 'medium');
             buildTickerRows(high, 'ticker-high');
             buildTickerRows(medium, 'ticker-medium');
+            updateCategoryGenerationIndicators();
         }
 
         const originalEulaPaths = {
@@ -20003,9 +20278,13 @@
         }
 
         function switchDocument(doc) {
+            const previous = activeDocument === 'live' ? categories : null;
             const entry = documentRegistry[doc] || documentRegistry.zoom;
             activeDocument = doc;
             categories = entry.categories();
+            if (previous) void cancelLiveJobs(previous);
+            updateCancelButton();
+            updateResumeButton();
 
             const titleEl = document.getElementById('doc-analysis-title');
             if (titleEl) {
@@ -20139,6 +20418,12 @@
 <span class="material-symbols-outlined text-secondary">upload_file</span> Try it yourself
                 </h2>
 <p class="text-on-surface-variant font-body-md mb-stack-md">Upload a EULA or terms-of-service PDF and see it broken down into plain-English categories, comics, cue cards, and videos.</p>
+<button id="resume-analysis-btn"
+        type="button"
+        onclick="resumeLiveAnalysis()"
+        class="hidden mb-4 px-5 py-3 rounded-xl bg-secondary text-on-secondary font-medium hover:opacity-90 transition-opacity">
+    Resume Analysis
+</button>
 <div class="upload-dropzone rounded-xl p-stack-md flex flex-col items-center justify-center text-center gap-2 cursor-pointer" id="upload-dropzone">
 <span class="material-symbols-outlined text-3xl text-secondary">cloud_upload</span>
 <p class="font-label-md text-on-surface">Drop a PDF here, or click to browse</p>
@@ -20304,6 +20589,13 @@ communicated to end users.
 <span class="material-symbols-outlined text-secondary text-3xl">analytics</span>
 <span id="doc-analysis-title">Document Analysis: Zoom TOS</span>
 </h1>
+<button id="cancel-generation-btn"
+        type="button"
+        onclick="cancelCurrentGeneration()"
+        class="hidden mt-3 text-sm font-medium px-3 py-2 rounded-lg border border-red-400/40 text-red-300 hover:bg-red-500/10 transition-colors"
+        aria-label="Cancel unfinished comic and video generation">
+    Cancel Generation
+</button>
 </header>
 <!-- Active Category Detail Area -->
 <div class="glass-panel rounded-xl p-container-padding border-t-2 severity-high relative transition-all duration-500 flex-1 min-h-0 flex flex-col" id="active-category">

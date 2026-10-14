@@ -10,7 +10,11 @@ import {
   generateVideoScriptWithQwen
 } from './providers/qwen.js';
 import { renderComicWithHiDream } from './providers/hidream.js';
-import { generateVideo, checkVideoStatus } from './providers/video.js';
+import {
+  generateVideo,
+  checkVideoStatus,
+  cancelVideoGeneration
+} from './providers/video.js';
 
 function withoutSourceText(analysis) {
   if (!analysis || typeof analysis !== 'object') return analysis;
@@ -225,18 +229,22 @@ export async function generateCategoryVideoScript({ category, documentTitle } = 
   return generateVideoScriptWithQwen({ category, documentTitle });
 }
 
-export async function renderCategoryComicImage({ category, comic, documentTitle } = {}) {
+export async function renderCategoryComicImage({ category, comic, documentTitle, jobId } = {}) {
   if (!category?.id && !category?.title) throw httpError(400, 'Category is required.');
   if (!comic) throw httpError(400, 'Comic is required.');
 
-  return renderComicWithHiDream({ category, comic, documentTitle });
+  return renderComicWithHiDream({ category, comic, documentTitle, jobId });
 }
 
-export async function generateCategoryVideo({ category, documentTitle } = {}) {
+export async function generateCategoryVideo({ category, documentTitle, jobId } = {}) {
   if (!category?.title) throw httpError(400, 'Category is required.');
-  return generateVideo({ category, documentTitle });
+  return generateVideo({ category, documentTitle, jobId });
 }
 
 export async function getVideoStatus(jobId) {
   return checkVideoStatus(jobId);
+}
+
+export async function cancelCategoryVideo(jobId) {
+  return cancelVideoGeneration(jobId);
 }

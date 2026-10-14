@@ -56,7 +56,7 @@ function layoutBboxesForPanels(panelCount = 6) {
   return boxes.slice(0, count);
 }
 
-export async function renderComicWithHiDream({ category, comic, documentTitle } = {}) {
+export async function renderComicWithHiDream({ category, comic, documentTitle, jobId } = {}) {
   const baseUrl = (process.env.HIDREAM_IMAGE_API_URL || '').replace(/\/+$/, '');
   if (!baseUrl) {
     throw httpError(503, 'HiDream image service is not configured. Set HIDREAM_IMAGE_API_URL.');
@@ -80,6 +80,7 @@ export async function renderComicWithHiDream({ category, comic, documentTitle } 
       method: 'POST',
       headers,
       body: JSON.stringify({
+        jobId,
         categoryId: [category?.id || comic?.categoryId || 'category', comic?.id].filter(Boolean).join('-'),
         title: comic?.title || category?.title || documentTitle || 'EULA comic',
         prompt,
@@ -129,4 +130,43 @@ export async function renderComicWithHiDream({ category, comic, documentTitle } 
       scheduler: payload.scheduler || ''
     }
   };
+}
+
+export async function cancelHiDreamJob(jobId) {
+  if (!jobId || typeof jobId !== 'string') {
+    throw httpError(400, 'A valid HiDream job ID is required.');
+  }
+
+  const baseUrl = (process.env.HIDREAM_IMAGE_API_URL || '').replace(/\/+$/, '');
+  if (!baseUrl) {
+    throw httpError(503, 'HiDream image service is not configured.');
+  }
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (process.env.HIDREAM_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.HIDREAM_API_KEY}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/cancel`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ jobId }),
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (error) {
+    throw httpError(502, `Could not send HiDream cancellation request: ${error.message}`);
+  }
+
+  const payload = await readResponse(response);
+
+  if (!response.ok) {
+    throw httpError(
+      response.status,
+      payload.detail || payload.error || 'HiDream cancellation failed.'
+    );
+  }
+
+  return payload;
 }

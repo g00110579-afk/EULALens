@@ -1632,74 +1632,108 @@
                     );
                 };
 
-                void runMediaQueue(ensureLiveComic, 2);
-                void runMediaQueue(ensureLiveVideo, 2);
-
-                // Generate cue cards in the background AFTER opening the results page.
-                // Do not await this request: the user can inspect the analysis immediately.
-                fetch(`${LIVE_API_BASE}/api/categories/cards/batch`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        documentTitle: file.name,
-                        categories: analysis.categories || []
-                    })
-                })
-                .then(async cardsResponse => {
-                    const cardsResult = await cardsResponse.json();
+                // Give cue cards priority over comic and video generation.
+                // Start media even if card generation fails.
+                const startMediaGeneration = () => {
                     if (uploadId !== latestUploadId || categories !== liveCategories) return;
+                    void runMediaQueue(ensureLiveComic, 2);
+                    void runMediaQueue(ensureLiveVideo, 2);
+                };
 
-                    if (!cardsResponse.ok) {
-                        throw new Error(
-                            cardsResult.error ||
-                            `Cue-card generation failed (${cardsResponse.status}).`
+                void (async () => {
+                    try {
+                        const response = await fetch(
+                            `${LIVE_API_BASE}/api/categories/cards/batch/start`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    documentTitle: file.name,
+                                    categories: analysis.categories || []
+                                })
+                            }
                         );
-                    }
 
-                    const cardResults = Array.isArray(cardsResult.results)
-                        ? cardsResult.results
-                        : [];
+                        const started = await response.json();
 
-                    cardResults.forEach(cardResult => {
-                        if (!cardResult.ok || !Array.isArray(cardResult.cards)) {
-                            console.warn(
-                                'Cue cards failed for category:',
-                                cardResult.categoryId,
-                                cardResult.error
+                        if (!response.ok || !started.jobId) {
+                            throw new Error(
+                                started.error || `Cue-card job failed (${response.status}).`
                             );
-                            return;
                         }
 
-                        const liveCategory = liveCategories.find(
-                            cat => cat.id === cardResult.categoryId
+                        let cardsResult;
+
+                        while (uploadId === latestUploadId && categories === liveCategories) {
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+
+                            if (uploadId !== latestUploadId || categories !== liveCategories) return;
+
+                            const statusResponse = await fetch(
+                                `${LIVE_API_BASE}/api/categories/cards/batch/jobs/${encodeURIComponent(started.jobId)}`,
+                                { cache: 'no-store' }
+                            );
+
+                            const job = await statusResponse.json();
+
+                            if (!statusResponse.ok) {
+                                throw new Error(job.error || 'Cue-card status request failed.');
+                            }
+
+                            if (job.status === 'ready') {
+                                cardsResult = job.result;
+                                break;
+                            }
+
+                            if (job.status === 'error') {
+                                throw new Error(job.error || 'Cue-card generation failed.');
+                            }
+                        }
+
+                        if (uploadId !== latestUploadId || categories !== liveCategories) return;
+
+                        const cardResults = Array.isArray(cardsResult?.results)
+                            ? cardsResult.results
+                            : [];
+
+                        cardResults.forEach(cardResult => {
+                            if (!cardResult.ok || !Array.isArray(cardResult.cards)) {
+                                console.warn(
+                                    'Cue cards failed for category:',
+                                    cardResult.categoryId,
+                                    cardResult.error
+                                );
+                                return;
+                            }
+
+                            const liveCategory = liveCategories.find(
+                                cat => cat.id === cardResult.categoryId
+                            );
+
+                            if (liveCategory) {
+                                liveCategory.cards = cardResult.cards.map(convertLiveCard);
+                                liveCategory.cardsStatus = 'ready';
+                            }
+                        });
+
+                        const activeCategoryId =
+                            document.getElementById('active-category')?.dataset.catId;
+
+                        const activeLiveCategory = liveCategories.find(
+                            cat => cat.id === activeCategoryId
                         );
 
-                        if (liveCategory) {
-                            liveCategory.cards =
-                                cardResult.cards.map(convertLiveCard);
-                            liveCategory.cardsStatus = 'ready';
+                        if (activeLiveCategory) {
+                            updateCategoryDetails(activeLiveCategory, { scroll: false });
                         }
-                    });
 
-                    // Refresh the currently displayed category so its cards appear.
-                    const activeCategoryId =
-                        document.getElementById('active-category')?.dataset.catId;
-
-                    const activeLiveCategory = liveCategories.find(
-                        cat => cat.id === activeCategoryId
-                    );
-
-                    if (activeLiveCategory) {
-                        updateCategoryDetails(activeLiveCategory, { scroll: false });
+                        console.log('Live cue cards generated successfully.');
+                    } catch (cardError) {
+                        console.error('Live cue-card generation failed:', cardError);
+                    } finally {
+                        startMediaGeneration();
                     }
-
-                    console.log('Live cue cards generated successfully.');
-                })
-                .catch(cardError => {
-                    console.error('Live cue-card generation failed:', cardError);
-                });
+                })();
 
                 status.innerHTML = `
                     <div class="glass-panel rounded-lg p-stack-md border-l-4 severity-low text-sm text-on-surface-variant">

@@ -24,6 +24,7 @@ const app = express();
 // The browser starts a job, then polls its status so Cloudflare does not
 // have to keep one HTTP request open while Qwen and HiDream are running.
 const analysisJobs = new Map();
+const cardJobs = new Map();
 const comicJobs = new Map();
 const videoJobs = new Map();
 
@@ -115,6 +116,43 @@ app.post('/api/categories/cards', asyncRoute(async (req, res) => {
 app.post('/api/categories/cards/batch', asyncRoute(async (req, res) => {
   res.json(await generateCategoryCardsBatch(req.body));
 }));
+
+app.post('/api/categories/cards/batch/start', (req, res) => {
+  const jobId = `cards-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  cardJobs.set(jobId, {
+    jobId,
+    status: 'processing',
+    createdAt: Date.now()
+  });
+
+  res.status(202).json({ jobId, status: 'processing' });
+
+  void (async () => {
+    try {
+      const result = await generateCategoryCardsBatch(req.body);
+      const job = cardJobs.get(jobId);
+      if (!job) return;
+      job.status = 'ready';
+      job.result = result;
+      job.completedAt = Date.now();
+    } catch (error) {
+      const job = cardJobs.get(jobId);
+      if (!job) return;
+      job.status = 'error';
+      job.error = error?.message || 'Cue-card generation failed.';
+      job.completedAt = Date.now();
+      console.error(`Cue-card job ${jobId} failed:`, error);
+    }
+  })();
+});
+
+app.get('/api/categories/cards/batch/jobs/:jobId', (req, res) => {
+  const job = cardJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Cue-card job not found.' });
+  res.set('Cache-Control', 'no-store');
+  return res.json(job);
+});
 
 app.post('/api/categories/comic', asyncRoute(async (req, res) => {
   res.json(await generateCategoryComic(req.body));

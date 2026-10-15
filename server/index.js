@@ -23,6 +23,7 @@ const app = express();
 // In-memory jobs for long-running live comic generation.
 // The browser starts a job, then polls its status so Cloudflare does not
 // have to keep one HTTP request open while Qwen and HiDream are running.
+const analysisJobs = new Map();
 const comicJobs = new Map();
 const videoJobs = new Map();
 
@@ -69,6 +70,43 @@ app.get('/api/health', (_req, res) => {
 app.post('/api/analyze', asyncRoute(async (req, res) => {
   res.json(await analyzeEula(req.body));
 }));
+
+app.post('/api/analyze/start', (req, res) => {
+  const jobId = `analysis-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const payload = req.body;
+
+  analysisJobs.set(jobId, {
+    jobId,
+    status: 'processing',
+    createdAt: Date.now()
+  });
+
+  res.status(202).json({ jobId, status: 'processing' });
+
+  void (async () => {
+    try {
+      const result = await analyzeEula(payload);
+      const job = analysisJobs.get(jobId);
+      if (!job) return;
+      job.status = 'ready';
+      job.result = result;
+      job.completedAt = Date.now();
+    } catch (error) {
+      const job = analysisJobs.get(jobId);
+      if (!job) return;
+      job.status = 'error';
+      job.error = error?.message || 'EULA analysis failed.';
+      job.completedAt = Date.now();
+      console.error(`Analysis job ${jobId} failed:`, error);
+    }
+  })();
+});
+
+app.get('/api/analyze/jobs/:jobId', (req, res) => {
+  const job = analysisJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Analysis job not found.' });
+  return res.json(job);
+});
 
 app.post('/api/categories/cards', asyncRoute(async (req, res) => {
   res.json(await generateCategoryCards(req.body));

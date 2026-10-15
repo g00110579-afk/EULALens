@@ -76,6 +76,7 @@ function getQwenConfig() {
 }
 
 async function requestQwenJson({ config, messages, maxTokens, label, validate }) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
   const response = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -105,6 +106,8 @@ async function requestQwenJson({ config, messages, maxTokens, label, validate })
 
   const parsed = parseJson(content);
   if (!parsed || (validate && !validate(parsed))) {
+    console.warn(`[Qwen] ${label}: invalid JSON, attempt ${attempt}/3, finish_reason=${payload?.choices?.[0]?.finish_reason || 'unknown'}`);
+    if (attempt < 3) continue;
     throw makeQwenJsonError({
       rawOutput,
       payload,
@@ -115,6 +118,7 @@ async function requestQwenJson({ config, messages, maxTokens, label, validate })
   }
 
   return parsed;
+  }
 }
 
 function slugify(value, fallback = 'category') {
@@ -1766,8 +1770,8 @@ export async function generateCardsBatchWithQwen({ categories = [], documentTitl
 
 export async function analyzeWithQwen({ text, fileName }) {
   const config = getQwenConfig();
-  const chunkChars = readPositiveInteger(process.env.QWEN_CHUNK_CHARS, 7000);
-  const maxTokens = readPositiveInteger(process.env.QWEN_MAX_TOKENS, 2400);
+  const chunkChars = readPositiveInteger(process.env.QWEN_CHUNK_CHARS, 3500);
+  const maxTokens = readPositiveInteger(process.env.QWEN_MAX_TOKENS, 4096);
 
   const categoryPrompt = `You are an expert in legal document analysis, especially EULAs, software licenses, SaaS terms, dataset licenses, and privacy-linked terms.
 

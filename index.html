@@ -1514,7 +1514,7 @@
                         Analyzing "${file.name}" with EULALens…
                     </div>`;
 
-                const response = await fetch(`${LIVE_API_BASE}/api/analyze`, {
+                const response = await fetch(`${LIVE_API_BASE}/api/analyze/start`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1525,12 +1525,39 @@
                     })
                 });
 
-                const result = await response.json();
+                const started = await response.json();
                 if (uploadId !== latestUploadId) return;
 
-                if (!response.ok) {
-                    throw new Error(result.error || `Analysis failed (${response.status}).`);
+                if (!response.ok || !started.jobId) {
+                    throw new Error(started.error || `Analysis failed (${response.status}).`);
                 }
+
+                let result;
+                while (uploadId === latestUploadId) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    if (uploadId !== latestUploadId) return;
+
+                    const statusResponse = await fetch(
+                        `${LIVE_API_BASE}/api/analyze/jobs/${encodeURIComponent(started.jobId)}`
+                    );
+                    const job = await statusResponse.json();
+                    if (uploadId !== latestUploadId) return;
+
+                    if (!statusResponse.ok) {
+                        throw new Error(job.error || `Analysis status failed (${statusResponse.status}).`);
+                    }
+
+                    if (job.status === 'ready') {
+                        result = job.result;
+                        break;
+                    }
+
+                    if (job.status === 'error') {
+                        throw new Error(job.error || 'EULA analysis failed.');
+                    }
+                }
+
+                if (uploadId !== latestUploadId) return;
 
                 console.log('Live EULALens analysis:', result);
 

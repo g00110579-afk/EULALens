@@ -3,65 +3,64 @@
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link rel="icon" href="data:,"/>
 <title>EULALens</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     "colors": {
-                        "inverse-on-surface": "#1a2f33",
-                        "primary-fixed": "#c9e8e2",
-                        "outline": "#4a6d6d",
-                        "primary-container": "#0d2b36",
-                        "secondary": "#6fd9c9",
-                        "tertiary-container": "#0a1f28",
-                        "background": "#03070b",
-                        "secondary-container": "#3d8f82",
-                        "surface-container-low": "#0a1c24",
-                        "on-surface": "#d6e6e4",
-                        "surface-variant": "#23424b",
-                        "surface-container": "#0f232c",
-                        "on-background": "#d6e6e4",
-                        "tertiary-fixed-dim": "#8fc6be",
+                        "inverse-on-surface": "#242429",
+                        "primary-fixed": "#bfc0cb",
+                        "outline": "#494951",
+                        "primary-container": "#242429",
+                        "secondary": "#e0e0e8",
+                        "tertiary-container": "#242429",
+                        "background": "#08080a",
+                        "secondary-container": "#242429",
+                        "surface-container-low": "#242429",
+                        "on-surface": "#ededf2",
+                        "surface-variant": "#242429",
+                        "surface-container": "#242429",
+                        "on-background": "#ededf2",
+                        "tertiary-fixed-dim": "#bfc0cb",
                         "error-container": "#93000a",
                         "on-error": "#690005",
-                        "on-tertiary-fixed": "#0a1f28",
-                        "on-tertiary-container": "#9fc4bc",
-                        "on-secondary-container": "#04211c",
-                        "primary-fixed-dim": "#9fd4cb",
-                        "on-primary": "#052623",
-                        "on-secondary-fixed": "#04211c",
-                        "on-primary-fixed-variant": "#2a4e4e",
-                        "on-tertiary": "#0a1f28",
-                        "surface-container-lowest": "#020509",
-                        "primary": "#8fc6be",
+                        "on-tertiary-fixed": "#ededf2",
+                        "on-tertiary-container": "#ededf2",
+                        "on-secondary-container": "#18181c",
+                        "primary-fixed-dim": "#bfc0cb",
+                        "on-primary": "#18181c",
+                        "on-secondary-fixed": "#18181c",
+                        "on-primary-fixed-variant": "#ededf2",
+                        "on-tertiary": "#ededf2",
+                        "surface-container-lowest": "#08080a",
+                        "primary": "#e0e0e8",
                         "error": "#ffb4ab",
-                        "on-secondary-fixed-variant": "#1c5c52",
-                        "tertiary": "#8fc6be",
-                        "surface-container-high": "#152e37",
-                        "on-tertiary-fixed-variant": "#3c5a5a",
-                        "inverse-surface": "#d6e6e4",
-                        "surface-container-highest": "#1c3a44",
-                        "surface": "#03070b",
-                        "on-primary-fixed": "#052623",
-                        "on-primary-container": "#a9d4cc",
-                        "tertiary-fixed": "#c9e8e2",
-                        "surface-dim": "#03070b",
-                        "surface-tint": "#8fc6be",
-                        "secondary-fixed": "#c4ede4",
+                        "on-secondary-fixed-variant": "#ededf2",
+                        "tertiary": "#e0e0e8",
+                        "surface-container-high": "#242429",
+                        "on-tertiary-fixed-variant": "#ededf2",
+                        "inverse-surface": "#242429",
+                        "surface-container-highest": "#242429",
+                        "surface": "#08080a",
+                        "on-primary-fixed": "#18181c",
+                        "on-primary-container": "#ededf2",
+                        "tertiary-fixed": "#bfc0cb",
+                        "surface-dim": "#08080a",
+                        "surface-tint": "#e0e0e8",
+                        "secondary-fixed": "#bfc0cb",
                         "on-error-container": "#ffdad6",
-                        "secondary-fixed-dim": "#6fd9c9",
-                        "on-surface-variant": "#b7d4d0",
-                        "surface-bright": "#1e3a3a",
-                        "outline-variant": "#3a5a5a",
-                        "inverse-primary": "#2f5b56",
-                        "on-secondary": "#04211c"
+                        "secondary-fixed-dim": "#bfc0cb",
+                        "on-surface-variant": "#b5b5c0",
+                        "surface-bright": "#242429",
+                        "outline-variant": "#494951",
+                        "inverse-primary": "#bfc0cb",
+                        "on-secondary": "#18181c"
                     },
                     "borderRadius": {
                         "DEFAULT": "0.25rem",
@@ -103,462 +102,7 @@
             }
         }
     </script>
-<style>
-        html {
-            scroll-behavior: smooth;
-        }
-        body {
-            background-color: #010304;
-            position: relative;
-            overflow-x: hidden;
-        }
-        .font-mono-tech {
-            font-family: 'JetBrains Mono', ui-monospace, monospace;
-            letter-spacing: 0.04em;
-        }
-        .brand-font {
-            font-family: 'Space Grotesk', 'Inter', sans-serif;
-            letter-spacing: -0.03em;
-            font-weight: 700;
-            background: linear-gradient(120deg, #6fd9c9 0%, #8fc6be 50%, #a9e8de 100%) !important;
-            -webkit-background-clip: text !important;
-            background-clip: text !important;
-            color: transparent !important;
-            filter: drop-shadow(0 0 18px rgba(111, 217, 201, 0.35));
-        }
-        .glass-panel {
-            position: relative;
-            background: rgba(19, 40, 42, 0.45);
-            backdrop-filter: blur(24px) saturate(160%);
-            -webkit-backdrop-filter: blur(24px) saturate(160%);
-            border: 1px solid rgba(214, 230, 228, 0.16);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-        }
-        .glass-panel::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(165deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 30%, transparent 55%);
-            pointer-events: none;
-        }
-        .glass-panel-strong {
-            position: relative;
-            background: rgba(10, 25, 30, 0.78);
-            backdrop-filter: blur(32px) saturate(160%);
-            -webkit-backdrop-filter: blur(32px) saturate(160%);
-            border: 1px solid rgba(214, 230, 228, 0.22);
-            box-shadow: 0 8px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(111, 217, 201, 0.05) inset;
-            overflow: hidden;
-        }
-        .glass-panel-strong::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(165deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 30%, transparent 55%);
-            pointer-events: none;
-        }
-        .glow-border {
-            box-shadow: 0 0 0 1px rgba(111, 217, 201, 0.2), 0 0 24px rgba(111, 217, 201, 0.08);
-        }
-        .glass-card {
-            background: rgba(35, 66, 75, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(214, 230, 228, 0.12);
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
-        }
-        .glass-pill {
-            border-radius: 9999px !important;
-        }
-
-        /* --- Cue cards (flip) --- */
-        .flip-card {
-            perspective: 1000px;
-        }
-        .flip-card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            text-align: center;
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
-        }
-        .flip-card.flipped .flip-card-inner {
-            transform: rotateY(180deg);
-        }
-        .flip-card-front, .flip-card-back {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 1.25rem;
-            border-radius: 0.75rem;
-            box-sizing: border-box;
-        }
-        .flip-card-front {
-            overflow: hidden;
-            background: rgba(15, 35, 40, 0.55);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 8px 24px rgba(0, 0, 0, 0.3);
-        }
-        .flip-card-front::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(150deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.02) 32%, rgba(255, 255, 255, 0) 55%);
-            pointer-events: none;
-        }
-        .flip-card-front span.material-symbols-outlined {
-            font-size: 2rem;
-            position: relative;
-        }
-        .flip-card-front p {
-            font-family: 'Inter', sans-serif;
-            font-size: 1rem;
-            line-height: 1.4;
-            font-weight: 600;
-            position: relative;
-        }
-        .flip-card-content-scroll {
-            width: 100%;
-            max-height: 100%;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            position: relative;
-        }
-        .flip-card-back {
-            overflow: hidden;
-            transform: rotateY(180deg);
-            justify-content: flex-start;
-            background: rgba(15, 35, 40, 0.55);
-            backdrop-filter: blur(22px) saturate(180%);
-            -webkit-backdrop-filter: blur(22px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 30px rgba(0, 0, 0, 0.35);
-        }
-        .flip-card-back::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(150deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.02) 32%, rgba(255, 255, 255, 0) 55%);
-            pointer-events: none;
-        }
-        .flip-card-back p, .flip-card-back span, .flip-card-back div {
-            color: #dcf2ee !important;
-            font-family: 'Inter', sans-serif;
-            position: relative;
-        }
-        .flip-card-back .font-label-md {
-            font-size: 1.05rem;
-            font-weight: 700;
-            margin-bottom: 0.4rem;
-            color: #7fd9c9 !important;
-        }
-        .flip-card-back p.text-xs {
-            font-size: 0.95rem;
-            line-height: 1.55;
-            letter-spacing: 0.01em;
-        }
-
-        .severity-high { color: #D9705E; border-color: rgba(217, 112, 94, 0.5); }
-        .severity-medium { color: #D9A25A; border-color: rgba(217, 162, 90, 0.5); }
-        .severity-low { color: #10B981; border-color: rgba(16, 185, 129, 0.5); }
-
-        .bg-severity-high { background-color: rgba(217, 112, 94, 0.1); }
-        .bg-severity-medium { background-color: rgba(217, 162, 90, 0.1); }
-        .bg-severity-low { background-color: rgba(16, 185, 129, 0.1); }
-
-        #quick-index-dropdown {
-            max-height: 0;
-            opacity: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
-        }
-        #quick-index-dropdown.open {
-            max-height: 420px;
-            opacity: 1;
-            padding: 1rem;
-        }
-        .quick-index-group-label {
-            font-family: 'JetBrains Mono', ui-monospace, monospace;
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #909097;
-            grid-column: 1 / -1;
-            margin-top: 0.35rem;
-            padding-bottom: 0.15rem;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .quick-index-group-label:first-child { margin-top: 0; }
-
-        /* --- Comic overlay (sized to fit within one screen, no extra scroll) --- */
-        .comic-overlay-wrap {
-            position: relative;
-            width: 100%;
-            flex: 1;
-            min-height: 0;
-            margin: 0 auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .comic-overlay-wrap img {
-            max-height: 100%;
-            max-width: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-        }
-        .comic-overlay-grid {
-            position: absolute;
-            inset: 0;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            pointer-events: none;
-        }
-        .comic-overlay-cell {
-            position: relative;
-        }
-        .comic-caption-bar {
-            position: absolute;
-            left: 4%;
-            right: 4%;
-            bottom: 4%;
-            background: rgba(0,0,0,0.75);
-            color: #fff;
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 0.65rem;
-            line-height: 1.15;
-            text-align: center;
-        }
-        .comic-caption-bar .cap-title { font-weight: 700; display: block; }
-        .comic-bubble {
-            position: absolute;
-            max-width: 46%;
-            font-size: 0.6rem;
-            line-height: 1.15;
-            padding: 5px 8px;
-            border: 1.5px solid #1f2937;
-            background: #fff;
-            color: #1f2937;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.25);
-        }
-        .comic-bubble.pos-top_left { top: 4%; left: 4%; }
-        .comic-bubble.pos-top_right { top: 4%; right: 4%; }
-        .comic-bubble.pos-middle_left { top: 38%; left: 4%; }
-        .comic-bubble.pos-middle_right { top: 38%; right: 4%; }
-        .comic-bubble.pos-bottom_left { bottom: 22%; left: 4%; }
-        .comic-bubble.pos-bottom_right { bottom: 22%; right: 4%; }
-        .comic-bubble.pos-center { top: 20%; left: 27%; }
-        .comic-bubble.kind-speech { border-radius: 14px; }
-        .comic-bubble.kind-speech::after {
-            content: '';
-            position: absolute;
-            bottom: -8px; left: 16px;
-            border-width: 8px 6px 0 0;
-            border-style: solid;
-            border-color: #1f2937 transparent transparent transparent;
-        }
-        .comic-bubble.kind-thought { border-radius: 50% / 40%; font-style: italic; }
-        .comic-bubble.kind-thought::after {
-            content: '○ ○';
-            position: absolute;
-            bottom: -14px; left: 14px;
-            font-size: 0.5rem;
-            letter-spacing: 2px;
-            color: #1f2937;
-        }
-        .comic-bubble.kind-callout { border-radius: 3px; border-style: dashed; }
-        .comic-bubble.kind-warning { background: #FEF3C7; border-color: #D97706; color: #78350F; font-weight: 700; border-radius: 3px; }
-        .comic-bubble.kind-note { background: #FEF9C3; border-color: #CA8A04; color: #713F12; transform: rotate(-1.5deg); }
-        .comic-bubble.kind-caption { background: rgba(0,0,0,0.75); color: #fff; border: none; border-radius: 4px; font-style: normal; }
-
-        /* --- Insight tabs (Impact / Lookouts) --- */
-        .insight-tab-btn {
-            font-family: 'JetBrains Mono', ui-monospace, monospace;
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        /* --- Category ticker (replaces the 3D globe) --- */
-        .ticker-viewport {
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
-            mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
-        }
-        .ticker-row {
-            display: flex;
-            gap: 0.6rem;
-            width: max-content;
-            will-change: transform;
-        }
-        .ticker-row.dir-ltr { animation: tickerLTR var(--ticker-duration, 40s) linear infinite; }
-        .ticker-row.dir-rtl { animation: tickerRTL var(--ticker-duration, 40s) linear infinite; }
-        .ticker-viewport.paused .ticker-row { animation-play-state: paused; }
-        @keyframes tickerLTR {
-            from { transform: translateX(-50%); }
-            to { transform: translateX(0%); }
-        }
-        @keyframes tickerRTL {
-            from { transform: translateX(0%); }
-            to { transform: translateX(-50%); }
-        }
-        .ticker-pill {
-            flex-shrink: 0;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: transform 0.2s, filter 0.2s, border-color 0.2s;
-        }
-        .ticker-pill:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.15);
-        }
-
-        /* Category generation indicators */
-        .category-content-ready {
-            border-color: rgba(52, 211, 153, 0.75) !important;
-            box-shadow: 0 0 12px rgba(52, 211, 153, 0.28),
-                        inset 0 0 8px rgba(52, 211, 153, 0.08);
-        }
-        .category-content-generating {
-            border-color: rgba(111, 217, 201, 0.45) !important;
-        }
-        .category-status-icons {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            margin-left: 8px;
-            font-size: 12px;
-        }
-        .category-generating-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: #6fd9c9;
-            display: inline-block;
-            animation: categoryStatusPulse 1.6s ease-in-out infinite;
-        }
-        @keyframes categoryStatusPulse {
-            0%, 100% { opacity: 0.35; }
-            50% { opacity: 1; }
-        }
-
-        /* --- PDF upload dropzone --- */
-        .upload-dropzone {
-            border: 1.5px dashed rgba(111, 217, 201, 0.35);
-            transition: border-color 0.2s, background 0.2s;
-        }
-        .upload-dropzone.drag-over {
-            border-color: rgba(111, 217, 201, 0.9);
-            background: rgba(111, 217, 201, 0.06);
-        }
-
-        /* --- Tech grid background --- */
-        body {
-            background-image:
-                linear-gradient(rgba(111, 217, 201, 0.055) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(111, 217, 201, 0.055) 1px, transparent 1px);
-            background-size: 44px 44px, 44px 44px;
-            background-attachment: fixed;
-        }
-        .hero-grid {
-            position: absolute;
-            top: -10%;
-            bottom: -10%;
-            left: 50%;
-            width: 100vw;
-            transform: translateX(-50%);
-            z-index: 0;
-            pointer-events: none;
-            background-image:
-                linear-gradient(rgba(111, 217, 201, 0.10) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(111, 217, 201, 0.10) 1px, transparent 1px);
-            background-size: 44px 44px, 44px 44px;
-            -webkit-mask-image: radial-gradient(ellipse 70% 100% at 50% 50%, #000 0%, transparent 75%);
-            mask-image: radial-gradient(ellipse 70% 100% at 50% 50%, #000 0%, transparent 75%);
-        }
-
-        /* --- Learn more collapsible --- */
-        #learn-more-panel {
-            display: grid;
-            grid-template-rows: 0fr;
-            opacity: 0;
-            transition: grid-template-rows 0.5s ease, opacity 0.4s ease;
-        }
-        #learn-more-panel.open {
-            grid-template-rows: 1fr;
-            opacity: 1;
-        }
-        #learn-more-panel > div {
-            overflow: hidden;
-        }
-        #learn-more-toggle .chevron {
-            transition: transform 0.3s ease;
-        }
-        #learn-more-toggle.open .chevron {
-            transform: rotate(180deg);
-        }
-
-        #try-another-modal.flex, #categories-modal.flex {
-            display: flex;
-        }
-
-        /* --- Onboarding tutorial --- */
-        #tutorial-spotlight {
-            position: absolute;
-            pointer-events: none;
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(3, 12, 22, 0.78);
-            border: 2px solid #7bd0ff;
-            z-index: 9998;
-            opacity: 0;
-            transition: top 0.35s ease, left 0.35s ease, width 0.35s ease, height 0.35s ease, opacity 0.25s ease;
-        }
-        #tutorial-spotlight.visible { opacity: 1; }
-        #tutorial-tooltip {
-            position: fixed;
-            z-index: 9999;
-            width: 320px;
-            max-width: calc(100vw - 32px);
-            background: #0d1c2d;
-            border: 1px solid rgba(111, 217, 201, 0.35);
-            border-radius: 12px;
-            padding: 18px 20px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-            opacity: 0;
-            transform: translateY(6px);
-            transition: top 0.35s ease, left 0.35s ease, opacity 0.25s ease, transform 0.25s ease;
-            pointer-events: none;
-        }
-        #tutorial-tooltip.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        #tutorial-tooltip .tutorial-step-count { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: #7bd0ff; font-weight: 600; margin-bottom: 6px; }
-        #tutorial-tooltip h4 { font-size: 15px; font-weight: 700; color: #d4e4fa; margin-bottom: 6px; }
-        #tutorial-tooltip p { font-size: 13.5px; line-height: 1.5; color: #c6c6cd; margin-bottom: 14px; }
-        #tutorial-tooltip .tutorial-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        #tutorial-tooltip .tutorial-btn { font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: background 0.15s ease, opacity 0.15s ease; }
-        #tutorial-tooltip .tutorial-btn-skip { color: #909097; background: transparent; }
-        #tutorial-tooltip .tutorial-btn-skip:hover { color: #d4e4fa; }
-        #tutorial-tooltip .tutorial-btn-back { color: #c6c6cd; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
-        #tutorial-tooltip .tutorial-btn-back:hover { background: rgba(255,255,255,0.12); }
-        #tutorial-tooltip .tutorial-btn-back:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
-        #tutorial-tooltip .tutorial-btn-next { color: #051424; background: #7bd0ff; }
-        #tutorial-tooltip .tutorial-btn-next:hover { background: #a3ddff; }
-        #tutorial-tooltip .tutorial-btn-group { display: flex; gap: 6px; align-items: center; }
-    </style>
+<link href="ui.css" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
 <script src="live-runtime.js"></script>
 <script>
@@ -570,7 +114,6 @@
             document.getElementById('dashboard-tab').classList.add('hidden');
             document.getElementById('documents-tab').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'instant' });
-            maybeStartTutorial();
         }
 
         function updateResumeButton() {
@@ -599,40 +142,16 @@
         }
 
         function openTryAnotherDialog() {
-            const modal = document.getElementById('try-another-modal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            document.getElementById('cat-video')?.pause();
+            document.getElementById('try-another-modal').showModal();
         }
-
         function closeTryAnotherDialog() {
-            const modal = document.getElementById('try-another-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+            document.getElementById('try-another-modal').close();
         }
-
         function selectFromDialog(doc) {
             switchDocument(doc);
             closeTryAnotherDialog();
-            // Always pop back up to the top of the output when a new EULA is picked
             window.scrollTo({ top: 0, behavior: 'instant' });
-        }
-
-        function openCategoriesDialog() {
-            const modal = document.getElementById('categories-modal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeCategoriesDialog() {
-            const modal = document.getElementById('categories-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        function selectFromCategoriesDialog(catId) {
-            const cat = categories.find(c => c.id === catId);
-            if (cat) updateCategoryDetails(cat);
-            closeCategoriesDialog();
         }
 
         function renderComicForCategory(cat) {
@@ -643,6 +162,9 @@
             renderComicScenarios(cat);
             if (activeDocument === 'live' && cat.comicStatus !== 'ready') {
                 image.removeAttribute('src'); grid.replaceChildren();
+                Object.assign(grid.style, { left: '0', top: '0', right: '0', bottom: '0', width: '100%', height: '100%' });
+                document.getElementById('comic-open-link')?.classList.add('hidden');
+                document.getElementById('comic-transcript')?.classList.add('hidden');
                 const labels = { idle: 'Comic queued for generation.', queued: 'Comic queued…', running: 'Preparing comic…', processing: 'Preparing comic…', canceling: 'Canceling comic…', 'generating-story': 'Generating comic story…', 'rendering-image': 'Rendering comic artwork…', reconnecting: 'Reconnecting to the existing comic job…', canceled: 'Comic generation canceled.', error: cat.comicError || 'Comic generation failed.' };
                 title.textContent = 'Comic';
                 const message = document.createElement('div');
@@ -658,6 +180,8 @@
             }
             title.textContent = cat.comicTitle || '';
             const url = EULALensRuntime.safeUrl(cat.comic, window.location.href);
+            const openLink = document.getElementById('comic-open-link');
+            if (openLink) { openLink.classList.toggle('hidden', !url); if (url) openLink.href = url; else openLink.removeAttribute('href'); }
             if (url) image.src = url; else image.removeAttribute('src');
             image.alt = 'Comic explanation';
             const scenes = Array.isArray(cat.comicScenes) ? cat.comicScenes : [];
@@ -672,6 +196,13 @@
                 }).join('');
                 return `<div class="comic-overlay-cell">${bubbles}<div class="comic-caption-bar"><span class="cap-title">${escapeHtml(scene.title)}</span>${escapeHtml(scene.caption)}</div></div>`;
             }).join('');
+            const transcript = document.getElementById('comic-transcript-scenes');
+            if (transcript) transcript.innerHTML = scenes.map(scene => {
+                const slots = scene.slots || scene.overlaySlots || scene.overlay_slots || scene.bubbles || [];
+                const dialogue = (Array.isArray(slots) ? slots : []).map(slot => `<p>${escapeHtml(slot.text)}</p>`).join('');
+                return `<li><h4>${escapeHtml(scene.title)}</h4><p>${escapeHtml(scene.caption)}</p>${dialogue}</li>`;
+            }).join('');
+            document.getElementById('comic-transcript')?.classList.toggle('hidden', !scenes.length);
             image.onload = positionComicOverlay;
             if (image.complete) requestAnimationFrame(positionComicOverlay);
         }
@@ -1010,14 +541,8 @@
             });
 
             Object.keys(buttons).forEach(key => {
-                const btn = buttons[key];
-                if (key === tab) {
-                    btn.classList.add('border-secondary', 'text-secondary', 'bg-secondary/10');
-                    btn.classList.remove('border-transparent', 'text-on-surface-variant');
-                } else {
-                    btn.classList.remove('border-secondary', 'text-secondary', 'bg-secondary/10');
-                    btn.classList.add('border-transparent', 'text-on-surface-variant');
-                }
+                buttons[key].setAttribute('aria-selected', String(key === tab));
+                buttons[key].setAttribute('tabindex', key === tab ? '0' : '-1');
             });
 
             if (tab === 'comic') {
@@ -1089,46 +614,53 @@
             const isOpen = !wrap.classList.contains('hidden');
             wrap.classList.toggle('hidden', isOpen);
             chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+            document.getElementById(`insight-accbtn-${tab}`).setAttribute('aria-expanded', String(!isOpen));
         }
 
         function collapseInsightPanels() {
             ['impact', 'lookouts'].forEach(tab => {
                 document.getElementById(`insight-panel-${tab}-wrap`).classList.add('hidden');
                 document.getElementById(`insight-chevron-${tab}`).style.transform = 'rotate(0deg)';
+                document.getElementById(`insight-accbtn-${tab}`).setAttribute('aria-expanded', 'false');
             });
         }
 
-        function toggleQuickIndex() {
-            const dropdown = document.getElementById('quick-index-dropdown');
-            dropdown.classList.toggle('open');
-        }
-
-        // Categories sorted high risk first, then medium (then anything else), for
-        // the ticker dialog, the Quick Index list, and "Next Category" navigation.
+        // One category order is shared by the picker and Previous/Next.
         const RISK_ORDER = { high: 0, medium: 1, low: 2 };
         function getSortedCategories() {
             return [...categories].sort((a, b) => (RISK_ORDER[a.risk] ?? 9) - (RISK_ORDER[b.risk] ?? 9));
         }
-
-        function nextCategory() {
+        function selectCategory(id) {
+            const cat = categories.find(item => item.id === id);
+            if (!cat) return;
+            const format = currentFormat;
+            updateCategoryDetails(cat, { scroll: false });
+            switchRightTab(format);
+        }
+        function moveCategory(offset) {
             const sorted = getSortedCategories();
             const currentId = document.getElementById('active-category').dataset.catId;
-            const idx = sorted.findIndex(c => c.id === currentId);
-            const next = sorted[(idx + 1) % sorted.length];
-            updateCategoryDetails(next, { scroll: false });
+            const index = sorted.findIndex(cat => cat.id === currentId);
+            const next = sorted[index + offset];
+            if (!next) return;
+            selectCategory(next.id);
+            document.getElementById('active-category').scrollIntoView({ behavior: 'instant', block: 'start' });
         }
+        function nextCategory() { moveCategory(1); }
+        function previousCategory() { moveCategory(-1); }
 
-        // --- Learn more (workflow diagram / abstract / people / paper) ---
         function toggleLearnMore() {
             const panel = document.getElementById('learn-more-panel');
-            const btn = document.getElementById('learn-more-toggle');
-            const opening = !panel.classList.contains('open');
-            panel.classList.toggle('open', opening);
-            btn.classList.toggle('open', opening);
-            btn.querySelector('.toggle-label').textContent = opening ? 'Show less' : 'Learn more';
-            if (opening) {
-                setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
-            }
+            const button = document.getElementById('learn-more-toggle');
+            const opening = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !opening);
+            button.setAttribute('aria-expanded', String(opening));
+            button.querySelector('.toggle-label').textContent = opening ? 'Show less' : 'Learn more';
+        }
+        function showResearch() {
+            backToHome();
+            if (document.getElementById('learn-more-panel').classList.contains('hidden')) toggleLearnMore();
+            document.getElementById('learn-more-panel').scrollIntoView({ behavior: 'instant', block: 'start' });
         }
 
         // --- "Try it yourself" PDF upload (demo UI) ---
@@ -1292,7 +824,7 @@
             if (livePdfUrl) fallback.href = livePdfUrl;
             else fallback.removeAttribute('href');
             document.getElementById('doc-analysis-title').textContent = `Document Analysis: ${file?.name || run.documentTitle}`;
-            renderQuickIndex(); renderCategoryTickers();
+            renderCategoryNavigation();
             updateCategoryDetails(getSortedCategories()[0], { scroll: false });
             document.getElementById('dashboard-tab').classList.add('hidden');
             document.getElementById('documents-tab').classList.remove('hidden');
@@ -1439,246 +971,6 @@
 
 
 
-        // --- Onboarding tutorial ---
-        const TUTORIAL_STORAGE_KEY = 'eulalens_tutorial_done';
-
-        const tutorialSteps = [
-            {
-                selector: '#active-category',
-                title: 'Straight to the Point',
-                body: "We start you right on the highest-risk category we found — its summary, real-world impact, and lookouts all show up here.",
-                scroll: 'start'
-            },
-            {
-                selector: '#insight-tabs',
-                title: 'Impact & Lookouts',
-                body: 'These two tabs explain what the clause actually means for you, and the exact phrases to watch for in the text.',
-                scroll: 'center'
-            },
-            {
-                selector: '#tabbtn-video',
-                title: 'Video Explainers',
-                body: 'Watch a short video walking through what this clause means — the fastest way to understand it.',
-                scroll: 'center',
-                before: () => switchRightTab('video')
-            },
-            {
-                selector: '#tabbtn-cards',
-                title: 'Cue Cards',
-                body: 'Flip through question-and-answer cue cards that break the clause down even further.',
-                scroll: 'center',
-                before: () => switchRightTab('cards')
-            },
-            {
-                selector: '#tabbtn-comic',
-                title: 'Comics',
-                body: 'See the clause acted out as a short illustrated comic strip — an easy way to understand what it actually means.',
-                scroll: 'center',
-                before: () => switchRightTab('comic')
-            },
-            {
-                selector: '#tabbtn-eula',
-                title: 'Original EULA Text',
-                body: "Want the source? This tab shows the actual EULA PDF side-by-side, so you can always verify information yourself.",
-                scroll: 'center',
-                before: () => switchRightTab('eula')
-            },
-            {
-                selector: '#next-category-btn',
-                title: 'Keep Going',
-                body: "Click here to jump to the next category, ordered from highest to lowest risk.",
-                scroll: 'center',
-                after: () => switchRightTab('video')
-            },
-            {
-                selector: '#categories-btn',
-                title: 'See Everything at Once',
-                body: 'Open this to see every category from this EULA, sorted by risk level, scrolling by like headlines. Click any one to jump straight to it.',
-                scroll: 'center'
-            },
-            {
-                selector: '#quick-index-btn',
-                title: 'Or Use the Quick Index',
-                body: 'Prefer a simple list? Open the Quick Index for every category sorted by risk — click any entry to jump straight to it.',
-                scroll: 'center',
-                before: () => {
-                    const dropdown = document.getElementById('quick-index-dropdown');
-                    if (dropdown && !dropdown.classList.contains('open')) dropdown.classList.add('open');
-                },
-                after: () => {
-                    const dropdown = document.getElementById('quick-index-dropdown');
-                    if (dropdown) dropdown.classList.remove('open');
-                }
-            },
-            {
-                selector: '#try-another-btn',
-                title: 'Try Another EULA',
-                body: "Curious about a different app's terms? Click here anytime to switch to another EULA.",
-                scroll: 'center'
-            }
-        ];
-
-        let tutorialStepIndex = 0;
-        let tutorialActive = false;
-        let tutorialReflowHandler = null;
-        let tutorialClickTarget = null;
-        let tutorialClickHandler = null;
-
-        function clearTutorialClickAdvance() {
-            if (tutorialClickTarget && tutorialClickHandler) {
-                tutorialClickTarget.removeEventListener('click', tutorialClickHandler);
-            }
-            tutorialClickTarget = null;
-            tutorialClickHandler = null;
-        }
-
-        function attachTutorialClickAdvance(step) {
-            clearTutorialClickAdvance();
-            if (!step || !step.selector) return;
-            const target = document.querySelector(step.selector);
-            if (!target) return;
-            tutorialClickTarget = target;
-            tutorialClickHandler = () => {
-                // Let the highlighted element's own click behavior run first (e.g. selecting
-                // a category, switching a tab), then advance the tour on top of that.
-                setTimeout(() => { if (tutorialActive) nextTutorialStep(); }, 0);
-            };
-            target.addEventListener('click', tutorialClickHandler);
-        }
-
-        function maybeStartTutorial() {
-            let done = false;
-            try { done = localStorage.getItem(TUTORIAL_STORAGE_KEY) === '1'; } catch (e) { done = false; }
-            if (done) return;
-            setTimeout(() => startTutorial(false), 700);
-        }
-
-        function startTutorial(forceRestart) {
-            if (tutorialActive && !forceRestart) return;
-            tutorialStepIndex = 0;
-            tutorialActive = true;
-            document.getElementById('tutorial-spotlight').classList.add('visible');
-            document.getElementById('tutorial-tooltip').classList.add('visible');
-            renderTutorialStep();
-
-            if (!tutorialReflowHandler) {
-                tutorialReflowHandler = () => { if (tutorialActive) positionTutorialUI(tutorialSteps[tutorialStepIndex]); };
-                window.addEventListener('resize', tutorialReflowHandler);
-                window.addEventListener('scroll', tutorialReflowHandler, { passive: true });
-            }
-        }
-
-        function renderTutorialStep() {
-            const step = tutorialSteps[tutorialStepIndex];
-            if (!step) { endTutorial(); return; }
-
-            if (typeof step.before === 'function') {
-                try { step.before(); } catch (e) { /* noop */ }
-            }
-
-            document.getElementById('tutorial-step-count').textContent = `${tutorialStepIndex + 1}/${tutorialSteps.length}`;
-            document.getElementById('tutorial-title').textContent = step.title;
-            document.getElementById('tutorial-body').textContent = step.body;
-
-            const backBtn = document.getElementById('tutorial-back-btn');
-            const nextBtn = document.getElementById('tutorial-next-btn');
-            backBtn.disabled = tutorialStepIndex === 0;
-            nextBtn.textContent = tutorialStepIndex === tutorialSteps.length - 1 ? 'Finish' : 'Next';
-
-            const target = document.querySelector(step.selector);
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: step.scroll || 'center' });
-            }
-            attachTutorialClickAdvance(step);
-            setTimeout(() => positionTutorialUI(step), 380);
-        }
-
-        function positionTutorialUI(step) {
-            if (!tutorialActive) return;
-            const target = document.querySelector(step.selector);
-            const spotlight = document.getElementById('tutorial-spotlight');
-            const tooltip = document.getElementById('tutorial-tooltip');
-            if (!target) { spotlight.classList.remove('visible'); return; }
-            spotlight.classList.add('visible');
-
-            const rect = target.getBoundingClientRect();
-            const pad = 8;
-
-            // Spotlight tracks the target in document coordinates (it scrolls with the page).
-            spotlight.style.top = `${window.scrollY + rect.top - pad}px`;
-            spotlight.style.left = `${window.scrollX + rect.left - pad}px`;
-            spotlight.style.width = `${rect.width + pad * 2}px`;
-            spotlight.style.height = `${rect.height + pad * 2}px`;
-
-            // Tooltip is viewport-fixed and always clamped inside the visible viewport,
-            // so it's never off-screen and never requires scrolling to read.
-            const viewportW = document.documentElement.clientWidth;
-            const viewportH = window.innerHeight;
-            const margin = 16;
-            const tooltipWidth = tooltip.offsetWidth || 320;
-            const tooltipHeight = tooltip.offsetHeight || 150;
-
-            const spaceBelow = viewportH - rect.bottom;
-            const spaceAbove = rect.top;
-
-            let tTop;
-            if (spaceBelow >= tooltipHeight + 24) {
-                tTop = rect.bottom + 12;
-            } else if (spaceAbove >= tooltipHeight + 24) {
-                tTop = rect.top - tooltipHeight - 12;
-            } else {
-                // Neither side has room (e.g. a tall target) - dock to whichever side has more space.
-                tTop = spaceBelow > spaceAbove ? rect.bottom + 12 : rect.top - tooltipHeight - 12;
-            }
-            tTop = Math.max(margin, Math.min(tTop, viewportH - tooltipHeight - margin));
-
-            let tLeft = rect.left + rect.width / 2 - tooltipWidth / 2;
-            tLeft = Math.max(margin, Math.min(tLeft, viewportW - tooltipWidth - margin));
-
-            tooltip.style.top = `${tTop}px`;
-            tooltip.style.left = `${tLeft}px`;
-        }
-
-        function nextTutorialStep() {
-            const step = tutorialSteps[tutorialStepIndex];
-            if (step && typeof step.after === 'function') {
-                try { step.after(); } catch (e) { /* noop */ }
-            }
-            tutorialStepIndex++;
-            if (tutorialStepIndex >= tutorialSteps.length) {
-                endTutorial();
-            } else {
-                renderTutorialStep();
-            }
-        }
-
-        function prevTutorialStep() {
-            if (tutorialStepIndex === 0) return;
-            const step = tutorialSteps[tutorialStepIndex];
-            if (step && typeof step.after === 'function') {
-                try { step.after(); } catch (e) { /* noop */ }
-            }
-            tutorialStepIndex--;
-            renderTutorialStep();
-        }
-
-        function skipTutorial() {
-            const step = tutorialSteps[tutorialStepIndex];
-            if (step && typeof step.after === 'function') {
-                try { step.after(); } catch (e) { /* noop */ }
-            }
-            endTutorial();
-        }
-
-        function endTutorial() {
-            tutorialActive = false;
-            clearTutorialClickAdvance();
-            document.getElementById('tutorial-spotlight').classList.remove('visible');
-            document.getElementById('tutorial-tooltip').classList.remove('visible');
-            try { localStorage.setItem(TUTORIAL_STORAGE_KEY, '1'); } catch (e) { /* noop */ }
-        }
-
-        // Real category data sourced from precomputed.json
         const zoomCategories = [
     {
         "id": "system-requirements-responsibility",
@@ -19863,139 +19155,49 @@
         let activeDocument = 'zoom';
         let categories = zoomCategories;
 
-        function getCategoryGenerationState(cat) {
-            const comicReady = cat.comicStatus === 'ready' && !!cat.comic;
-            const videoReady = cat.videoStatus === 'ready' && !!cat.video;
-            const generating = [
-                'generating-story', 'rendering-image',
-                'generating-script', 'generating-video', 'queued'
-            ].includes(cat.comicStatus) || [
-                'generating-story', 'rendering-image',
-                'generating-script', 'generating-video', 'queued'
-            ].includes(cat.videoStatus);
-
-            return { comicReady, videoReady, generating };
-        }
-
         function updateCategoryGenerationIndicators() {
-            document.querySelectorAll('[data-generation-category-id]').forEach(el => {
-                const cat = categories.find(
-                    c => String(c.id) === el.dataset.generationCategoryId
-                );
-                if (!cat) return;
-
-                const state = getCategoryGenerationState(cat);
-                const ready = state.comicReady || state.videoReady;
-
-                el.classList.toggle('category-content-ready', ready);
-                el.classList.toggle('category-content-generating', !ready && state.generating);
-
-                const icons = el.querySelector('.category-status-icons');
-                if (icons) {
-                    icons.replaceChildren();
-
-                    if (state.comicReady) {
-                        const icon = document.createElement('span');
-                        icon.textContent = '🎨';
-                        icon.title = 'Comic ready';
-                        icons.appendChild(icon);
-                    }
-                    if (state.videoReady) {
-                        const icon = document.createElement('span');
-                        icon.textContent = '🎬';
-                        icon.title = 'Video ready';
-                        icons.appendChild(icon);
-                    }
-                    if (state.generating) {
-                        const dot = document.createElement('span');
-                        dot.className = 'category-generating-dot';
-                        dot.title = 'Content generating';
-                        icons.appendChild(dot);
-                    }
-                }
-            });
-        }
-
-        function renderQuickIndex() {
-            const grid = document.getElementById('quick-index-grid');
-            grid.innerHTML = '';
-            const riskColor = { high: '#D9705E', medium: '#D9A25A', low: '#10B981' };
-            const riskLabel = { high: 'High Risk', medium: 'Medium Risk', low: 'Low Risk' };
-            const sorted = getSortedCategories();
-
-            let lastRisk = null;
-            sorted.forEach((cat) => {
-                if (cat.risk !== lastRisk) {
-                    const label = document.createElement('div');
-                    label.className = 'quick-index-group-label';
-                    label.textContent = riskLabel[cat.risk] || cat.risk;
-                    grid.appendChild(label);
-                    lastRisk = cat.risk;
-                }
-                const btn = document.createElement('button');
-                btn.className = 'text-left px-2 py-1 rounded-md border border-transparent hover:bg-white/5 transition-colors flex justify-between items-center group text-on-surface-variant hover:text-on-surface text-xs';
-                btn.dataset.generationCategoryId = cat.id;
-                btn.innerHTML = `<span class="font-label-md truncate">${escapeHtml(cat.name)}</span><span class="category-status-icons"></span><span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1" style="background-color:${riskColor[cat.risk] || '#10B981'}"></span>`;
-                btn.onclick = () => {
-                    updateCategoryDetails(cat);
-                    document.getElementById('quick-index-dropdown').classList.remove('open');
-                };
-                grid.appendChild(btn);
-            });
-            updateCategoryGenerationIndicators();
-        }
-
-        // --- Category ticker (replaces the old 3D globe): categories scroll by like
-        // news headlines in three alternating-direction rows, split by risk level. ---
-        function buildTickerRows(list, containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            if (!list.length) {
-                container.innerHTML = `<p class="text-sm text-on-surface-variant px-2">No categories at this risk level.</p>`;
-                return;
+            const container = document.getElementById('generation-status');
+            if (!container) return;
+            const cat = categories.find(item => item.id === document.getElementById('active-category')?.dataset.catId);
+            container.classList.toggle('hidden', activeDocument !== 'live' || !cat);
+            if (activeDocument !== 'live' || !cat) return;
+            const labels = { idle: 'Queued', queued: 'Queued', generating: 'Generating', running: 'Generating', processing: 'Generating', 'generating-story': 'Preparing story', 'rendering-image': 'Rendering image', 'generating-script': 'Preparing script', 'generating-video': 'Rendering video', ready: 'Ready', error: 'Failed', canceled: 'Canceled', canceling: 'Canceling', reconnecting: 'Reconnecting' };
+            container.replaceChildren();
+            for (const [key, title] of [['cards', 'Cue cards'], ['comic', 'Comic'], ['video', 'Video']]) {
+                const item = document.createElement('span');
+                item.textContent = `${title}: ${labels[cat[key + 'Status']] || 'Queued'}`;
+                container.appendChild(item);
             }
-
-            const rowCount = 3;
-            const rows = Array.from({ length: rowCount }, () => []);
-            list.forEach((cat, i) => rows[i % rowCount].push(cat));
-
-            rows.forEach((rowCats, i) => {
-                if (!rowCats.length) return;
-                const dir = i % 2 === 0 ? 'dir-ltr' : 'dir-rtl';
-                const viewport = document.createElement('div');
-                viewport.className = 'ticker-viewport mb-2';
-
-                const track = document.createElement('div');
-                track.className = `ticker-row ${dir}`;
-                track.style.setProperty('--ticker-duration', `${18 + rowCats.length * 4}s`);
-
-                // Duplicate the row's content once so the loop is seamless.
-                const renderPills = () => rowCats.map(cat => {
-                    const pill = document.createElement('button');
-                    pill.className = `ticker-pill glass-panel severity-${cat.risk} border rounded-full px-4 py-2 font-label-md text-xs md:text-sm`;
-                    pill.dataset.generationCategoryId = cat.id;
-                    const name = document.createElement('span');
-                    name.textContent = cat.name;
-                    const icons = document.createElement('span');
-                    icons.className = 'category-status-icons';
-                    pill.append(name, icons);
-                    pill.onclick = () => selectFromCategoriesDialog(cat.id);
-                    return pill;
-                });
-                renderPills().forEach(p => track.appendChild(p));
-                renderPills().forEach(p => track.appendChild(p));
-
-                viewport.appendChild(track);
-                container.appendChild(viewport);
-            });
         }
 
-        function renderCategoryTickers() {
-            const high = categories.filter(c => c.risk === 'high');
-            const medium = categories.filter(c => c.risk === 'medium');
-            buildTickerRows(high, 'ticker-high');
-            buildTickerRows(medium, 'ticker-medium');
-            updateCategoryGenerationIndicators();
+        function renderCategoryNavigation() {
+            const picker = document.getElementById('category-select');
+            if (!picker) return;
+            const selected = document.getElementById('active-category')?.dataset.catId;
+            const sorted = getSortedCategories();
+            picker.replaceChildren();
+            let group, lastRisk;
+            for (const cat of sorted) {
+                if (cat.risk !== lastRisk) {
+                    group = document.createElement('optgroup');
+                    group.label = `${cat.risk.charAt(0).toUpperCase() + cat.risk.slice(1)} Risk`;
+                    picker.appendChild(group); lastRisk = cat.risk;
+                }
+                const option = document.createElement('option');
+                option.value = cat.id; option.textContent = cat.name;
+                option.selected = cat.id === selected;
+                group.appendChild(option);
+            }
+            syncCategoryPosition();
+        }
+        function syncCategoryPosition() {
+            const sorted = getSortedCategories();
+            const selected = document.getElementById('active-category')?.dataset.catId;
+            const index = sorted.findIndex(cat => cat.id === selected);
+            document.getElementById('category-select').value = selected || '';
+            document.getElementById('category-position').textContent = index < 0 ? '' : `${index + 1} / ${sorted.length}`;
+            document.getElementById('previous-category-btn').disabled = index <= 0;
+            document.getElementById('next-category-btn').disabled = index < 0 || index >= sorted.length - 1;
         }
 
         const originalEulaPaths = {
@@ -20042,16 +19244,14 @@
 
             setEulaSource(doc);
 
-            renderQuickIndex();
-            renderCategoryTickers();
+            renderCategoryNavigation();
             // Land directly on the highest-risk category's output — no globe/landing step.
             updateCategoryDetails(getSortedCategories()[0], { scroll: false });
         }
 
         document.addEventListener("DOMContentLoaded", () => {
             setEulaSource(activeDocument);
-            renderQuickIndex();
-            renderCategoryTickers();
+            renderCategoryNavigation();
             updateCategoryDetails(getSortedCategories()[0], { scroll: false });
             initUploadDropzone();
             updateResumeButton();
@@ -20062,12 +19262,16 @@
         function renderSourceEvidence(cat) {
             const container = document.getElementById('source-evidence');
             if (!container) return;
+            const previous = container.querySelector('details');
+            const expanded = previous?.dataset.categoryId === cat.id && previous.open;
+            const restoreFocus = Boolean(previous && previous.querySelector('summary') === document.activeElement);
             container.replaceChildren();
             const segments = Array.isArray(cat.sourceSegments) ? cat.sourceSegments : [];
             container.classList.toggle('hidden', activeDocument !== 'live');
             if (activeDocument !== 'live') return;
             const details = document.createElement('details');
-            details.className = 'text-xs text-on-surface-variant p-2 max-h-48 overflow-auto';
+            details.className = 'supporting-clauses';
+            details.dataset.categoryId = cat.id; details.open = Boolean(expanded);
             const heading = document.createElement('summary'); heading.textContent = 'Supporting clauses';
             details.appendChild(heading);
             for (const segment of segments) {
@@ -20078,6 +19282,7 @@
             }
             if (!segments.length) { const note = document.createElement('p'); note.textContent = 'No source excerpts were returned for this category.'; details.appendChild(note); }
             container.appendChild(details);
+            if (restoreFocus) heading.focus({ preventScroll: true });
             if (!livePdfUrl) {
                 const note = document.createElement('p'); note.className = 'text-xs p-2 text-on-surface-variant';
                 note.textContent = 'The original PDF stays on your device. Upload it again to reopen the PDF viewer.';
@@ -20089,36 +19294,29 @@
             const { scroll = true, preserveFormat = false } = options;
             if (!cat) return;
             const activeCategory = document.getElementById('active-category');
+            const sameCategory = activeCategory.dataset.catId === cat.id;
+            const focusedCard = preserveFormat && sameCategory && document.activeElement?.matches?.('#cat-cards summary')
+                ? document.activeElement.parentElement.dataset.cardIndex : null;
+            const expandedCards = preserveFormat && sameCategory
+                ? new Set([...document.querySelectorAll('#cat-cards details[open]')].map(node => node.dataset.cardIndex)) : new Set();
             activeCategory.dataset.catId = cat.id;
 
-            // Update panel classes (preserve the flex layout classes used for fit-to-screen sizing)
-            activeCategory.className = `glass-panel rounded-xl p-container-padding border-t-2 severity-${cat.risk} relative transition-all duration-500 flex-1 min-h-0 flex flex-col`;
+            activeCategory.className = 'glass-panel category-panel';
 
             // Update Title and Badge
             document.getElementById('cat-title').textContent = cat.name;
             const badge = document.getElementById('cat-badge');
             badge.textContent = `${cat.risk} Risk`;
-            badge.className = `px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider border severity-${cat.risk} bg-severity-${cat.risk} shadow-lg`;
+            badge.className = `risk-badge severity-${cat.risk}`;
 
-            if(cat.risk === 'high') badge.style.boxShadow = '0 0 10px rgba(217,112,94,0.2)';
-            else if(cat.risk === 'medium') badge.style.boxShadow = '0 0 10px rgba(217,162,90,0.2)';
-            else badge.style.boxShadow = '0 0 10px rgba(16,185,129,0.2)';
 
             // Update Summary
             document.getElementById('cat-summary').innerHTML = `<p>${escapeHtml(cat.summary)}</p>`;
 
-            // Update Impact and Lookouts (shown as tabs)
+            // Update Impact and Lookouts while preserving expanded panels during generation.
             document.getElementById('cat-impact').innerHTML = cat.impact.map(i => `<li>${escapeHtml(i)}</li>`).join('');
             document.getElementById('cat-lookouts').innerHTML = cat.lookouts.map(i => `<li>${escapeHtml(i)}</li>`).join('');
-            collapseInsightPanels();
-
-            // Match the Impact/Lookouts border color to this category's real risk level
-            // (was previously hardcoded to severity-high for every category)
-            ['insight-box-impact', 'insight-box-lookouts'].forEach(id => {
-                const box = document.getElementById(id);
-                box.classList.remove('severity-high', 'severity-medium', 'severity-low');
-                box.classList.add(`severity-${cat.risk}`);
-            });
+            if (!preserveFormat || !sameCategory) collapseInsightPanels();
 
             // Update Cards
             const cardsContainer = document.getElementById('cat-cards');
@@ -20143,23 +19341,15 @@
                 errorBox.append(message, retry); cardsContainer.appendChild(errorBox);
             }
 
-            cat.cards.forEach(cardData => {
+            cat.cards.forEach((cardData, index) => {
                 cardsContainer.insertAdjacentHTML('beforeend', `
-                    <div class="flip-card h-48 cursor-pointer group" onclick="this.classList.toggle('flipped')">
-                        <div class="flip-card-inner rounded-lg">
-                            <div class="flip-card-front">
-                                <span class="material-symbols-outlined text-secondary mb-2">${escapeHtml(cardData.icon)}</span>
-                                <p class="font-label-sm text-center">${escapeHtml(cardData.front)}</p>
-                            </div>
-                            <div class="flip-card-back border border-white/20">
-                                <div class="flip-card-content-scroll">
-                                    <p class="font-label-md font-bold mb-1">${escapeHtml(cardData.backTitle)}</p>
-                                    <p class="text-xs text-center">${escapeHtml(cardData.backDetail)}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`);
+                    <details class="cue-card" data-card-index="${index}" ${expandedCards.has(String(index)) ? 'open' : ''}>
+                        <summary>${escapeHtml(cardData.front)}<span class="material-symbols-outlined" aria-hidden="true">expand_more</span></summary>
+                        <div class="cue-card-answer"><h3>${escapeHtml(cardData.backTitle)}</h3><p>${escapeHtml(cardData.backDetail)}</p></div>
+                    </details>`);
             });
+
+            if (focusedCard !== null) cardsContainer.querySelector(`details[data-card-index="${focusedCard}"] summary`)?.focus({ preventScroll: true });
 
             // Update Comic
             renderComicForCategory(cat);
@@ -20176,9 +19366,11 @@
             }
 
             // Show Cards first for immediate results.
-            // Comic and Video are generated on demand when their tabs are opened.
+            // Existing media jobs are reused when their tabs are opened.
             if (!preserveFormat) switchRightTab('cards');
             renderSourceEvidence(cat);
+            syncCategoryPosition();
+            updateCategoryGenerationIndicators();
 
             // Scroll the category + format area into view when the user picked it
             // (not on the initial render, to avoid an unwanted jump on page load)
@@ -20188,86 +19380,34 @@
             }
         }
     </script>
-<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col antialiased selection:bg-secondary/30">
-<!-- TopNavBar -->
-<header class="bg-surface/60 backdrop-blur-xl dark:bg-surface/60 font-display-lg text-title-lg docked full-width top-0 border-b border-white/10 shadow-sm transition-all duration-300 ease-in-out fixed top-0 w-full z-50 flex justify-between items-center px-container-padding h-16">
-<div class="flex items-center gap-4 cursor-pointer" onclick="backToHome()">
-<span class="brand-font text-headline-md text-on-surface tracking-tight">EULALens</span>
-</div>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="glass-background" aria-hidden="true"><div class="glass-shard shard-a"></div><div class="glass-shard shard-b"></div><div class="glass-shard shard-c"></div><div class="glass-shard shard-d"></div><div class="glass-shard shard-e"></div></div>
+<header class="site-header">
+<button type="button" class="brand-link" onclick="backToHome()" aria-label="EULALens home"><span class="material-symbols-outlined" aria-hidden="true">document_scanner</span><span>EULALens</span></button>
+<button type="button" class="quiet-button" onclick="showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button>
 </header>
-<!-- Dashboard Tab -->
-<div class="flex-1 pt-16 w-full overflow-y-auto" id="dashboard-tab">
-<main class="w-full max-w-5xl mx-auto px-container-padding md:px-stack-lg pb-container-padding md:pb-stack-lg pt-2">
-<header class="mb-stack-md text-center relative overflow-hidden rounded-2xl pt-2 pb-6 md:pb-8 px-4">
-<div class="hero-grid" aria-hidden="true"></div>
-<div class="relative z-10">
-<p class="font-mono-tech text-xs text-secondary uppercase mb-2">AI-Powered EULA Analysis</p>
-<h1 class="brand-font text-display-lg text-on-surface mb-3">EULALens</h1>
-<p class="text-body-lg text-on-surface-variant font-body-lg max-w-2xl mx-auto">EULALens reads the terms of service you would normally skip and turns wordy clauses into straightforward summaries: comics, cue cards, and short videos. See exactly what you agree to.</p>
-</div>
-</header>
-<!-- Try it yourself: PDF upload -->
-<section class="mb-stack-lg glass-panel-strong rounded-xl p-container-padding shadow-lg">
-<h2 class="font-headline-md text-headline-md text-on-surface mb-stack-sm border-b border-white/10 pb-4 flex items-center gap-3">
-<span class="material-symbols-outlined text-secondary">upload_file</span> Try it yourself
-                </h2>
-<p class="text-on-surface-variant font-body-md mb-stack-md">Upload a EULA or terms-of-service PDF and see it broken down into plain-English categories, comics, cue cards, and videos.</p>
-<button id="resume-analysis-btn"
-        type="button"
-        onclick="resumeLiveAnalysis()"
-        class="hidden mb-4 px-5 py-3 rounded-xl bg-secondary text-on-secondary font-medium hover:opacity-90 transition-opacity">
-    Resume Analysis
-</button>
-<div class="upload-dropzone rounded-xl p-stack-md flex flex-col items-center justify-center text-center gap-2 cursor-pointer" id="upload-dropzone">
-<span class="material-symbols-outlined text-3xl text-secondary">cloud_upload</span>
-<p class="font-label-md text-on-surface">Drop a PDF here, or click to browse</p>
-<input accept="application/pdf" class="hidden" id="upload-input" type="file"/>
-</div>
-<div class="mt-stack-sm" id="upload-status"></div>
+<div id="main-content" tabindex="-1">
+<div id="dashboard-tab">
+<main class="home-content">
+<header class="home-hero"><h1>EULALens</h1><div class="format-list"><span><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</span><span><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comics</span><span><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Videos</span></div></header>
+<section class="sample-section" aria-labelledby="samples-heading"><h2 id="samples-heading">Sample EULAs</h2><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></section>
+<section class="upload-section" aria-labelledby="upload-heading">
+<div class="upload-heading"><h2 id="upload-heading">Try it yourself</h2><button id="resume-analysis-btn" type="button" onclick="resumeLiveAnalysis()" class="pill-button hidden">Resume Analysis</button></div>
+<button type="button" class="upload-dropzone" id="upload-dropzone"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><span>Drop a PDF here, or click to browse</span><span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span></button>
+<input accept="application/pdf,.pdf" class="hidden" id="upload-input" type="file" aria-label="Upload a EULA PDF"/>
+<div id="upload-status" role="status" aria-live="polite"></div>
 </section>
-<!-- Sample EULAs -->
-<section class="mb-stack-lg glass-panel rounded-xl p-container-padding border border-white/5 shadow-lg">
-<h2 class="font-headline-md text-headline-md text-on-surface mb-stack-sm border-b border-white/10 pb-4">…or explore a sample EULA</h2>
-<p class="text-on-surface-variant font-body-md mb-stack-md">Pick a real EULA below to explore its risk categories, cards, comics, and video explainers.</p>
-<div class="grid grid-cols-2 md:grid-cols-3 gap-gutter">
-<button onclick="openDocumentView('zoom')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 hover:-translate-y-0.5 transition-all flex flex-col items-center gap-2 text-center">
-<span class="material-symbols-outlined text-3xl text-secondary">gavel</span>
-<span class="font-label-md text-on-surface">Zoom</span>
-</button>
-<button onclick="openDocumentView('spotify')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 hover:-translate-y-0.5 transition-all flex flex-col items-center gap-2 text-center">
-<span class="material-symbols-outlined text-3xl text-secondary">description</span>
-<span class="font-label-md text-on-surface">Spotify</span>
-</button>
-<button onclick="openDocumentView('windows11')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 hover:-translate-y-0.5 transition-all flex flex-col items-center gap-2 text-center">
-<span class="material-symbols-outlined text-3xl text-secondary">window</span>
-<span class="font-label-md text-on-surface">Windows</span>
-</button>
-<button onclick="openDocumentView('steam')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 hover:-translate-y-0.5 transition-all flex flex-col items-center gap-2 text-center">
-<span class="material-symbols-outlined text-3xl text-secondary">sports_esports</span>
-<span class="font-label-md text-on-surface">Steam</span>
-</button>
-<button onclick="openDocumentView('adobe')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 hover:-translate-y-0.5 transition-all flex flex-col items-center gap-2 text-center">
-<span class="material-symbols-outlined text-3xl text-secondary">brush</span>
-<span class="font-label-md text-on-surface">Adobe</span>
-</button>
-<button onclick="openDocumentView('deepfake')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 hover:-translate-y-0.5 transition-all flex flex-col items-center gap-2 text-center">
-<span class="material-symbols-outlined text-3xl text-secondary">face_retouching_off</span>
-<span class="font-label-md text-on-surface">Deepfake Challenge</span>
-</button>
-</div>
-</section>
-<!-- Learn more toggle -->
-<div class="flex justify-center mb-stack-lg">
-<button class="font-mono-tech text-xs uppercase tracking-wider text-secondary border border-secondary/30 rounded-full px-5 py-2.5 flex items-center gap-2 hover:bg-secondary/10 transition-colors" id="learn-more-toggle" onclick="toggleLearnMore()">
-<span class="toggle-label">Learn more</span>
-<span class="material-symbols-outlined text-sm chevron">expand_more</span>
-</button>
-</div>
-<div id="learn-more-panel">
-<div>
-<div class="glass-panel rounded-xl p-container-padding mb-stack-lg flex justify-center border border-white/5 shadow-lg">
+<div class="learn-more-control"><button type="button" class="quiet-button" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="material-symbols-outlined chevron" aria-hidden="true">expand_more</span></button></div>
+<section id="learn-more-panel" class="research-content hidden" aria-label="About EULALens"><div class="glass-panel rounded-xl p-container-padding mb-stack-lg flex justify-center border border-white/5 shadow-lg">
 <div class="aspect-[21/9] w-full bg-surface-container/30 border border-white/10 rounded-lg flex items-center justify-center relative overflow-hidden">
-<img alt="Workflow diagram" class="w-full h-full object-contain" src="images/workflow.png"/>
+<img alt="Workflow diagram" class="w-full h-full object-contain" src="images/workflow.png" loading="lazy"/>
 </div>
 </div>
 <section class="mb-stack-lg glass-panel rounded-xl p-container-padding border border-white/5 shadow-lg">
@@ -20285,11 +19425,12 @@ multimodal alternatives for communicating their terms. In a study
 with 30 participants, the generated formats received favorable ratings for understandability and source accuracy and were strongly
 preferred over the original text. These findings suggest that multimodal AI explanations can improve how consequential terms are
 communicated to end users.
+</p>
 </section>
 <div class="grid grid-cols-1 gap-gutter mb-stack-lg">
 <section class="glass-panel rounded-xl p-container-padding border border-white/5 shadow-lg">
 <h2 class="font-title-lg text-title-lg text-on-surface mb-stack-md border-b border-white/10 pb-4 flex items-center gap-3">
-<span class="material-symbols-outlined text-secondary">group</span> People
+<span class="material-symbols-outlined text-secondary" aria-hidden="true">group</span> People
                 </h2>
 <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6">
 <li class="flex items-center gap-4">
@@ -20300,7 +19441,7 @@ communicated to end users.
 </li>
 <li class="flex items-center gap-4">
 <div class="w-14 h-14 rounded-full bg-surface-variant border border-outline flex items-center justify-center shadow-md flex-shrink-0">
-<span class="material-symbols-outlined text-xl text-secondary">person</span>
+<span class="material-symbols-outlined text-xl text-secondary" aria-hidden="true">person</span>
 </div>
 <div>
 <p class="font-title-lg text-on-surface"><a class="hover:text-secondary transition-colors" href="https://orcid.org/0009-0009-8186-9595" rel="noopener noreferrer" target="_blank">Hagar Elbatanouny</a></p>
@@ -20334,227 +19475,64 @@ communicated to end users.
 </section>
 <section class="glass-panel rounded-xl p-container-padding border border-white/5 shadow-lg flex flex-col">
 <h2 class="font-title-lg text-title-lg text-on-surface mb-stack-md border-b border-white/10 pb-4 flex items-center justify-between gap-3 flex-wrap">
-<span class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary">description</span> Paper</span>
+<span class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary" aria-hidden="true">description</span> Paper</span>
 <a href="EULALens_SEE_What_YOU_Agree.pdf" download class="bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30 px-4 py-1.5 rounded-md font-label-md transition-colors flex items-center gap-2 text-sm">
-<span class="material-symbols-outlined text-sm">download</span> Download
+<span class="material-symbols-outlined text-sm" aria-hidden="true">download</span> Download
                     </a>
 </h2>
-<div class="flex-1 bg-surface-container/30 border border-white/10 rounded-lg overflow-hidden" style="height: 85vh; min-height: 500px;">
-<iframe src="EULALens_SEE_What_YOU_Agree.pdf" class="w-full h-full" title="EULALens Research Paper" style="border:0;"></iframe>
+<div class="flex-1 bg-surface-container/30 border border-white/10 rounded-lg overflow-hidden" >
+<iframe src="EULALens_SEE_What_YOU_Agree.pdf" loading="lazy" class="w-full h-full" title="EULALens Research Paper" style="border:0;"></iframe>
 </div>
 </section>
-</div>
-</div>
-</div>
+</div></section>
 </main>
 </div>
-<!-- Documents Tab -->
-<div class="hidden flex-1 pt-16 h-screen overflow-hidden flex flex-col" id="documents-tab">
-<!-- Floating toolbar: stays pinned on screen regardless of scroll position -->
-<div class="fixed top-20 right-4 z-40 flex flex-col items-end gap-2" id="doc-toolbar">
-<div class="flex items-center gap-2">
-<button class="bg-surface-container/80 hover:bg-surface-variant text-on-surface px-4 py-2 rounded-full border border-white/10 transition-colors flex items-center gap-2 backdrop-blur-md shadow-lg" id="categories-btn" onclick="openCategoriesDialog()">
-<span class="material-symbols-outlined text-secondary">view_stream</span> Categories
-</button>
-<button class="bg-surface-container/80 hover:bg-surface-variant text-on-surface px-4 py-2 rounded-full border border-white/10 transition-colors flex items-center gap-2 backdrop-blur-md shadow-lg" id="quick-index-btn" onclick="toggleQuickIndex()">
-<span class="material-symbols-outlined text-secondary">list</span> Quick Index
-</button>
-<button class="bg-secondary/20 hover:bg-secondary/30 text-secondary border border-secondary/30 px-4 py-2 rounded-full transition-colors flex items-center gap-2 backdrop-blur-md shadow-lg" id="try-another-btn" onclick="openTryAnotherDialog()">
-<span class="material-symbols-outlined">swap_horiz</span> Try another
-</button>
-<button class="bg-surface-container/80 hover:bg-surface-variant text-on-surface p-2 rounded-full border border-white/10 transition-colors flex items-center justify-center backdrop-blur-md shadow-lg" id="restart-tour-btn" onclick="startTutorial(true)" title="Replay tutorial">
-<span class="material-symbols-outlined text-secondary text-lg">help</span>
-</button>
+<div class="hidden" id="documents-tab">
+<main class="document-content">
+<div class="document-toolbar" id="doc-toolbar">
+<button type="button" class="quiet-button" onclick="backToHome()"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>Sample EULAs</button>
+<div class="document-actions"><button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span>Try another EULA</button><button type="button" class="icon-button" id="help-btn" onclick="openHelpDialog()" aria-label="Help"><span class="material-symbols-outlined" aria-hidden="true">help</span></button></div>
 </div>
-<!-- Collapsible Quick Index Dropdown -->
-<div class="glass-panel rounded-xl border border-white/5 w-[320px] max-w-[90vw] shadow-2xl" id="quick-index-dropdown">
-<div class="grid grid-cols-2 gap-2 overflow-y-auto max-h-[400px] pr-2" id="quick-index-grid">
-<!-- JS will populate quick index buttons here -->
-</div>
-</div>
-</div>
-<!-- Main Content: lands directly on the output for the highest-risk category -->
-<main class="flex-1 p-container-padding md:p-stack-lg overflow-hidden min-w-0 flex flex-col min-h-0">
-<header class="mb-stack-sm border-b border-white/5 pb-stack-sm relative flex-shrink-0" id="doc-header">
-<button class="text-on-surface-variant hover:text-secondary flex items-center gap-1 text-sm mb-2 transition-colors" onclick="backToHome()">
-<span class="material-symbols-outlined text-sm">arrow_back</span> Back to Overview
-</button>
-<h1 class="font-headline-lg text-headline-lg text-on-surface flex items-center gap-3 pr-40">
-<span class="material-symbols-outlined text-secondary text-3xl">analytics</span>
-<span id="doc-analysis-title">Document Analysis: Zoom TOS</span>
-</h1>
-<button id="cancel-generation-btn"
-        type="button"
-        onclick="cancelCurrentGeneration()"
-        class="hidden mt-3 text-sm font-medium px-3 py-2 rounded-lg border border-red-400/40 text-red-300 hover:bg-red-500/10 transition-colors"
-        aria-label="Cancel unfinished analysis and generation">
-    Cancel Generation
-</button>
+<header class="document-header" id="doc-header">
+<h1 id="doc-analysis-title">Document Analysis</h1>
+<label class="category-control" for="category-select"><span>Categories</span><select id="category-select" onchange="selectCategory(this.value)"></select></label>
+<button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="pill-button danger-button hidden" aria-label="Cancel unfinished analysis and generation">Cancel Generation</button>
 </header>
-<!-- Active Category Detail Area -->
-<div class="glass-panel rounded-xl p-container-padding border-t-2 severity-high relative transition-all duration-500 flex-1 min-h-0 flex flex-col" id="active-category">
-<div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-<span class="material-symbols-outlined text-9xl">gavel</span>
-</div>
-<div class="relative z-10 flex flex-col gap-stack-sm flex-1 min-h-0">
-<!-- Title & Summary (full width) -->
-<div class="w-full flex-shrink-0">
-<div class="flex items-center gap-3 mb-stack-sm">
-<h2 class="font-headline-md text-headline-md text-on-surface" id="cat-title">System Requirements</h2>
-<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider border severity-high bg-severity-high shadow-[0_0_10px_rgba(217,112,94,0.2)]" id="cat-badge">High Risk</span>
-</div>
-<div class="prose prose-invert max-w-none text-on-surface-variant font-body-md leading-relaxed" id="cat-summary">
-<p class="">The user is fully responsible for maintaining compliant hardware and networks to use the service. Failures leading to service degradation are not Zoom's liability.</p>
-</div>
-</div>
-<!-- Main row: left insight accordion + right multimodal tabs -->
-<div class="w-full flex-1 min-h-0 flex flex-col md:flex-row gap-stack-md">
-<!-- LEFT: Impact & Lookouts as a click-to-reveal accordion -->
-<div class="w-full md:w-64 flex-shrink-0 flex flex-col gap-2" id="insight-accordion">
-<div class="glass-panel rounded-lg overflow-hidden border-l-4 severity-high" id="insight-box-impact">
-<button class="w-full flex items-center justify-between px-4 py-3 font-label-md text-on-surface hover:bg-white/5 transition-colors" id="insight-accbtn-impact" onclick="toggleInsightPanel('impact')">
-<span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm text-secondary">trending_up</span> Impact</span>
-<span class="material-symbols-outlined text-sm transition-transform duration-200" id="insight-chevron-impact">expand_more</span>
-</button>
-<div class="hidden px-4 pb-3" id="insight-panel-impact-wrap">
-<ul class="list-disc list-inside text-sm text-on-surface-variant space-y-1" id="cat-impact"></ul>
-</div>
-</div>
-<div class="glass-panel rounded-lg overflow-hidden border-l-4 severity-high" id="insight-box-lookouts">
-<button class="w-full flex items-center justify-between px-4 py-3 font-label-md text-on-surface hover:bg-white/5 transition-colors" id="insight-accbtn-lookouts" onclick="toggleInsightPanel('lookouts')">
-<span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm text-secondary">warning</span> Lookouts</span>
-<span class="material-symbols-outlined text-sm transition-transform duration-200" id="insight-chevron-lookouts">expand_more</span>
-</button>
-<div class="hidden px-4 pb-3" id="insight-panel-lookouts-wrap">
-<ul class="list-disc list-inside text-sm text-on-surface-variant space-y-1" id="cat-lookouts"></ul>
-</div>
-</div>
-</div>
-<!-- RIGHT: Multimodal Tabs: Cards, Comic, Video, then the original EULA text -->
-<div class="w-full flex-1 min-h-0 flex flex-col min-w-0">
-<div class="flex gap-2 border-b border-white/10 mb-stack-sm w-full flex-wrap flex-shrink-0">
-<button class="px-4 py-2 font-label-md border-b-2 border-secondary text-secondary bg-secondary/10 rounded-t-md transition-colors flex items-center gap-2" id="tabbtn-cards" onclick="switchRightTab('cards')">
-<span class="material-symbols-outlined text-sm">style</span> Cards
-</button>
-<button class="px-4 py-2 font-label-md border-b-2 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-white/5 rounded-t-md transition-colors flex items-center gap-2" id="tabbtn-comic" onclick="switchRightTab('comic')">
-<span class="material-symbols-outlined text-sm">menu_book</span> Comic
-</button>
-<button class="px-4 py-2 font-label-md border-b-2 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-white/5 rounded-t-md transition-colors flex items-center gap-2" id="tabbtn-video" onclick="switchRightTab('video')">
-<span class="material-symbols-outlined text-sm">play_circle</span> Video
-</button>
-<button class="px-4 py-2 font-label-md border-b-2 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-white/5 rounded-t-md transition-colors flex items-center gap-2" id="tabbtn-eula" onclick="switchRightTab('eula')">
-<span class="material-symbols-outlined text-sm">article</span> Original EULA
-</button>
-</div>
-<!-- Tab Content: Video (opened/generated on demand) -->
-<div class="hidden flex-1 min-h-0 flex-col gap-2 bg-surface-container/30 rounded-lg p-4 items-center justify-center" id="right-tab-video">
-<div class="aspect-video h-[92%] max-w-[92%] bg-black rounded-md flex items-center justify-center border border-white/10">
-<video class="w-full h-full rounded-md" controls="" id="cat-video"></video>
-</div>
-<p id="video-degradation" class="hidden text-xs text-amber-300 text-center" role="status"></p>
-</div>
-<!-- Tab Content: Cards (visible by default) -->
-<div class="grid flex-1 min-h-0 grid-cols-2 gap-3 p-4 bg-surface-container/30 rounded-lg overflow-y-auto" id="cat-cards">
-</div>
-<!-- Tab Content: Comic (Hidden initially, sized to fit within one screen) -->
-<div class="hidden flex-1 min-h-0 flex-col bg-surface-container/30 rounded-lg p-5 gap-2" id="right-tab-comic">
-<div id="comic-scenarios" class="flex gap-2 flex-wrap" aria-label="Comic scenarios"></div>
-<p class="font-label-md font-bold text-on-surface" id="cat-comic-title"></p>
-<div class="comic-overlay-wrap">
-<img alt="Comic strip" class="rounded-md object-contain border border-white/10 shadow-lg block" id="cat-comic-img" src=""/>
-<div class="comic-overlay-grid" id="cat-comic-overlay-grid"></div>
-</div>
-</div>
-<!-- Tab Content: Original EULA (Hidden initially, sized to fit within one screen) -->
-<div class="hidden flex-1 min-h-0 flex-col bg-surface-container/30 rounded-lg p-1 gap-1" id="right-tab-eula">
+<section class="glass-panel category-panel" id="active-category" aria-labelledby="cat-title">
+<div class="category-title"><h2 id="cat-title"></h2><span id="cat-badge" class="risk-badge"></span></div>
+<div id="cat-summary" class="category-summary"></div>
 <div id="source-evidence" class="hidden"></div>
-<iframe class="w-full flex-1 rounded-md bg-white" id="cat-eula-frame" src=""></iframe>
-<a class="text-xs text-secondary hover:underline text-center py-1" id="cat-eula-fallback-link" href="#" target="_blank">PDF not loading? Open it directly</a>
+<div class="format-tabs" role="tablist" aria-label="Explanation format">
+<button type="button" class="format-tab" id="tabbtn-cards" role="tab" aria-controls="cat-cards" aria-selected="true" onclick="switchRightTab('cards')"><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</button>
+<button type="button" class="format-tab" id="tabbtn-comic" role="tab" aria-controls="right-tab-comic" aria-selected="false" onclick="switchRightTab('comic')"><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comic</button>
+<button type="button" class="format-tab" id="tabbtn-video" role="tab" aria-controls="right-tab-video" aria-selected="false" onclick="switchRightTab('video')"><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Video</button>
+<button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" onclick="switchRightTab('eula')"><span class="material-symbols-outlined" aria-hidden="true">article</span>Original EULA</button>
 </div>
+<div id="generation-status" class="generation-status hidden" role="status" aria-live="polite"></div>
+<div class="cue-grid grid" id="cat-cards" role="tabpanel" aria-labelledby="tabbtn-cards"></div>
+<div class="media-panel hidden" id="right-tab-comic" role="tabpanel" aria-labelledby="tabbtn-comic">
+<div id="comic-scenarios" class="comic-scenarios" aria-label="Comic scenarios"></div>
+<div class="media-heading"><h3 id="cat-comic-title"></h3><a class="quiet-button" id="comic-open-link" href="#" target="_blank" rel="noopener noreferrer">Open comic<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+<div class="comic-overlay-wrap"><img alt="Comic strip" id="cat-comic-img"/><div class="comic-overlay-grid" id="cat-comic-overlay-grid"></div></div>
+<details class="comic-transcript" id="comic-transcript"><summary>Comic text</summary><ol id="comic-transcript-scenes"></ol></details>
 </div>
+<div class="media-panel hidden" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p></div>
+<div class="media-panel hidden" id="right-tab-eula" role="tabpanel" aria-labelledby="tabbtn-eula"><iframe id="cat-eula-frame" title="Original EULA PDF"></iframe><a class="quiet-button" id="cat-eula-fallback-link" href="#" target="_blank" rel="noopener noreferrer">PDF not loading? Open it directly<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+<div class="insights" id="insight-accordion">
+<div id="insight-box-impact"><button type="button" class="insight-button" id="insight-accbtn-impact" onclick="toggleInsightPanel('impact')" aria-expanded="false" aria-controls="insight-panel-impact-wrap"><span>Impact</span><span class="material-symbols-outlined" id="insight-chevron-impact" aria-hidden="true">expand_more</span></button><div class="hidden insight-content" id="insight-panel-impact-wrap"><ul id="cat-impact"></ul></div></div>
+<div id="insight-box-lookouts"><button type="button" class="insight-button" id="insight-accbtn-lookouts" onclick="toggleInsightPanel('lookouts')" aria-expanded="false" aria-controls="insight-panel-lookouts-wrap"><span>Lookouts</span><span class="material-symbols-outlined" id="insight-chevron-lookouts" aria-hidden="true">expand_more</span></button><div class="hidden insight-content" id="insight-panel-lookouts-wrap"><ul id="cat-lookouts"></ul></div></div>
 </div>
-<!-- Next Category -->
-<div class="flex justify-end flex-shrink-0">
-<button class="bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30 px-5 py-2.5 rounded-md font-label-md transition-colors flex items-center gap-2" id="next-category-btn" onclick="nextCategory()">
-Next Category
-<span class="material-symbols-outlined text-sm">arrow_forward</span>
-</button>
-</div>
-</div>
-</div>
+</section>
+<footer class="category-footer"><button type="button" class="pill-button" id="previous-category-btn" onclick="previousCategory()"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>Previous</button><span id="category-position" role="status" aria-live="polite"></span><button type="button" class="pill-button" id="next-category-btn" onclick="nextCategory()">Next Category<span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></footer>
 </main>
 </div>
-<!-- Onboarding Tutorial Overlay -->
-<div id="tutorial-spotlight"></div>
-<div id="tutorial-tooltip">
-<div class="tutorial-step-count" id="tutorial-step-count"></div>
-<h4 id="tutorial-title"></h4>
-<p id="tutorial-body"></p>
-<div class="tutorial-actions">
-<button class="tutorial-btn tutorial-btn-skip" onclick="skipTutorial()">Skip tour</button>
-<div class="tutorial-btn-group">
-<button class="tutorial-btn tutorial-btn-back" id="tutorial-back-btn" onclick="prevTutorialStep()">Back</button>
-<button class="tutorial-btn tutorial-btn-next" id="tutorial-next-btn" onclick="nextTutorialStep()">Next</button>
 </div>
-</div>
-</div>
-<!-- Categories Modal (replaces the old 3D globe): two risk-level ticker panels -->
-<div class="hidden fixed inset-0 z-[60] items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="categories-modal">
-<div class="glass-panel-strong rounded-xl p-container-padding w-full max-w-3xl">
-<div class="flex justify-between items-center mb-stack-md">
-<h3 class="font-title-lg text-title-lg text-on-surface flex items-center gap-2">
-<span class="material-symbols-outlined text-secondary">view_stream</span> All Categories
-</h3>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors" onclick="closeCategoriesDialog()">
-<span class="material-symbols-outlined">close</span>
-</button>
-</div>
-<p class="text-sm text-on-surface-variant mb-stack-md">Sorted by risk level. Click any category to jump straight to its breakdown.</p>
-<div class="mb-stack-md">
-<p class="font-mono-tech text-xs uppercase tracking-wider text-[#D9705E] mb-2">High Risk</p>
-<div id="ticker-high"></div>
-</div>
-<div>
-<p class="font-mono-tech text-xs uppercase tracking-wider text-[#D9A25A] mb-2">Medium Risk</p>
-<div id="ticker-medium"></div>
-</div>
-</div>
-</div>
-<!-- Try Another Modal -->
-<div class="hidden fixed inset-0 z-[60] items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="try-another-modal">
-<div class="glass-panel rounded-xl p-container-padding border border-white/10 w-full max-w-md">
-<div class="flex justify-between items-center mb-stack-md">
-<h3 class="font-title-lg text-title-lg text-on-surface">Try another EULA</h3>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors" onclick="closeTryAnotherDialog()">
-<span class="material-symbols-outlined">close</span>
-</button>
-</div>
-<div class="grid grid-cols-2 gap-gutter">
-<button onclick="selectFromDialog('zoom')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 transition-all flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-2xl text-secondary">gavel</span>
-<span class="font-label-md text-on-surface">Zoom</span>
-</button>
-<button onclick="selectFromDialog('spotify')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 transition-all flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-2xl text-secondary">description</span>
-<span class="font-label-md text-on-surface">Spotify</span>
-</button>
-<button onclick="selectFromDialog('windows11')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 transition-all flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-2xl text-secondary">window</span>
-<span class="font-label-md text-on-surface">Windows</span>
-</button>
-<button onclick="selectFromDialog('steam')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 transition-all flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-2xl text-secondary">sports_esports</span>
-<span class="font-label-md text-on-surface">Steam</span>
-</button>
-<button onclick="selectFromDialog('adobe')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 transition-all flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-2xl text-secondary">brush</span>
-<span class="font-label-md text-on-surface">Adobe</span>
-</button>
-<button onclick="selectFromDialog('deepfake')" class="glass-panel rounded-lg p-stack-md border border-white/10 hover:border-secondary/50 hover:bg-white/5 transition-all flex flex-col items-center gap-2">
-<span class="material-symbols-outlined text-2xl text-secondary">face_retouching_off</span>
-<span class="font-label-md text-on-surface">Deepfake Challenge</span>
-</button>
-</div>
-</div>
-</div>
+<dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title"><div class="dialog-header"><h2 id="sample-dialog-title">Try another EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close sample EULAs"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></dialog>
+<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a question to reveal its answer.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl></dialog>
+<script src="ui.js"></script>
 </body></html>

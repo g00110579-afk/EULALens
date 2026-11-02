@@ -1,0 +1,41 @@
+Dark glass UI — branch codex/dark-glass-ui
+
+The website uses the approved charcoal glass design with 13px blur. The six
+sample EULAs appear before the PDF upload. Existing sample category names,
+summaries, cue-card questions/answers, media, research text, authors and links
+are retained; the six precomputed datasets still contain 164 categories.
+
+The document screen uses one risk-grouped category selector, Previous/Next,
+and a responsive reading panel. Cue cards expand with native details controls.
+Selected formats, expanded cue cards, Impact/Lookouts and supporting clauses
+survive background updates. Original-PDF viewing, media generation/retry,
+comic scenario selection, captions, cancellation and restoration use the
+existing runtime. Comic dialogue/captions are also available as readable text.
+Help is optional. Sample/help dialogs use native focus management and Escape.
+
+Styles are in ui.css. Small keyboard/dialog behaviors are in ui.js. Generation
+orchestration remains in index.html and live-runtime.js. Server/model code and
+public API configuration are not changed by this branch.
+
+Verification (Node >=22.13; ffmpeg for the upload/media fixture test):
+  npm ci
+  npx playwright install chromium
+  npm test
+  npm run test:ui
+  npm run test:browser
+
+The browser suites use local fixtures or existing static samples and do not
+submit inference jobs to the production model services. test:ui exercises all
+six samples, 164 category options, 320/390/768/1440px layouts, keyboard upload,
+cue cards and asynchronous refreshes, category navigation, comic/video/PDF,
+retry controls, dialogs, research and reduced motion. test:browser exercises
+PDF extraction, authenticated API jobs, scenario switching, captions, source
+evidence, restoration without duplicate generation and expired-session recovery.
+
+Optional environment variables:
+  EULALENS_SCREENSHOT_DIR      Destination for test:ui screenshots.
+  EULALENS_PLAYWRIGHT_MODULE   ESM entry for an external Playwright installation.
+  EULALENS_PDFJS_BUILD_DIR     Override the pinned local PDF.js test build.
+  PLAYWRIGHT_BROWSERS_PATH    Custom Playwright browser cache.
+
+Validation is in Chromium. This branch does not merge or deploy the redesign.

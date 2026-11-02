@@ -10,9 +10,9 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { createApp } from '../server/index.js';
 import { closeProviderConnections } from '../server/providers/http-client.js';
-const { chromium } = await import(pathToFileURL(process.env.EULALENS_PLAYWRIGHT_MODULE || '/tmp/eulalens-browser-tests/node_modules/playwright/index.mjs'));
+const { chromium } = await import(process.env.EULALENS_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.EULALENS_PLAYWRIGHT_MODULE).href : 'playwright');
 const root = path.resolve('.');
-const pdfjsBuild = process.env.EULALENS_PDFJS_BUILD_DIR || path.resolve('../reference-project/EULALens-main/node_modules/pdfjs-dist/build');
+const pdfjsBuild = process.env.EULALENS_PDFJS_BUILD_DIR || path.resolve('node_modules/pdfjs-dist/build');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'eula-browser-'));
 const servers = []; let browser; let app;
 async function listen(application) { const server = application.listen(0, '127.0.0.1'); servers.push(server); await new Promise(resolve => server.once('listening', resolve)); return `http://127.0.0.1:${server.address().port}`; }
@@ -73,6 +73,8 @@ try {
   assert.equal(await page.locator('#cat-cards b').count(), 0);
   assert.match(await page.locator('#doc-analysis-title').textContent(), /fixture<img/);
   assert.equal(await page.locator('#cat-summary').textContent(), '<img src=x onerror="window.auditSentinel=1">');
+  await page.locator('#source-evidence summary').click();
+  assert(await page.locator('#source-evidence details').getAttribute('open') !== null);
   await page.locator('#tabbtn-comic').click();
   await page.waitForFunction(() => document.querySelector('#cat-comic-img')?.naturalWidth > 0, undefined, { timeout: 30000 });
   assert.equal(await page.locator('#comic-scenarios button').count(), 2);
@@ -84,6 +86,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#cat-video')?.textTracks[0]?.cues?.length === 1);
   assert.deepEqual(await page.evaluate(() => { const cue = document.querySelector('#cat-video').textTracks[0].cues[0]; return { text: cue.text, start: cue.startTime, end: cue.endTime }; }), { text: 'One device.', start: 0, end: 0.8 });
   assert.match(await page.locator('#video-degradation').textContent(), /audio/i);
+  assert(await page.locator('#source-evidence details').getAttribute('open') !== null, 'Generation updates retain expanded source evidence');
   await page.locator('#tabbtn-eula').click(); assert.match(await page.locator('#source-evidence').textContent(), /one device/);
   const beforeReload = { ...counts };
   await page.reload({ waitUntil: 'domcontentloaded' });

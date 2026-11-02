@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { positiveInteger, qwenError, throwIfAborted, withQwenSlot, abortableDelay, promptTokenCount } from './qwen-runtime.js';
+
 function parseJson(text) {
   if (!text) return null;
   try {
@@ -17,8 +20,7 @@ function parseJson(text) {
 }
 
 function readPositiveInteger(value, fallback) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
+  return positiveInteger(value, fallback);
 }
 
 function readBoolean(value, fallback = false) {
@@ -75,50 +77,74 @@ function getQwenConfig() {
   return { apiKey, baseUrl, model, debugOutput };
 }
 
-async function requestQwenJson({ config, messages, maxTokens, label, validate }) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: config.model,
-      temperature: 0,
-      max_tokens: maxTokens,
-      response_format: { type: 'json_object' },
-      reasoning_effort: 'none',
-      include_reasoning: false,
-      chat_template_kwargs: { enable_thinking: false },
-      messages
-    })
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Qwen request failed for ${label} (${response.status}): ${details}`);
-  }
-
-  const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content || '';
-  const rawOutput = extractQwenOutput(payload);
-
-  const parsed = parseJson(content);
-  if (!parsed || (validate && !validate(parsed))) {
-    console.warn(`[Qwen] ${label}: invalid JSON, attempt ${attempt}/3, finish_reason=${payload?.choices?.[0]?.finish_reason || 'unknown'}`);
-    if (attempt < 3) continue;
-    throw makeQwenJsonError({
-      rawOutput,
-      payload,
-      debugOutput: config.debugOutput,
-      label,
-      message: `Qwen did not return the expected JSON for ${label}.`
-    });
-  }
-
-  return parsed;
-  }
+async function requestQwenJson({ config, messages, maxTokens, label, validate, signal }) {
+  return withQwenSlot(async (requestSignal) => {
+    const contextTokens = positiveInteger(process.env.QWEN_CONTEXT_TOKENS, 16384, 'QWEN_CONTEXT_TOKENS');
+    const attempts = positiveInteger(process.env.QWEN_MAX_ATTEMPTS, 3, 'QWEN_MAX_ATTEMPTS', 5);
+    let outputTokens = maxTokens;
+    let attemptMessages = messages;
+    let validationFeedback = '';
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      throwIfAborted(requestSignal);
+      const inputTokens = await promptTokenCount(config, attemptMessages, requestSignal);
+      const available = contextTokens - inputTokens - 64;
+      if (available < outputTokens) {
+        throw qwenError(`The complete evidence for ${label} exceeds the model context budget. Split the category or document; no source excerpts were silently dropped.`, 'QWEN_INPUT_TOO_LARGE', 413);
+      }
+      let response;
+      try { response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST', signal: requestSignal,
+        headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: config.model, temperature: 0, max_tokens: outputTokens,
+          response_format: { type: 'json_object' }, reasoning_effort: 'none', include_reasoning: false,
+          chat_template_kwargs: { enable_thinking: false }, messages: attemptMessages })
+      }); } catch (error) {
+        throwIfAborted(requestSignal);
+        if (attempt === attempts || !(error instanceof TypeError || ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'UND_ERR_SOCKET'].includes(error.cause?.code || error.code))) throw error;
+        await abortableDelay(250 * 2 ** (attempt - 1), requestSignal);
+        continue;
+      }
+      if (!response.ok) {
+        const details = await response.text();
+        if ((response.status === 429 || response.status >= 500) && attempt < attempts) {
+          const retryAfter = Number(response.headers.get('retry-after'));
+          await abortableDelay(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 10000) : 250 * 2 ** (attempt - 1), requestSignal);
+          continue;
+        }
+        throw qwenError(`Qwen request failed for ${label} (${response.status}): ${details.slice(0, 300)}`, 'QWEN_HTTP_ERROR');
+      }
+      let payload;
+      try { payload = await response.json(); } catch (error) {
+        throwIfAborted(requestSignal);
+        if (attempt === attempts) throw qwenError(`Qwen returned an unreadable response for ${label}.`, 'QWEN_RESPONSE');
+        await abortableDelay(250 * 2 ** (attempt - 1), requestSignal);
+        continue;
+      }
+      const content = payload?.choices?.[0]?.message?.content || '';
+      const truncated = payload?.choices?.[0]?.finish_reason === 'length';
+      if (truncated) {
+        const increased = Math.min(available, Math.max(outputTokens + 512, outputTokens * 2));
+        if (attempt < attempts && increased > outputTokens) { outputTokens = increased; continue; }
+        throw qwenError(`Qwen output for ${label} was truncated; increase the output budget or split the evidence.`, 'QWEN_TRUNCATED');
+      }
+      const parsed = parseJson(content);
+      let valid = Boolean(parsed);
+      if (valid && validate) {
+        const verdict = validate(parsed);
+        valid = verdict === true;
+        validationFeedback = typeof verdict === 'string' ? verdict : 'Return the required complete JSON schema with valid evidence.';
+      }
+      if (valid) return parsed;
+      if (attempt < attempts) {
+        // Do not resend a known-bad deterministic request or grow context with its invalid output.
+        attemptMessages = [...messages, { role: 'user', content: `The previous response was invalid. ${validationFeedback || 'Return a complete JSON object without prose.'} Repair the response using only the supplied evidence.` }];
+        continue;
+      }
+      throw makeQwenJsonError({ rawOutput: extractQwenOutput(payload), payload, debugOutput: config.debugOutput, label,
+        message: `Qwen did not return valid, source-grounded JSON for ${label}. ${validationFeedback}` });
+    }
+    throw qwenError(`Qwen exhausted retries for ${label}.`, 'QWEN_RETRIES_EXHAUSTED');
+  }, signal);
 }
 
 function slugify(value, fallback = 'category') {
@@ -300,51 +326,73 @@ function sanitizeArtDescription(value) {
 }
 
 function sanitizeOverlayText(value) {
-  const clean = String(value || '')
-    .replace(/\bTerms?\s*:\s*/gi, '')
-    .replace(/\bSource\s*(segment|clause)?\s*\d*\s*:\s*/gi, '')
-    .replace(/\bSTOP\s*:\s*/gi, '')
-    .replace(/\bBreach\s*:\s*/gi, '')
-    .replace(/(^|[\s([{])"[^"]{1,80}"(?=$|[\s,.;:)])/g, '$1this clause')
-    .replace(/(^|[\s([{])'[^']{1,80}'(?=$|[\s,.;:)])/g, '$1this clause')
-    .replace(/\b(says|said|reads|reading)\s+this clause\b/gi, 'needs checking')
-    .replace(/\bthis wording\b/gi, 'this clause')
-    .replace(/\b(public property|sign(?:ed)? away my rights|own my content|stole my work)\b/gi, 'reuse it broadly')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (/^this clause\.?$/i.test(clean)) return 'Check this clause first.';
-  return truncate(clean, 105);
+  // Overlay prose can contain legal qualifiers and quoted terms. Never rewrite
+  // it with visual-art rules or cut off the end of an obligation.
+  return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
 function chunkText(text, maxChars) {
-  const paragraphs = String(text || '').split('\n').map((item) => item.trim()).filter(Boolean);
+  positiveInteger(maxChars, 3500, 'QWEN_CHUNK_CHARS');
+  const source = String(text || '');
   const chunks = [];
-  let current = '';
-
-  for (const paragraph of paragraphs) {
-    if (current && current.length + paragraph.length + 1 > maxChars) {
-      chunks.push(current.trim());
-      current = '';
+  // Keep bounded context on both sides so a split does not separate an exception
+  // from the obligation it qualifies. Source offsets make repeated evidence dedupable.
+  const contextChars = Math.min(512, Math.floor(maxChars / 4));
+  let offset = 0;
+  while (offset < source.length) {
+    let end = Math.min(source.length, offset + maxChars);
+    if (end < source.length) {
+      const candidate = source.slice(offset, end);
+      const boundary = Math.max(candidate.lastIndexOf('\n'), candidate.lastIndexOf('. '), candidate.lastIndexOf('; '));
+      const space = candidate.lastIndexOf(' ');
+      const split = boundary >= candidate.length / 2 ? boundary + 1 : space;
+      if (split > 0) end = offset + split;
     }
-
-    if (paragraph.length > maxChars) {
-      if (current.trim()) {
-        chunks.push(current.trim());
-        current = '';
-      }
-
-      for (let index = 0; index < paragraph.length; index += maxChars) {
-        chunks.push(paragraph.slice(index, index + maxChars).trim());
-      }
-      continue;
-    }
-
-    current += `${paragraph}\n`;
+    const contextStart = Math.max(0, offset - contextChars);
+    const raw = source.slice(contextStart, Math.min(source.length, end + contextChars));
+    const chunk = raw.trim();
+    if (chunk) chunks.push({ chunk, start: contextStart + raw.length - raw.trimStart().length });
+    offset = end;
   }
+  return chunks;
+}
 
-  if (current.trim()) chunks.push(current.trim());
-  return chunks.length ? chunks : [String(text || '').trim()].filter(Boolean);
+// Canonical whitespace/Unicode comparison retains exact source offsets for display and citations.
+function canonicalSource(text) {
+  let value = '';
+  const starts = [], ends = [];
+  for (let index = 0; index < text.length;) {
+    const original = String.fromCodePoint(text.codePointAt(index));
+    const next = index + original.length;
+    for (const character of original.normalize('NFKC')) {
+      const normalized = /\s/u.test(character) ? ' ' : character;
+      if (normalized === ' ' && value.endsWith(' ')) { ends[ends.length - 1] = next; continue; }
+      value += normalized;
+      // Array indices follow UTF-16 indices, including astral characters.
+      for (let unit = 0; unit < normalized.length; unit += 1) { starts.push(index); ends.push(next); }
+    }
+    index = next;
+  }
+  return { value, starts, ends };
+}
+
+function findEvidence(quote, source, canonical = canonicalSource(source)) {
+  if (typeof quote !== 'string' || !quote.trim()) return null;
+  const needle = canonicalSource(quote).value.trim();
+  const index = canonical.value.indexOf(needle);
+  if (index < 0) return null;
+  return { start: canonical.starts[index], end: canonical.ends[index + needle.length - 1] };
+}
+
+function extractionValidity(value, chunk, canonical) {
+  if (!Array.isArray(value?.categories)) return 'categories must be an array.';
+  for (const category of value.categories) {
+    if (!category || typeof category !== 'object' || (typeof (category.category_id || category.id) !== 'string' || !(category.category_id || category.id).trim())) return 'Every category needs a category_id.';
+    const segments = category.source_segments || category.segments || category.clauses;
+    if (!Array.isArray(segments) || !segments.length) return 'Every category needs at least one exact source quotation.';
+    if (segments.some((quote) => !findEvidence(quote, chunk, canonical))) return 'Every source_segments entry must be a verbatim quotation of the supplied chunk. Do not paraphrase or invent quotations.';
+  }
+  return true;
 }
 
 const highSeverityCategories = new Set([
@@ -387,17 +435,21 @@ function mergeCategoryResults(results) {
       const nextSeverity = normalizeSeverity(category.severity, fallbackSeverity);
       const existing = merged.get(categoryId) || {
         categoryId,
-        severity: fallbackSeverity,
+        severity: nextSeverity,
         summary: '',
         impact: '',
+        summaries: [],
+        impacts: [],
         lookouts: [],
-        sourceSegments: []
+        sourceSegments: [],
+        sourceEvidence: []
       };
 
       existing.sourceSegments.push(...normalizeSourceSegments(category.source_segments || category.segments || category.clauses));
+      existing.sourceEvidence.push(...(category.sourceEvidence || []));
       existing.lookouts.push(...normalizeStringList(category.lookouts || category.key_lookouts || category.risks, 3));
-      if (!existing.summary && category.summary) existing.summary = truncate(category.summary, 220);
-      if (!existing.impact && category.impact) existing.impact = truncate(category.impact, 260);
+      if (typeof category.summary === 'string' && category.summary.trim()) existing.summaries.push(category.summary.trim());
+      if (typeof category.impact === 'string' && category.impact.trim()) existing.impacts.push(category.impact.trim());
       if (severityRank[nextSeverity] > severityRank[existing.severity]) existing.severity = nextSeverity;
       merged.set(categoryId, existing);
     }
@@ -406,8 +458,11 @@ function mergeCategoryResults(results) {
   return [...merged.values()]
     .map((category) => ({
       ...category,
-      lookouts: [...new Set(category.lookouts)].slice(0, 3),
-      sourceSegments: [...new Set(category.sourceSegments)]
+      summary: [...new Set(category.summaries)].join(' '),
+      impact: [...new Set(category.impacts)].join(' '),
+      lookouts: [...new Set(category.lookouts)],
+      sourceSegments: [...new Set(category.sourceSegments)],
+      sourceEvidence: [...new Map(category.sourceEvidence.map((item) => [item.id, item])).values()]
     }))
     .filter((category) => category.sourceSegments.length > 0);
 }
@@ -446,16 +501,18 @@ function normalizeExtractedCategory(category, index) {
       prompt: `Create a short visual explainer for ${title} clauses in a EULA.`,
       videoUrl: ''
     },
-    sourceSegments: category.sourceSegments
+    sourceSegments: category.sourceSegments,
+    sourceEvidence: category.sourceEvidence || []
   };
 }
 
 function normalizeCategoryForCards(category = {}) {
+  if (!category || typeof category !== 'object' || Array.isArray(category)) throw qwenError('Category must be an object.', 'INVALID_CATEGORY', 400);
   const rawId = category.id || category.categoryId || category.category_id || category.title;
   const id = slugify(rawId, 'category');
   const categoryId = String(category.categoryId || category.category_id || id).replace(/-/g, '_');
   const title = category.title || titleize(categoryId);
-  const sourceSegments = normalizeSourceSegments(category.sourceSegments || category.source_segments || category.segments).slice(0, 8);
+  const sourceSegments = normalizeSourceSegments(category.sourceSegments || category.source_segments || category.segments);
   const lookouts = normalizeStringList(category.lenses?.lookouts || category.lookouts, 3);
 
   return {
@@ -631,58 +688,43 @@ function normalizeGeneratedCards(cards, categoryId) {
     .slice(0, 8);
 }
 
-function sanitizeVideoLegalText(value, category = {}, limit = 140) {
-  const sourceText = (category.sourceSegments || []).join(' ').toLowerCase();
-  let clean = truncate(value, limit);
+function sanitizeVideoLegalText(value, _category = {}, limit = 140) {
+  // Text presentation must never rewrite deadlines, permissions, causes, or legal consequences.
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
 
-  if (!sourceText.includes('without notice') && !sourceText.includes('prior notice')) {
-    clean = clean
-      .replace(/\bwithout\s+(?:any\s+)?(?:prior\s+)?notice\b/gi, 'at any time')
-      .replace(/\bwithout\s+(?:any\s+)?prior\s+warning\b/gi, 'at any time')
-      .replace(/\bwithout\s+warning\b/gi, 'at any time')
-      .replace(/\bno\s+(?:prior\s+)?notice\s+(?:is\s+)?(?:required|given|provided)?\b/gi, 'access can change at any time')
-      .replace(/\bno\s+warning\s+(?:is\s+)?(?:required|given|provided)?\b/gi, 'access can change at any time');
+function mandatoryVideoIssues(script, durationSeconds) {
+  const shots = script?.shot_plan || script?.shotPlan;
+  const subtitles = script?.subtitle_lines || script?.subtitleLines;
+  const issues = [];
+  if (!Array.isArray(shots) || shots.length < 5 || shots.length > 7) issues.push('Provide 5-7 complete timed shots.');
+  if (!Array.isArray(subtitles) || subtitles.length < 5 || subtitles.length > 7) issues.push('Provide 5-7 complete timed dialogue lines.');
+  for (const [items, kind] of [[shots, 'shot'], [subtitles, 'subtitle']]) {
+    let previousEnd = 0;
+    for (const item of Array.isArray(items) ? items : []) {
+      const start = Number(item?.start_seconds ?? item?.startSeconds);
+      const end = Number(item?.end_seconds ?? item?.endSeconds);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || end > durationSeconds || start < previousEnd) issues.push(`Every ${kind} needs ordered, non-overlapping times within the requested duration.`);
+      previousEnd = end;
+      const text = kind === 'subtitle' ? item?.text || item?.subtitle || item?.dialogue : item?.visual_beat || item?.visualBeat;
+      if (typeof text !== 'string' || !text.trim()) issues.push(`Every ${kind} needs text.`);
+      if (kind === 'subtitle' && text?.length > 76) issues.push('Keep every dialogue line at most 76 characters; do not omit qualifiers.');
+    }
   }
-  if (!sourceText.includes('sole discretion')) {
-    clean = clean
-      .replace(/\b(?:at\s+)?(?:their\s+)?sole\s+discretion\b/gi, 'under the agreement')
-      .replace(/\b(?:at\s+)?(?:the\s+)?licensor'?s?\s+discretion\b/gi, "the agreement's reserved rights")
-      .replace(/\bunder\s+the\s+agreement'?s\s+reserved\s+rights\b/gi, "under the agreement's reserved rights");
-  }
-  if (!sourceText.includes('for any reason')) {
-    clean = clean
-      .replace(/\bfor\s+any\s+reason\b/gi, 'for listed reasons')
-      .replace(/\bwith\s+or\s+without\s+cause\b/gi, 'for listed reasons')
-      .replace(/\bwithout\s+cause\b/gi, 'for listed reasons')
-      .replace(/\bor\s+cause\b/gi, 'for listed reasons');
-  }
-  if (!sourceText.includes('immediate termination') && !sourceText.includes('immediately terminate')) {
-    clean = clean
-      .replace(/\bimmediate\s+termination\b/gi, 'loss of access')
-      .replace(/\bterminated?\s+immediately\b/gi, 'access changed')
-      .replace(/\bimmediately\b/gi, 'at any time');
-  }
+  if (typeof (script?.model_prompt || script?.modelPrompt || script?.prompt) !== 'string' || !(script.model_prompt || script.modelPrompt || script.prompt).trim()) issues.push('A visual model prompt is required.');
+  return [...new Set(issues)];
+}
 
-  return clean
-    .replace(/\binstantly\b/gi, 'at any time')
-    .replace(/\banytime\b/gi, 'at any time')
-    .replace(/\bNo reason is stated\b/gi, 'Reasons can include breach, misuse, or legal requirements')
-    .replace(/\baccess can change at any time\.\s*Reasons can include breach, misuse, or legal requirements\b/gi, 'Reasons include breach, misuse, or legal requirements')
-    .replace(/\bPermanent loss of materials\b/gi, 'Loss of access to materials')
-    .replace(/\bpermanent loss\b/gi, 'loss of access')
-    .replace(/\bnew laws\b/gi, 'legal requirements')
-    .replace(/\bunilateral decision\b/gi, 'reserved rights')
-    .replace(/\bcan at any time remove access to materials at any time for listed reasons\b/gi, 'can change or remove access at any time for listed reasons')
-    .replace(/\bbased on the source text\b/gi, 'under the agreement')
-    .replace(/(?:access can change at any time\.\s*){2,}/gi, 'Access can change at any time. ')
-    .replace(/\bat any time\s+at any time\b/gi, 'at any time')
-    .replace(/\bat any time\s+or\s+at any time\b/gi, 'at any time')
-    .replace(/\bAccess is entirely under the agreement\b/gi, "Access depends on the agreement's reserved rights")
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^access\b/, 'Access')
-    .replace(/^(.)/, (letter) => letter.toUpperCase())
-    .slice(0, limit);
+function mandatoryComicIssues(script) {
+  const comics = script?.comics || [];
+  if (!comics.length || comics.length > 3) return ['Provide 1-3 complete comics.'];
+  return comics.flatMap((comic) => {
+    const issues = [];
+    if (!(comic.scenes?.length >= 4 && comic.scenes.length <= 6 && comic.rawImagePrompt)) issues.push('Every comic needs 4-6 scenes and a visual prompt.');
+    if (!comic.protagonistGoal || !comic.visualReadThrough) issues.push('Every comic needs a concrete protagonist_goal and visual_read_through.');
+    if (comic.scenes?.some((scene) => !scene.visualDescription)) issues.push('Every comic scene needs a visual_description.');
+    return issues;
+  });
 }
 
 function sanitizeVideoVisualText(value, limit = 260) {
@@ -894,7 +936,7 @@ function videoScriptQualityIssues(script, category = {}, durationSeconds = 30) {
   if (/\b(?:floating|hologram|holographic|abstract icon|warning symbol|red barrier|green barrier|translucent barrier|force field|magical|gavel|scales)\b/i.test(`${prompt} ${beatsText}`)) {
     issues.push('avoid floating symbols, hologram barriers, legal icons, or magical UI effects; show physical blocking and approval actions instead');
   }
-  if (/\b(?:stamp|stamped|badge|badges|poster|posters|wall note|wall notes|form|forms|document|documents|clipboard|clipboards)\b/i.test(`${prompt} ${beatsText}`)) {
+  if (/\b(?:stamp|stamped|badge|badges|poster|posters|wall note|wall notes|form|forms|document|documents|clipboard|clipboards)\b/i.test(positiveArtifactText)) {
     issues.push('avoid stamps, badges, posters, wall notes, forms, documents, and clipboards because they create gibberish text; use separate keycards, tokens, trays, envelopes, doors, or locked cases');
   }
   if (/\b(label(?:ed|led)?|named|called|titled|reading|says|stamped)\s+["']?[a-z0-9]/i.test(prompt) || /["'][^"']{2,80}["']/.test(prompt)) {
@@ -1015,7 +1057,7 @@ function normalizeOverlaySlots(slots, fallbackText) {
   if (normalized.length) return normalized;
   return [{
     kind: 'callout',
-    text: truncate(fallbackText, 130),
+    text: sanitizeOverlayText(fallbackText),
     position: 'top_left',
     tail: ''
   }].filter((slot) => slot.text);
@@ -1041,18 +1083,19 @@ function rebalanceOverlayPositions(scenes) {
 function normalizeComicEntry(script, category, index = 0) {
   const scenes = Array.isArray(script?.scenes) ? script.scenes : [];
   const normalizedScenes = scenes
+    .filter((scene) => scene && typeof scene === 'object')
     .map((scene, index) => {
       const sceneTitle = truncate(scene.scene_title || scene.title, 80) || `Scene ${index + 1}`;
       const purpose = truncate(scene.purpose, 60);
-      const legalPoint = truncate(scene.legal_point || scene.legalPoint, 180);
-      const narration = truncate(scene.narration || scene.body || scene.summary, 260);
-      const dialogue = truncate(scene.dialogue, 180);
+      const legalPoint = sanitizeOverlayText(scene.legal_point || scene.legalPoint);
+      const narration = sanitizeOverlayText(scene.narration || scene.body || scene.summary);
+      const dialogue = sanitizeOverlayText(scene.dialogue);
       const visualDescription = truncate(sanitizeArtDescription(scene.visual_description || scene.visualDescription), 360);
       const composition = truncate(scene.composition, 90);
       const visualHook = truncate(scene.visual_hook || scene.visualHook, 160);
-      const legalBasis = normalizeStringList(scene.legal_basis || scene.legalBasis, 4);
+      const legalBasis = normalizeSourceSegments(scene.legal_basis || scene.legalBasis);
       const overlayTitle = truncate(scene.overlay_title || scene.overlayTitle || sceneTitle, 44);
-      const overlayCaption = truncate(scene.overlay_caption || scene.overlayCaption || narration || dialogue || visualDescription, 150);
+      const overlayCaption = sanitizeOverlayText(scene.overlay_caption || scene.overlayCaption || narration || dialogue || visualDescription);
       const overlaySlots = normalizeOverlaySlots(scene.overlay_slots || scene.overlaySlots, overlayCaption);
 
       if (!narration && !dialogue && !visualDescription) return null;
@@ -1113,8 +1156,7 @@ function normalizeComicScript(script, category) {
   const rawComics = Array.isArray(script?.comics) && script.comics.length ? script.comics : [script];
   const comics = rawComics
     .map((comic, index) => normalizeComicEntry(comic, category, index))
-    .filter((comic) => comic.scenes.length && comic.rawImagePrompt)
-    .slice(0, 3);
+    .filter((comic) => comic.scenes.length && comic.rawImagePrompt);
   const primary = comics[0] || normalizeComicEntry(script, category, 0);
 
   return {
@@ -1303,20 +1345,21 @@ function comicPlanningQualityIssues(script, category = {}) {
 async function runWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
   let nextIndex = 0;
-
+  let stopped = false;
+  let firstError;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      results[index] = await mapper(items[index], index);
+    while (!stopped && nextIndex < items.length) {
+      const index = nextIndex++;
+      try { results[index] = await mapper(items[index], index); }
+      catch (error) { stopped = true; firstError ||= error; }
     }
   });
-
   await Promise.all(workers);
+  if (firstError) throw firstError;
   return results;
 }
 
-export async function generateCardsWithQwen({ category, documentTitle }) {
+export async function generateCardsWithQwen({ category, documentTitle, signal }) {
   const config = getQwenConfig();
   const maxTokens = readPositiveInteger(process.env.QWEN_CARD_MAX_TOKENS, 1200);
   const normalized = normalizeCategoryForCards(category);
@@ -1369,10 +1412,11 @@ IMPORTANT:
     .join('\n');
 
   const parsed = await requestQwenJson({
+    signal,
     config,
     maxTokens,
     label: `card generation for ${normalized.title}`,
-    validate: (value) => Array.isArray(value.cards),
+    validate: (value) => Array.isArray(value.cards) && value.cards.length >= 1 && value.cards.length <= 8 && value.cards.every((card) => card && typeof card.question === 'string' && typeof (card.frontDetail || card.front_detail) === 'string' && typeof (card.backDetail || card.back_detail) === 'string') || 'Return cards with question, frontDetail, and backDetail strings.',
     messages: [
       { role: 'system', content: cardPrompt },
       {
@@ -1385,10 +1429,10 @@ IMPORTANT:
   const cards = normalizeGeneratedCards(parsed.cards, normalized.id);
   if (!cards.length) throw new Error(`Qwen did not generate usable cards for ${normalized.title}.`);
 
-  return { categoryId: normalized.id, cards };
+  return { categoryId: normalized.id, cards, evidenceCoverage: { provided: normalized.sourceSegments.length, includedInPrompt: normalized.sourceSegments.length, omitted: 0 } };
 }
 
-export async function generateComicWithQwen({ category, documentTitle }) {
+export async function generateComicWithQwen({ category, documentTitle, signal }) {
   const config = getQwenConfig();
   const scriptMaxTokens = readPositiveInteger(process.env.QWEN_COMIC_SCRIPT_MAX_TOKENS, 3600);
   const normalized = normalizeCategoryForCards(category);
@@ -1550,6 +1594,7 @@ IMPORTANT:
   const userPrompt = `Document: ${documentTitle || 'EULA'}\nCategory: ${normalized.title}\nSeverity: ${normalized.severity}\nSummary: ${normalized.summary || 'Not provided'}\nImpact: ${normalized.impact || 'Not provided'}\nLookouts: ${normalized.lookouts.join(', ') || 'Not provided'}\n\nScenario guidance:\n${scenarioGuidance}\n\nSource segments:\n${sourceBlock}\n\nCreate 1-3 scenario comics for this category and return JSON only.`;
 
   let rawScript = await requestQwenJson({
+    signal,
     config,
     maxTokens: scriptMaxTokens,
     label: `scenario comic scripts and image prompts for ${normalized.title}`,
@@ -1564,10 +1609,11 @@ IMPORTANT:
   });
 
   let script = normalizeComicScript(rawScript, normalized);
-  const qualityIssues = comicPlanningQualityIssues(script, normalized);
+  const qualityIssues = mandatoryComicIssues(script);
 
   if (qualityIssues.length) {
     rawScript = await requestQwenJson({
+      signal,
       config,
       maxTokens: scriptMaxTokens,
       label: `scenario comic repair for ${normalized.title}`,
@@ -1611,6 +1657,8 @@ Return the full corrected JSON only.`
     script = normalizeComicScript(rawScript, normalized);
   }
 
+  const unresolvedComicIssues = mandatoryComicIssues(script);
+  if (unresolvedComicIssues.length) throw qwenError(`Comic planning failed validation: ${unresolvedComicIssues.join(' ')}`, 'QWEN_INVALID_PLAN');
   if (!script.comics.length || !script.scenes.length) throw new Error(`Qwen did not generate usable comic scenarios for ${normalized.title}.`);
   if (!script.rawImagePrompt) throw new Error(`Qwen did not generate a usable raw image prompt for ${normalized.title}.`);
 
@@ -1618,12 +1666,13 @@ Return the full corrected JSON only.`
     categoryId: normalized.id,
     comic: {
       ...script,
+      qualityWarnings: comicPlanningQualityIssues(script, normalized),
       imagePrompt: script.rawImagePrompt
     }
   };
 }
 
-export async function generateVideoScriptWithQwen({ category, documentTitle }) {
+export async function generateVideoScriptWithQwen({ category, documentTitle, signal }) {
   const config = getQwenConfig();
   const maxTokens = readPositiveInteger(process.env.QWEN_VIDEO_SCRIPT_MAX_TOKENS, 2400);
   const durationSeconds = readPositiveInteger(process.env.QWEN_VIDEO_DURATION_SECONDS || process.env.VIDEO_DURATION_SECONDS, 30);
@@ -1635,7 +1684,6 @@ export async function generateVideoScriptWithQwen({ category, documentTitle }) {
   }
 
   const sourceBlock = normalized.sourceSegments
-    .slice(0, 5)
     .map((segment) => `- ${segment}`)
     .join('\n');
 
@@ -1722,6 +1770,7 @@ IMPORTANT:
 
   for (let attempt = 1; attempt <= qualityAttempts; attempt += 1) {
     parsed = await requestQwenJson({
+      signal,
       config,
       maxTokens,
       label: `video script for ${normalized.title}`,
@@ -1735,12 +1784,14 @@ IMPORTANT:
       ]
     });
 
-    const issues = videoScriptQualityIssues(parsed, normalized, durationSeconds);
+    const issues = [...mandatoryVideoIssues(parsed, durationSeconds), ...videoScriptQualityIssues(parsed, normalized, durationSeconds).filter((issue) => /do not claim|invented legal-drama|appears to approve a forbidden/.test(issue))];
     if (!issues.length) break;
     feedback = issues.map((issue) => `- ${issue}`).join('\n');
   }
 
-  const video = normalizeVideoScript(parsed, normalized, durationSeconds);
+  const unresolvedVideoIssues = [...mandatoryVideoIssues(parsed, durationSeconds), ...videoScriptQualityIssues(parsed, normalized, durationSeconds).filter((issue) => /do not claim|invented legal-drama|appears to approve a forbidden/.test(issue))];
+  if (unresolvedVideoIssues.length) throw qwenError(`Video planning failed validation: ${unresolvedVideoIssues.join(' ')}`, 'QWEN_INVALID_PLAN');
+  const video = { ...normalizeVideoScript(parsed, normalized, durationSeconds), qualityWarnings: videoScriptQualityIssues(parsed, normalized, durationSeconds) };
   if (!video.modelPrompt) throw new Error(`Qwen did not generate a usable video prompt for ${normalized.title}.`);
 
   return {
@@ -1749,26 +1800,25 @@ IMPORTANT:
   };
 }
 
-export async function generateCardsBatchWithQwen({ categories = [], documentTitle }) {
-  const concurrency = Math.min(readPositiveInteger(process.env.QWEN_CARD_BATCH_CONCURRENCY, 3), 8);
-
-  return runWithConcurrency(categories, concurrency, async (category) => {
-    const normalized = normalizeCategoryForCards(category);
+export async function generateCardsBatchWithQwen({ categories = [], documentTitle, signal, onProgress }) {
+  if (!Array.isArray(categories)) throw qwenError('Categories must be an array.', 'INVALID_CATEGORIES', 400);
+  const concurrency = positiveInteger(process.env.QWEN_CARD_BATCH_CONCURRENCY, 3, 'QWEN_CARD_BATCH_CONCURRENCY', 8);
+  return runWithConcurrency(categories, concurrency, async (category, index) => {
+    throwIfAborted(signal);
+    let result;
     try {
-      const result = await generateCardsWithQwen({ category, documentTitle });
-      return { ok: true, categoryId: result.categoryId, cards: result.cards };
+      const generated = await generateCardsWithQwen({ category, documentTitle, signal });
+      result = { ok: true, ...generated };
     } catch (error) {
-      return {
-        ok: false,
-        categoryId: normalized.id,
-        error: error?.message || 'Card generation failed.',
-        details: error?.details
-      };
+      throwIfAborted(signal);
+      result = { ok: false, categoryId: String(category?.id || category?.categoryId || `category-${index + 1}`), error: error?.message || 'Card generation failed.' };
     }
+    if (onProgress) await onProgress(result, index);
+    return result;
   });
 }
 
-export async function analyzeWithQwen({ text, fileName }) {
+export async function analyzeWithQwen({ text, fileName, signal }) {
   const config = getQwenConfig();
   const chunkChars = readPositiveInteger(process.env.QWEN_CHUNK_CHARS, 3500);
   const maxTokens = readPositiveInteger(process.env.QWEN_MAX_TOKENS, 4096);
@@ -1836,25 +1886,42 @@ IMPORTANT:
 - Escape quotes, backslashes, and newlines inside JSON string values
 - Ensure JSON is valid and complete`;
 
-  const chunks = chunkText(text, chunkChars);
-  const results = [];
-
-  for (const [index, chunk] of chunks.entries()) {
-    const parsed = await requestQwenJson({
-      config,
-      maxTokens,
-      label: `category extraction chunk ${index + 1}/${chunks.length}`,
-      validate: (value) => Array.isArray(value.categories),
-      messages: [
-        { role: 'system', content: categoryPrompt },
-        { role: 'user', content: `Analyze this agreement chunk and return JSON only:\n\n${chunk}` }
-      ]
-    });
-    results.push(parsed);
+  const source = String(text || '');
+  const chunks = chunkText(source, chunkChars);
+  const documentId = createHash('sha256').update(source).digest('hex').slice(0, 16);
+  const spans = chunks;
+  async function extractChunk({ chunk, start }, depth = 0) {
+    throwIfAborted(signal);
+    const canonicalChunk = canonicalSource(chunk);
+    try {
+      const parsed = await requestQwenJson({
+        config, signal, maxTokens, label: `category extraction at source offset ${start}`,
+        validate: (value) => extractionValidity(value, chunk, canonicalChunk),
+        messages: [{ role: 'system', content: categoryPrompt }, { role: 'user', content: `Analyze this agreement excerpt with its overlapping boundary context. Preserve all conditions and exceptions together when they are present. Return JSON only:\n\n${chunk}` }]
+      });
+      return [{ categories: parsed.categories.map((category) => {
+        const sourceEvidence = (category.source_segments || category.segments || category.clauses).map((quote) => {
+          const span = findEvidence(quote, chunk, canonicalChunk);
+          const evidenceStart = start + span.start, evidenceEnd = start + span.end;
+          return { id: `evidence-${documentId}-${evidenceStart}-${evidenceEnd}`, start: evidenceStart, end: evidenceEnd, text: source.slice(evidenceStart, evidenceEnd) };
+        });
+        return { ...category, source_segments: sourceEvidence.map((item) => item.text), sourceEvidence };
+      }) }];
+    } catch (error) {
+      if (!['QWEN_TRUNCATED', 'QWEN_INPUT_TOO_LARGE'].includes(error.code) || depth >= 4 || chunk.length < 800) throw error;
+      const smaller = chunkText(chunk, Math.floor(chunk.length / 2));
+      const results = [];
+      for (const part of smaller) {
+        results.push(...await extractChunk({ chunk: part.chunk, start: start + part.start }, depth + 1));
+      }
+      return results;
+    }
   }
+  const extractionConcurrency = positiveInteger(process.env.QWEN_EXTRACTION_CONCURRENCY, 2, 'QWEN_EXTRACTION_CONCURRENCY', 8);
+  const results = (await runWithConcurrency(spans, extractionConcurrency, (span) => extractChunk(span))).flat();
 
   const categories = mergeCategoryResults(results).map(normalizeExtractedCategory);
-  if (!categories.length) throw new Error('Qwen did not extract any supported EULA categories.');
+  if (!categories.length) throw qwenError('No supported EULA clauses were found in the supplied text.', 'NO_SUPPORTED_CATEGORIES', 422);
 
   return {
     document: {

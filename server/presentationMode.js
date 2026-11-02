@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { presentationPrecomputedRoot } from './config.js';
 
@@ -65,7 +66,7 @@ function stripOrdinalSlug(value) {
 }
 
 function compactText(value) {
-  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
 }
 
 function normalizePath(value) {
@@ -214,6 +215,16 @@ function normalizeCategory(category, document) {
     };
   }
 
+  next.mediaAvailability = {
+    cards: Array.isArray(next.cards) && next.cards.length > 0,
+    comic: comicHasPanels(next.comic),
+    comicImages: categoryHasComicImage(next),
+    videoScript: Boolean(next.video?.modelPrompt || next.video?.model_prompt || next.video?.shotPlan?.length || next.video?.shot_plan?.length),
+    video: categoryHasVideo(next)
+  };
+  next.cardsStatus = next.mediaAvailability.cards ? 'ready' : 'pending';
+  next.comicStatus = next.mediaAvailability.comic ? 'ready' : 'pending';
+  next.videoScriptStatus = next.mediaAvailability.videoScript ? 'ready' : 'pending';
   next.precomputed = true;
   return next;
 }
@@ -298,7 +309,7 @@ function documentsFromManifest({ manifest, manifestDir, setId }) {
 
     const precomputed = readJson(precomputedPath);
     const extractedText = fs.existsSync(extractedTextPath) ? fs.readFileSync(extractedTextPath, 'utf8') : '';
-    const textCompact = compactText(extractedText || precomputed?.sourceText || precomputed?.document?.textPreview || '');
+    const textCompact = compactText(extractedText || precomputed?.sourceText || '');
     const assetPrefix = normalizePath(path.relative(presentationPrecomputedRoot, documentRoot));
 
     return {
@@ -309,6 +320,7 @@ function documentsFromManifest({ manifest, manifestDir, setId }) {
       title: precomputed?.source?.title || manifestDocument.title || slug,
       aliases: documentAliases({ manifestDocument, precomputed, slug }),
       textCompact,
+      contentHash: textCompact ? createHash('sha256').update(textCompact).digest('hex') : '',
       anchors: textAnchors(textCompact),
       precomputed
     };
@@ -338,41 +350,13 @@ function getIndex() {
   return cachedIndex;
 }
 
-function matchByText(inputCompact, document) {
-  if (!inputCompact || inputCompact.length < 600 || !document.textCompact) return false;
-  if (inputCompact === document.textCompact) return true;
-  if (inputCompact.length > 1200 && document.textCompact.includes(inputCompact.slice(0, 800))) return true;
-  if (document.textCompact.length > 1200 && inputCompact.includes(document.textCompact.slice(0, 800))) return true;
-  if (!document.anchors.length) return false;
-
-  const hits = document.anchors.filter((anchor) => inputCompact.includes(anchor)).length;
-  return hits >= Math.min(2, document.anchors.length);
-}
-
-function matchByFilename(fileAlias, fileAliasNoOrdinal, document) {
-  if (!fileAlias && !fileAliasNoOrdinal) return false;
-  return document.aliases.some((alias) => {
-    if (fileAlias === alias || fileAliasNoOrdinal === alias) return true;
-    if (alias.length >= 5 && (fileAlias.includes(alias) || fileAliasNoOrdinal.includes(alias))) return true;
-    return fileAlias.length >= 5 && alias.includes(fileAlias);
-  });
-}
-
-function findPresentationDocument({ text, fileName } = {}) {
-  const index = getIndex();
-  const fileAlias = slugify(fileName);
-  const fileAliasNoOrdinal = stripOrdinalSlug(fileName);
-  const inputCompact = compactText(text);
-
-  for (const document of index.documents) {
-    if (matchByFilename(fileAlias, fileAliasNoOrdinal, document)) return { document, matchedBy: 'filename' };
-  }
-
-  for (const document of index.documents) {
-    if (matchByText(inputCompact, document)) return { document, matchedBy: 'text' };
-  }
-
-  return null;
+function findPresentationDocument({ text } = {}) {
+  const canonical = compactText(text);
+  if (!canonical) return null;
+  const contentHash = createHash('sha256').update(canonical).digest('hex');
+  const document = getIndex().documents.find((item) => item.contentHash === contentHash && item.textCompact === canonical);
+  // A familiar filename or matching introduction does not establish document identity.
+  return document ? { document, matchedBy: 'content-sha256' } : null;
 }
 
 export function getPresentationHealth() {
@@ -393,7 +377,7 @@ export function buildPresentationAnalysis({ text, fileName } = {}) {
   const { document, matchedBy } = match;
   const precomputed = document.precomputed;
   const categories = Array.isArray(precomputed?.categories)
-    ? precomputed.categories.filter(categoryIsPresentationReady)
+    ? precomputed.categories.filter((category) => category && typeof category === 'object')
     : [];
   const pdfUrl = assetUrlFromPath(precomputed?.source?.copiedPath || 'source.pdf', document);
 

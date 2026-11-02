@@ -1,439 +1,212 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { host, port, maxAnalyzePayloadMb, presentationPrecomputedRoot } from './config.js';
-import {
-  analyzeEula,
-  generateCategoryCards,
-  generateCategoryCardsBatch,
-  generateCategoryComic,
-  generateCategoryVideo,
-  generateCategoryVideoScript,
-  getVideoStatus,
-  cancelCategoryVideo,
-  health,
-  renderCategoryComicImage
-} from './handlers.js';
-import { errorPayload, getErrorStatus } from './http.js';
+import { host, port, maxAnalyzePayloadMb, presentationPrecomputedRoot, projectRoot } from './config.js';
+import * as handlers from './handlers.js';
+import { httpError, errorPayload, getErrorStatus } from './http.js';
 import { cancelHiDreamJob } from './providers/hidream.js';
+import { closeProviderConnections } from './providers/http-client.js';
+import { JobStore } from './jobs.js';
+import { Gate, positiveInt } from './concurrency.js';
+import { createSecurity } from './security.js';
+import { attachArtifact, serveArtifact } from './assets.js';
 
-const app = express();
-
-// In-memory jobs for long-running live comic generation.
-// The browser starts a job, then polls its status so Cloudflare does not
-// have to keep one HTTP request open while Qwen and HiDream are running.
-const analysisJobs = new Map();
-const cardJobs = new Map();
-const comicJobs = new Map();
-const videoJobs = new Map();
-
-function createComicJobId() {
-  return `comic-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const asyncRoute = handler => (req, res, next) => Promise.resolve().then(() => handler(req, res)).catch(next);
+const routes = { analysis: '/api/analyze', cards: '/api/categories/cards/batch', comic: '/api/categories/comic', video: '/api/categories/video' };
+function validate(kind, body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw httpError(400, 'A JSON object is required.');
+  if (kind === 'analysis' && (typeof body.text !== 'string' || body.text.trim().length < 20 || body.text.length > 500000)) throw httpError(400, 'Provide between 20 and 500,000 characters of document text.');
+  const categories = kind === 'cards' ? body.categories : ['comic', 'video', 'render', 'clip', 'card', 'script'].includes(kind) ? [body.category] : [];
+  if (!Array.isArray(categories) || categories.length > 100 || categories.some(c => !c || typeof c !== 'object' || typeof c.id !== 'string' || !c.id.trim() || c.id.length > 200 || typeof c.title !== 'string' || !c.title.trim() || c.title.length > 500)) throw httpError(400, 'Provide at most 100 categories, each with an ID and title.');
+  if (new Set(categories.map(category => category.id)).size !== categories.length) throw httpError(400, 'Category IDs must be unique.');
+  if (body.fileName !== undefined && (typeof body.fileName !== 'string' || body.fileName.length > 300)) throw httpError(400, 'Invalid document filename.');
+  if (body.idempotencyKey !== undefined && (typeof body.idempotencyKey !== 'string' || body.idempotencyKey.length > 200)) throw httpError(400, 'Invalid idempotency key.');
+  return body;
 }
 
-function createVideoJobId() {
-  return `video-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function asyncRoute(handler) {
-  return async (req, res, next) => {
-    try {
-      await handler(req, res);
-    } catch (error) {
-      next(error);
-    }
+export function createApp(options = {}) {
+  const app = express(); const api = { ...handlers, ...options.handlers };
+  const jobDirectory = options.directory || process.env.EULALENS_JOB_DIR || path.join(projectRoot, '.runtime', 'jobs');
+  const origins = options.origins || (process.env.EULALENS_ALLOWED_ORIGINS || 'https://g00110579-afk.github.io,http://localhost:5173,http://127.0.0.1:5173').split(',').map(x => x.trim()).filter(Boolean);
+  const security = createSecurity({ directory: path.dirname(jobDirectory), origins, secret: options.secret, accessToken: process.env.EULALENS_ACCESS_TOKEN || '', ...options.security });
+  const cancelImage = options.cancelImage || cancelHiDreamJob;
+  const media = new Gate(positiveInt(process.env.MEDIA_CONCURRENCY, 2, 8), 64);
+  const modelGates = { image: new Gate(1, 64), video: new Gate(1, 64) };
+  const render = (kind, work, signal) => modelGates[kind].run(() => media.run(work, signal), signal);
+  const cancelUpstream = async job => {
+    if (!job.upstreamStarted) return;
+    if (job.kind === 'comic' || job.kind === 'render') await cancelImage(job.jobId);
+    if (['video', 'clip'].includes(job.kind)) await api.cancelCategoryVideo(job.providerJobId || job.jobId);
   };
-}
+  const store = new JobStore({ directory: jobDirectory,
+    maxPending: positiveInt(process.env.JOB_MAX_PENDING, 64, 1000), maxPerOwner: positiveInt(process.env.JOB_MAX_PER_SESSION, 32, 200),
+    maxRecords: positiveInt(process.env.JOB_MAX_RECORDS, 1000, 10000), ttlMs: positiveInt(process.env.JOB_RETENTION_MS, 86400000),
+    deadlineMs: positiveInt(process.env.JOB_DEADLINE_MS, 3600000), limits: { analysis: 2, cards: 2, comic: 2, video: 2 }, onRecover: cancelUpstream, ...options.store });
+  app.locals.jobs = store; app.locals.security = security;
+  app.locals.close = () => store.close();
+  app.disable('x-powered-by'); app.set('trust proxy', 'loopback');
+  app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); res.set('Referrer-Policy', 'no-referrer'); next(); });
+  app.use((req, res, next) => { try { security.checkOrigin(req); next(); } catch (e) { next(e); } });
+  app.use(cors({ origin: true, credentials: true, allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Idempotency-Key', 'X-Access-Token', 'Range'], exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length'], maxAge: 600 }));
+  app.use(express.json({ limit: `${Math.min(maxAnalyzePayloadMb, 4)}mb` }));
+  app.get('/api/health', (_req, res) => res.json({ ...api.health(), dependenciesChecked: false }));
+  app.get('/api/session', asyncRoute((req, res) => security.bootstrap(req, res)));
+  app.get('/api/assets/:jobId/:assetId', asyncRoute((req, res) => serveArtifact(req, res, store, security)));
+  app.use('/api/presentation/assets', (req, res, next) => {
+    if (!/\.(pdf|png|webp|jpe?g|mp4)$/i.test(req.path)) return res.status(404).end();
+    next();
+  }, express.static(presentationPrecomputedRoot, { dotfiles: 'deny', index: false }));
+  app.use('/api', security.authenticate);
+  app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  app.get('/api/jobs', (req, res) => res.json({ jobs: [...store.jobs.values()].filter(j => j.owner === req.owner).map(j => ({ jobId: j.jobId, kind: j.kind, status: j.status, createdAt: j.createdAt })) }));
+  app.get('/api/readiness', asyncRoute(async (_req, res) => {
+    const targets = { qwen: new URL('/health', process.env.QWEN_BASE_URL || 'http://127.0.0.1:8000').href,
+      image: new URL('/health', process.env.HIDREAM_IMAGE_API_URL || 'http://127.0.0.1:5052').href,
+      video: new URL('/health', process.env.VIDEO_API_URL || 'http://127.0.0.1:5054').href };
+    const states = await Promise.all(Object.entries(targets).map(async ([name, url]) => {
+      try { const r = await fetch(url, { signal: AbortSignal.timeout(3000) }); const text = await r.text(); const data = text ? JSON.parse(text) : {};
+        const configured = Boolean(name === 'qwen' ? process.env.QWEN_API_KEY : name === 'image' ? process.env.HIDREAM_API_KEY : process.env.VIDEO_API_KEY);
+        return [name, { ready: configured && r.ok && data.ready !== false && !data.loadError, configured, loaded: data.loaded ?? data.modelLoaded }];
+      } catch { return [name, { ready: false }]; }
+    }));
+    const ready = states.every(([, state]) => state.ready); res.status(ready ? 200 : 503).json({ ready, dependencies: Object.fromEntries(states) });
+  }));
 
-app.use(cors());
-app.use(express.json({ limit: `${maxAnalyzePayloadMb}mb` }));
-app.use('/api/presentation/assets', express.static(presentationPrecomputedRoot));
-
-// Serve generated HiDream comic images through the EULALens backend.
-// This allows remote browsers to access images without exposing port 5052.
-const hiDreamOutputRoot =
-  '/data/d1/vanishri/EULALens/Data/experiments/image-generation/hidream-o1/app-renders';
-
-app.use('/api/comic-assets', express.static(hiDreamOutputRoot));
-
-// Serve generated LTX videos through the EULALens backend.
-// This avoids exposing the separate LTX service or depending on its tunnel.
-const ltxVideoOutputRoot =
-  '/data/d1/vanishri/EULALens/Data/experiments/video-generation/ltx-2.3/app-renders';
-
-app.use('/api/video-assets', express.static(ltxVideoOutputRoot));
-
-app.get('/api/health', (_req, res) => {
-  res.json(health());
-});
-
-app.post('/api/analyze', asyncRoute(async (req, res) => {
-  res.json(await analyzeEula(req.body));
-}));
-
-app.post('/api/analyze/start', (req, res) => {
-  const jobId = `analysis-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const payload = req.body;
-
-  analysisJobs.set(jobId, {
-    jobId,
-    status: 'processing',
-    createdAt: Date.now()
-  });
-
-  res.status(202).json({ jobId, status: 'processing' });
-
-  void (async () => {
-    try {
-      const result = await analyzeEula(payload);
-      const job = analysisJobs.get(jobId);
-      if (!job) return;
-      job.status = 'ready';
-      job.result = result;
-      job.completedAt = Date.now();
-    } catch (error) {
-      const job = analysisJobs.get(jobId);
-      if (!job) return;
-      job.status = 'error';
-      job.error = error?.message || 'EULA analysis failed.';
-      job.completedAt = Date.now();
-      console.error(`Analysis job ${jobId} failed:`, error);
+  const run = kind => async ({ job, payload, signal, update }) => {
+    if (kind === 'analysis') return { result: await api.analyzeEula({ ...payload, signal }) };
+    if (kind === 'cards') {
+      update({ results: [] });
+      const result = await api.generateCategoryCardsBatch({ ...payload, signal, onProgress: async (entry, index) => {
+        const progress = new Map((job.results || []).map(item => [item.categoryId, item]));
+        progress.set(entry.categoryId, entry);
+        update({ results: payload.categories.map(category => progress.get(category.id)).filter(Boolean) });
+      } });
+      return { result, results: result.results };
     }
-  })();
-});
-
-app.get('/api/analyze/jobs/:jobId', (req, res) => {
-  const job = analysisJobs.get(req.params.jobId);
-  if (!job) return res.status(404).json({ error: 'Analysis job not found.' });
-  return res.json(job);
-});
-
-app.post('/api/categories/cards', asyncRoute(async (req, res) => {
-  res.json(await generateCategoryCards(req.body));
-}));
-
-app.post('/api/categories/cards/batch', asyncRoute(async (req, res) => {
-  res.json(await generateCategoryCardsBatch(req.body));
-}));
-
-app.post('/api/categories/cards/batch/start', (req, res) => {
-  const jobId = `cards-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-  cardJobs.set(jobId, {
-    jobId,
-    status: 'processing',
-    createdAt: Date.now()
-  });
-
-  res.status(202).json({ jobId, status: 'processing' });
-
-  void (async () => {
-    try {
-      const result = await generateCategoryCardsBatch(req.body);
-      const job = cardJobs.get(jobId);
-      if (!job) return;
-      job.status = 'ready';
-      job.result = result;
-      job.completedAt = Date.now();
-    } catch (error) {
-      const job = cardJobs.get(jobId);
-      if (!job) return;
-      job.status = 'error';
-      job.error = error?.message || 'Cue-card generation failed.';
-      job.completedAt = Date.now();
-      console.error(`Cue-card job ${jobId} failed:`, error);
+    if (kind === 'comic' || kind === 'render') {
+      let collection = payload.comics; let selectedId = payload.selectedComicId;
+      if (kind === 'comic') {
+        update({ status: 'generating-story' });
+        const result = await api.generateCategoryComic({ ...payload, signal });
+        const comic = result.comic || result;
+        collection = Array.isArray(comic.comics) && comic.comics.length ? comic.comics : [comic];
+        selectedId ||= comic.selectedComicId || collection[0]?.id;
+      }
+      signal.throwIfAborted();
+      const selected = collection?.find(c => c.id === selectedId) || collection?.[0];
+      if (!selected?.imagePrompt) throw httpError(502, 'No validated comic scenario was returned.');
+      update({ comics: collection, selectedComicId: selected.id, comic: selected, status: 'rendering-image' });
+      const result = await render('image', () => { update({ upstreamStarted: true }); return api.renderCategoryComicImage({ ...payload, comic: selected, jobId: job.jobId, signal }); }, signal);
+      signal.throwIfAborted();
+      const imageUrl = attachArtifact(job, result.image.imageUrl, 'image', security, update);
+      const { imagePath, ...image } = result.image;
+      return { render: { ...result, image: { ...image, imageUrl } } };
     }
-  })();
-});
-
-app.get('/api/categories/cards/batch/jobs/:jobId', (req, res) => {
-  const job = cardJobs.get(req.params.jobId);
-  if (!job) return res.status(404).json({ error: 'Cue-card job not found.' });
-  res.set('Cache-Control', 'no-store');
-  return res.json(job);
-});
-
-app.post('/api/categories/comic', asyncRoute(async (req, res) => {
-  res.json(await generateCategoryComic(req.body));
-}));
-
-app.post('/api/categories/comic/start', (req, res) => {
-  const jobId = createComicJobId();
-
-  comicJobs.set(jobId, {
-    jobId,
-    status: 'queued',
-    createdAt: Date.now()
-  });
-
-  // Return immediately. Qwen and HiDream continue after the response.
-  res.status(202).json({
-    jobId,
-    status: 'queued'
-  });
-
-  void (async () => {
-    try {
-      const job = comicJobs.get(jobId);
-      job.status = 'generating-story';
-
-      const comicResult = await generateCategoryComic(req.body);
-      if (job.status === 'canceled') return;
-      const comicPayload = comicResult.comic || comicResult;
-
-      let selectedComic = comicPayload;
-
-      if (Array.isArray(comicPayload?.comics)) {
-        selectedComic =
-          comicPayload.comics.find(
-            comic => comic.id === comicPayload.selectedComicId
-          ) ||
-          comicPayload.comics[0];
-      }
-
-      if (!selectedComic) {
-        throw new Error('Qwen did not return a usable comic.');
-      }
-
-      if (job.status === 'canceled') return;
-      job.status = 'rendering-image';
-      job.comic = selectedComic;
-
-      if (job.status === 'canceled') return;
-      const renderResult = await renderCategoryComicImage({
-        ...req.body,
-        comic: selectedComic,
-        jobId
-      });
-
-      if (job.status === 'canceled') return;
-      job.status = 'ready';
-      job.render = renderResult;
-      job.completedAt = Date.now();
-    } catch (error) {
-      const job = comicJobs.get(jobId);
-
-      if (job && job.status !== 'canceled') {
-        job.status = 'error';
-        job.error = error?.message || 'Comic generation failed.';
-        job.completedAt = Date.now();
-      }
-
-      console.error(`Comic job ${jobId} failed:`, error);
-    }
-  })();
-});
-
-app.post('/api/categories/comic/jobs/:jobId/cancel', asyncRoute(async (req, res) => {
-  const job = comicJobs.get(req.params.jobId);
-
-  if (!job) {
-    return res.status(404).json({ error: 'Comic job not found.' });
+    update({ status: 'generating-script' });
+    const scriptResult = kind === 'clip' ? { video: payload.category.video } : await api.generateCategoryVideoScript({ ...payload, signal });
+    signal.throwIfAborted();
+    if (!scriptResult.video?.modelPrompt) throw httpError(502, 'No validated video script was returned.');
+    update({ videoScript: scriptResult.video, status: 'generating-video' });
+    const result = await render('video', () => { update({ upstreamStarted: true }); return api.generateCategoryVideo({ ...payload, category: { ...payload.category, video: scriptResult.video }, jobId: job.jobId, signal,
+      onProviderJobId: id => update({ providerJobId: id }) }); }, signal);
+    signal.throwIfAborted();
+    if (!result.videoUrl || !['ready', 'completed', 'succeeded', 'success'].includes(result.status)) throw httpError(502, 'Video provider has not completed a playable video.');
+    const videoUrl = attachArtifact(job, result.videoUrl, 'video', security, update);
+    const { raw, ...video } = result;
+    return { video: { ...video, videoUrl, degradation: raw?.degraded || raw?.postprocess?.degraded || raw?.postprocess?.degradation || raw?.postprocess?.audio?.degradation || null, subtitleLines: raw?.subtitleLines || scriptResult.video.subtitleLines } };
+  };
+  function start(req, res, kind, override) {
+    const body = validate(kind, override || req.body);
+    const { idempotencyKey, ...payload } = body;
+    const headerKey = req.get('idempotency-key');
+    if (headerKey?.length > 200) throw httpError(400, 'Invalid idempotency key.');
+    const job = store.start({ kind, owner: req.owner, payload, idempotencyKey: headerKey || idempotencyKey, runner: run(kind), onCancel: cancelUpstream });
+    res.status(202).json({ jobId: job.jobId, status: job.status });
   }
-
-  if (['ready', 'error', 'canceled'].includes(job.status)) {
-    return res.json(job);
+  for (const [kind, route] of Object.entries(routes)) {
+    app.post(`${route}/start`, asyncRoute((req, res) => start(req, res, kind)));
+    app.get(`${route}/jobs/:jobId`, asyncRoute((req, res) => {
+      const job = store.get(req.params.jobId, req.owner);
+      if (job.kind !== kind && !(kind === 'comic' && job.kind === 'render') && !(kind === 'video' && job.kind === 'clip')) throw httpError(404, 'Job not found.');
+      res.json(store.public(job));
+    }));
+    app.post(`${route}/jobs/:jobId/cancel`, asyncRoute(async (req, res) => {
+      const job = store.get(req.params.jobId, req.owner);
+      if (job.kind !== kind && !(kind === 'comic' && job.kind === 'render') && !(kind === 'video' && job.kind === 'clip')) throw httpError(404, 'Job not found.');
+      res.json(store.public(await store.cancel(job.jobId, req.owner)));
+    }));
   }
+  app.post('/api/categories/comic/render/start', asyncRoute((req, res) => {
+    if (!req.body?.comic?.id || !req.body.comic?.imagePrompt) throw httpError(400, 'A validated comic scenario is required.');
+    start(req, res, 'render', { ...req.body, comics: [req.body.comic], selectedComicId: req.body.comic.id });
+  }));
+  app.post('/api/videos/generate/start', asyncRoute((req, res) => {
+    if (!req.body?.category?.video?.modelPrompt) throw httpError(400, 'A validated video script is required.');
+    start(req, res, 'clip');
+  }));
+  app.post('/api/categories/comic/jobs/:jobId/scenarios/:scenarioId/render', asyncRoute((req, res) => {
+    const parent = store.get(req.params.jobId, req.owner);
+    if (!['comic', 'render'].includes(parent.kind) || !parent.comics?.some(c => c.id === req.params.scenarioId)) throw httpError(404, 'Scenario not found.');
+    start(req, res, 'render', { ...parent.payload, ...req.body, category: parent.payload.category, comics: parent.comics, selectedComicId: req.params.scenarioId });
+  }));
 
-  const previousStatus = job.status;
-  job.status = 'canceled';
-  job.completedAt = Date.now();
-
-  if (previousStatus === 'rendering-image') {
-    try {
-      await cancelHiDreamJob(job.jobId);
-    } catch (error) {
-      // HiDream may have finished before cancellation arrived.
-      console.warn(`HiDream cancellation for ${job.jobId}:`, error.message);
-    }
-  }
-
-  return res.json(job);
-}));
-
-app.get('/api/categories/comic/jobs/:jobId', (req, res) => {
-  const job = comicJobs.get(req.params.jobId);
-
-  if (!job) {
-    return res.status(404).json({
-      error: 'Comic job not found.'
-    });
-  }
-
-  return res.json(job);
-});
-
-app.post('/api/categories/video/start', (req, res) => {
-  const jobId = createVideoJobId();
-
-  videoJobs.set(jobId, {
-    jobId,
-    status: 'queued',
-    createdAt: Date.now()
+  // Compatibility endpoints share the same limits, deadlines and ownership as jobs.
+  const direct = new Gate(4, 32);
+  const synchronous = (kind, handler) => asyncRoute(async (req, res) => {
+    validate(kind, req.body);
+    const controller = new AbortController(); const disconnected = () => { if (!res.writableFinished) controller.abort(); };
+    req.on('aborted', disconnected); res.on('close', disconnected);
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(1800000)]);
+    try { res.json(await direct.run(() => handler({ ...req.body, signal }), signal)); }
+    finally { req.off('aborted', disconnected); res.off('close', disconnected); }
   });
-
-  // Return immediately. Qwen and LTX continue after the response.
-  res.status(202).json({
-    jobId,
-    status: 'queued'
-  });
-
-  void (async () => {
-    try {
-      const job = videoJobs.get(jobId);
-      job.status = 'generating-script';
-
-      const scriptResult = await generateCategoryVideoScript(req.body);
-      if (job.status === 'canceled') return;
-      const videoScript = scriptResult.video;
-
-      if (!videoScript?.modelPrompt) {
-        throw new Error('Qwen did not return a usable video script.');
-      }
-
-      job.videoScript = videoScript;
-      job.status = 'generating-video';
-
-      const category = {
-        ...req.body.category,
-        video: videoScript
-      };
-
-      const videoResult = await generateCategoryVideo({
-        ...req.body,
-        category,
-        jobId
-      });
-
-      if (job.status === 'canceled') return;
-
-      // LTX returns its own public URL, which may point to an ephemeral
-      // tunnel. When the local output path is available, expose the video
-      // through the EULALens backend instead.
-      const outputFile =
-        videoResult?.raw?.outputFile ||
-        videoResult?.raw?.output_file ||
-        videoResult?.raw?.postprocess?.finalOutputFile;
-
-      let videoUrl = videoResult?.videoUrl || '';
-
-      if (outputFile) {
-        const relativePath = path.relative(ltxVideoOutputRoot, outputFile);
-
-        if (
-          relativePath &&
-          !relativePath.startsWith('..') &&
-          !path.isAbsolute(relativePath)
-        ) {
-          videoUrl = `/api/video-assets/${relativePath
-            .split(path.sep)
-            .map(encodeURIComponent)
-            .join('/')}`;
+  app.post('/api/analyze', synchronous('analysis', api.analyzeEula));
+  app.post('/api/categories/cards', synchronous('card', api.generateCategoryCards));
+  app.post('/api/categories/cards/batch', synchronous('cards', api.generateCategoryCardsBatch));
+  app.post('/api/categories/comic', synchronous('comic', api.generateCategoryComic));
+  app.post('/api/categories/video/script', synchronous('script', api.generateCategoryVideoScript));
+  const directMedia = (kind, fn) => asyncRoute(async (req, res) => {
+    validate(kind, req.body);
+    if (kind === 'render' && !req.body.comic?.imagePrompt) throw httpError(400, 'Comic scenario is required.');
+    const job = store.start({ kind, namespace: 'synchronous', owner: req.owner, payload: req.body, idempotencyKey: req.get('idempotency-key') || req.body.idempotencyKey,
+      onCancel: cancelUpstream, runner: async ({ job, signal, update }) => {
+        const result = await render(kind === 'render' ? 'image' : 'video', () => { update({ upstreamStarted: true }); return fn({ ...req.body, jobId: job.jobId, signal }); }, signal);
+        signal.throwIfAborted();
+        if (kind === 'render') {
+          const imageUrl = attachArtifact(job, result.image.imageUrl, 'image', security, update);
+          return { result: { categoryId: result.categoryId, image: { ...result.image, imagePath: undefined, imageUrl } } };
         }
-      }
-
-      job.status = 'ready';
-      job.video = {
-        ...videoResult,
-        videoUrl
-      };
-      job.completedAt = Date.now();
-    } catch (error) {
-      const job = videoJobs.get(jobId);
-
-      if (job && job.status !== 'canceled') {
-        job.status = 'error';
-        job.error = error?.message || 'Video generation failed.';
-        job.completedAt = Date.now();
-      }
-
-      console.error(`Video job ${jobId} failed:`, error);
-    }
-  })();
-});
-
-app.get('/api/categories/video/jobs/:jobId', (req, res) => {
-  const job = videoJobs.get(req.params.jobId);
-
-  if (!job) {
-    return res.status(404).json({
-      error: 'Video job not found.'
-    });
-  }
-
-  return res.json(job);
-});
-
-app.post('/api/categories/video/jobs/:jobId/cancel', asyncRoute(async (req, res) => {
-  const job = videoJobs.get(req.params.jobId);
-
-  if (!job) {
-    return res.status(404).json({ error: 'Video job not found.' });
-  }
-
-  if (['ready', 'error', 'canceled'].includes(job.status)) {
-    return res.status(409).json({
-      error: `Video job is already ${job.status}.`,
-      job
-    });
-  }
-
-  // Mark canceled first so the background task cannot overwrite this state.
-  job.status = 'canceled';
-  job.canceledAt = Date.now();
-  job.completedAt = Date.now();
-
-  try {
-    const result = await cancelCategoryVideo(job.jobId);
-    return res.json({
-      jobId: job.jobId,
-      status: 'canceled',
-      cancellation: result
-    });
-  } catch (error) {
-    // Keep the canceled state, but report that provider cancellation failed.
-    return res.status(502).json({
-      jobId: job.jobId,
-      status: 'canceled',
-      error: error?.message || 'Could not contact the video provider.'
-    });
-  }
-}));
-
-app.post('/api/categories/video/script', asyncRoute(async (req, res) => {
-  res.json(await generateCategoryVideoScript(req.body));
-}));
-
-app.post('/api/categories/comic/render', asyncRoute(async (req, res) => {
-  res.json(await renderCategoryComicImage(req.body));
-}));
-
-app.post('/api/videos/generate', asyncRoute(async (req, res) => {
-  res.json(await generateCategoryVideo(req.body));
-}));
-
-app.get('/api/videos/:jobId', asyncRoute(async (req, res) => {
-  res.json(await getVideoStatus(req.params.jobId));
-}));
-
-app.use((error, _req, res, next) => {
-  if (error?.type === 'entity.too.large') {
-    return res.status(413).json({
-      error: `This EULA is too large to analyze in one request. Try a shorter document or paste the relevant sections.`
-    });
-  }
-
-  const statusCode = getErrorStatus(error, 500);
-  if (statusCode >= 400 && statusCode < 600) {
-    return res.status(statusCode).json(errorPayload(error, 'Request failed.'));
-  }
-
-  return next(error);
-});
+        const videoUrl = attachArtifact(job, result.videoUrl, 'video', security, update); const { raw, ...video } = result;
+        return { result: { ...video, videoUrl } };
+      } });
+    const abort = () => { if (!res.writableFinished) void store.cancel(job.jobId, req.owner); };
+    res.on('close', abort);
+    try {
+      await store.runtime.get(job.jobId)?.promise;
+      if (job.status !== 'ready') throw httpError(job.status === 'expired' ? 504 : 502, job.error || 'Media generation was canceled.');
+      res.json(job.result);
+    } finally { res.off('close', abort); }
+  });
+  app.post('/api/categories/comic/render', directMedia('render', api.renderCategoryComicImage));
+  app.post('/api/videos/generate', directMedia('video', api.generateCategoryVideo));
+  app.get('/api/videos/:jobId', asyncRoute((req, res) => res.json(store.public(store.get(req.params.jobId, req.owner)))));
+  app.use((error, _req, res, next) => {
+    if (res.headersSent) return next(error);
+    if (error?.type === 'entity.too.large') return res.status(413).json({ error: 'Document request exceeds the size limit.' });
+    const status = error?.name === 'AbortError' ? 499 : error?.name === 'TimeoutError' ? 504 : getErrorStatus(error, error?.status || 500);
+    if (status === 429 || status === 503) res.set('Retry-After', '10');
+    res.status(status >= 400 && status <= 599 ? status : 500).json(errorPayload(error, 'Request failed.'));
+  });
+  return app;
+}
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  app.listen(port, host, () => console.log(`EULALens API listening on http://${host}:${port}`));
+  const app = createApp();
+  const server = app.listen(port, host, () => console.log(`EULALens API listening on http://${host}:${port}`));
+  let stopping = false;
+  const shutdown = async () => { if (stopping) return; stopping = true; server.close(); await app.locals.close(); await closeProviderConnections(); };
+  process.on('SIGINT', () => void shutdown()); process.on('SIGTERM', () => void shutdown());
 }
-
-export default app;
+export default createApp;

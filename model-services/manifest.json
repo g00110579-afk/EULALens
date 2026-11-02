@@ -1,0 +1,123 @@
+{
+  "format": 1,
+  "version": "2026-11-02.1",
+  "external_revisions": {
+    "HiDream-O1-Image": "3237a638a5c2c7be106b0175958f4c0db8c2dfbf",
+    "LTX-2": "d6053703e00195bc668cbd1d5eda9dc0b2e7b74a"
+  },
+  "files": [
+    {
+      "path": "service_runtime.py",
+      "sha256": "0c7e19202ef1cdef564f316f31cdb26ddecb28d2aa9c4732a0ed01a7f2080673",
+      "audited_source_sha256": "0c7e19202ef1cdef564f316f31cdb26ddecb28d2aa9c4732a0ed01a7f2080673",
+      "mode": "0644"
+    },
+    {
+      "path": "hidream_image_server.py",
+      "sha256": "767e971efde8b7e28cfa6b5eea6a4d96373593aa1a6c1657b69e5c878c9042e5",
+      "audited_source_sha256": "767e971efde8b7e28cfa6b5eea6a4d96373593aa1a6c1657b69e5c878c9042e5",
+      "mode": "0644"
+    },
+    {
+      "path": "hidream-o1-image-2604/hidream_image_server.py",
+      "sha256": "2d3d027d99b3a82b9aab4e62f299a46bc8b9fc5679624a59d9f1383040781c31",
+      "audited_source_sha256": "2d3d027d99b3a82b9aab4e62f299a46bc8b9fc5679624a59d9f1383040781c31",
+      "mode": "0644"
+    },
+    {
+      "path": "hidream-o1-image-2604/apply_pipeline_patch.py",
+      "sha256": "8d9c9f21ca3fa1570503d3ea8847049f3645d290ef23d81b0ab9b433c713355f",
+      "audited_source_sha256": "8d9c9f21ca3fa1570503d3ea8847049f3645d290ef23d81b0ab9b433c713355f",
+      "mode": "0644"
+    },
+    {
+      "path": "hidream-o1-image-2604/patches/cooperative-cancellation.patch",
+      "sha256": "02a714671a96edd60832cb3c488801cd148f0bcaf0ce7e5dcaee33039dd3606a",
+      "audited_source_sha256": "02a714671a96edd60832cb3c488801cd148f0bcaf0ce7e5dcaee33039dd3606a",
+      "mode": "0644"
+    },
+    {
+      "path": "hidream-o1-image-2604/setup_hidream.sh",
+      "sha256": "5b83346d9a75abf3f3088690b127b1257e005a2822274887ef7c7dda765845f1",
+      "audited_source_sha256": "5b83346d9a75abf3f3088690b127b1257e005a2822274887ef7c7dda765845f1",
+      "mode": "0755"
+    },
+    {
+      "path": "hidream-o1-image-2604/serve_hidream_image.sh",
+      "sha256": "857b7c1da168fee7f9200c9afa4fa06a49282a39813a721b87adc2b45c536733",
+      "audited_source_sha256": "857b7c1da168fee7f9200c9afa4fa06a49282a39813a721b87adc2b45c536733",
+      "mode": "0755"
+    },
+    {
+      "path": "hidream-o1-image-2604/.env.example",
+      "sha256": "5abdc2955ed0f67a993d1fce3f319350a576ba047d4836c11a074aa9983b4adc",
+      "audited_source_sha256": "5abdc2955ed0f67a993d1fce3f319350a576ba047d4836c11a074aa9983b4adc",
+      "mode": "0644"
+    },
+    {
+      "path": "ltx-2.3/ltx_video_server.py",
+      "sha256": "632412f5a3192ed5a63447a416454ed2766eca04ae5d0911a11b8b1902a69216",
+      "audited_source_sha256": "632412f5a3192ed5a63447a416454ed2766eca04ae5d0911a11b8b1902a69216",
+      "mode": "0644"
+    },
+    {
+      "path": "ltx-2.3/timed_ltx23_experiment.py",
+      "sha256": "f953c3b70f8ec704fef84866d24dae434ecf3929edd0bc2a5edccc135cd6ad8a",
+      "audited_source_sha256": "f953c3b70f8ec704fef84866d24dae434ecf3929edd0bc2a5edccc135cd6ad8a",
+      "mode": "0644"
+    },
+    {
+      "path": "ltx-2.3/kokoro_tts_worker.py",
+      "sha256": "60e3890ae9a9eb9d43750bdfab0a5f40813222909fb12180f53c23e6a7f5b230",
+      "audited_source_sha256": "60e3890ae9a9eb9d43750bdfab0a5f40813222909fb12180f53c23e6a7f5b230",
+      "mode": "0644"
+    },
+    {
+      "path": "ltx-2.3/serve_ltx23_video.sh",
+      "sha256": "d54b8bec41efbe42f3d549c9cf02e5edf230eebe9b15ce6b7e46c2bb791ae481",
+      "audited_source_sha256": "d54b8bec41efbe42f3d549c9cf02e5edf230eebe9b15ce6b7e46c2bb791ae481",
+      "mode": "0755"
+    },
+    {
+      "path": "ltx-2.3/.env.example",
+      "sha256": "732f8b827445a555cbc8f876e2bd205efe2d29518ffe21fd53b456a7d61e30c5",
+      "audited_source_sha256": "732f8b827445a555cbc8f876e2bd205efe2d29518ffe21fd53b456a7d61e30c5",
+      "mode": "0644"
+    },
+    {
+      "path": "qwen-3.5-9b/serve_qwen35_9b_vllm.sh",
+      "sha256": "8c5b391c5585645b68271f0e891285566c3a11a2e11786831d0d9aef24c61498",
+      "audited_source_sha256": "8c5b391c5585645b68271f0e891285566c3a11a2e11786831d0d9aef24c61498",
+      "mode": "0755"
+    },
+    {
+      "path": "qwen-3.5-9b/.env.example",
+      "sha256": "5aadd7834359faca310703d68f4c6f43f50baca8dddf94c9dfea776578d044bf",
+      "audited_source_sha256": "39d579d0ad0900ae79a1ae6f78ce6b9f737b33fb2be65a99d66dff5b7ada0693",
+      "mode": "0644"
+    },
+    {
+      "path": "tests/test_model_services.py",
+      "sha256": "7f05f1a28234f79509d26d0af4be178f97547475bbcf26a0c785b3398622140b",
+      "audited_source_sha256": "0d6f91d06fe2a8f8420716fde41bc33920f203f9091aca8ff31deae14c76a730",
+      "mode": "0644"
+    },
+    {
+      "path": "tests/accept_models.py",
+      "sha256": "464a30e17cb6dd181b5684e6cf5ae5aec8be0a6465a0d9a38e31394234b4a5d0",
+      "mode": "0644"
+    }
+  ],
+  "notes": [
+    "Canonical scripts_dev sources; full vendor trees intentionally excluded.",
+    "Portable CPU test loader and synthetic vendor fixture replace local layout assumptions.",
+    "Qwen example API key is deliberately blank; no live environment files are included."
+  ],
+  "external_source_fingerprints": {
+    "HiDream-O1-Image/models/pipeline.py": {
+      "upstream_commit_sha256": "68156223cfa6cf86e52776cf8480cd5446d311dd3313a8104adc0355bf0460a6",
+      "audited_working_source_sha256": "1e4765d176986c8a86fad3a5ada2f285a96c1f536a09be08fdf4c8090004e13c",
+      "note": "Python source only; active scripts_dev checkout already had the cancellation callback before this audit. This is not a model-weight checksum."
+    }
+  }
+}

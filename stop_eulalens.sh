@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-PROJECT="/data/d1/vanishri/EULALens/eulalens-project-dev"
+PROJECT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME="$PROJECT/.runtime"
 
 echo "========================================"
@@ -20,7 +20,7 @@ stop_service() {
     local pid
     pid="$(cat "$pidfile")"
 
-    if kill -0 "$pid" 2>/dev/null; then
+    if [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) && kill -0 -- "-$pid" 2>/dev/null; then
         echo "[STOP] $name (process group $pid)"
 
         # Services are started with setsid, so the recorded PID is also
@@ -28,13 +28,13 @@ stop_service() {
         kill -TERM -- "-$pid" 2>/dev/null || true
 
         for _ in {1..20}; do
-            if ! kill -0 "$pid" 2>/dev/null; then
+            if ! kill -0 -- "-$pid" 2>/dev/null; then
                 break
             fi
             sleep 0.5
         done
 
-        if kill -0 "$pid" 2>/dev/null; then
+        if [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) && kill -0 -- "-$pid" 2>/dev/null; then
             echo "[WARN] $name did not stop normally; forcing process group shutdown"
             kill -KILL -- "-$pid" 2>/dev/null || true
         fi

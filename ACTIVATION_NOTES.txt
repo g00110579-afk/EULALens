@@ -1,0 +1,57 @@
+EULALens live activation — 2 November 2026
+
+The repaired website and local services are active. The public UI is hosted at
+https://g00110579-afk.github.io/EULALens/ and reaches the local API through
+https://api.eulalens.stream. GitHub Pages publishes main; live-pdf-pipeline is
+kept at the same deployed revision. PR #1 contains the audited repairs.
+
+Qwen, HiDream, LTX and Node were restarted with synchronized strong service keys.
+All four application/model ports bind 127.0.0.1. Qwen remains on physical GPU 0;
+HiDream and nonresident CPU-offloaded LTX remain on physical GPU 1. LTX reporting
+modelLoaded=false while idle is expected. Local and public authenticated API
+readiness report all dependencies ready. The named Cloudflare tunnel is running
+and uses a token file rather than exposing its token as a command-line argument.
+Runtime/configuration backups and logs are private; credentials were not committed.
+
+The launcher allows Qwen's cold compilation to exceed the previous three-minute
+startup allowance. The tracked runtime-config.js contains only the public API
+endpoint, preserves an explicit browser override, and is delivered by Pages.
+
+Live verification completed
+  Public Chromium: published UI loaded without uncaught page errors; actual
+  session/bearer/CORS flow and readiness passed; unauthenticated job access is 401;
+  actual pinned PDF.js 6.5.438 CDN import passed.
+  Qwen through repaired HTTP jobs: 3 categories, 4 validated quotations and
+  2 card categories in 29.181 seconds.
+  Direct HiDream: native 2048x2048, 28 steps, 50.589 seconds.
+  Direct LTX: 704x448, 49 frames / 4.083333 seconds, 73.130 seconds; audible speech,
+  readable aligned captions, no degraded audio fallback.
+  Real public API image job: 51.023 seconds, 5,382,225-byte PNG.
+  Real public API video job: 74.420 seconds, 180,674-byte MP4, two returned/burned
+  captions at 0–1.5 s and 1.58–3.455 s, embedded subtitles and dialogue audio.
+  Signed public media HEAD and byte ranges return 200/206; unsigned links 404.
+  Direct model artifacts require service authentication and support HEAD/Range.
+  Image cancellation during 100% GPU utilization completed within 0.457 seconds
+  after the cancel request. Video cancellation during startup completed within
+  0.047 seconds. Both services returned ready with no active jobs. Video mid-
+  denoising cancellation was covered by regression tests, not this live probe.
+
+Final control-flow regression suite: 64 redesign checks, 53 original-site checks,
+29 model CPU tests, 7 installer tests, 3 configuration tests. Real Chromium
+fixture upload/scenarios/captions/reload and clean npm installation also pass.
+Both site dependency audits reported zero vulnerabilities at verification time.
+
+Run explicit GPU checks only when intended:
+  node tools/smoke-live-media.mjs --run
+  python model-services/tests/accept_models.py --root /path/to/EULALens --run
+Read-only public browser verification:
+  node tools/smoke-public.mjs
+These need the documented Playwright/Python environments; the GPU commands
+consume actual model capacity. See model-services/README.txt for source/package
+management and REPAIR_NOTES.txt for the full audit mapping.
+
+Acceptance used synthetic agreements/prompts. Timings are individual samples,
+not throughput benchmarks. Model visuals can still contain incidental lettering
+or other generative imperfections; service tests do not guarantee semantic or
+visual perfection. Anonymous sessions provide scoped ownership, not user-account
+login. One Node worker owns the persistent job directory by design.

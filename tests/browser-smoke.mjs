@@ -31,6 +31,9 @@ try {
   const modelBase = await listen(model);
   process.env.HIDREAM_IMAGE_API_URL = modelBase; process.env.VIDEO_API_URL = modelBase + '/generate'; process.env.VIDEO_PROVIDER = 'ltx-local'; process.env.HIDREAM_API_KEY = process.env.VIDEO_API_KEY = 'fixture-key';
   const site = express(); site.use(express.static(root)); const siteBase = await listen(site);
+  const configResponse = await fetch(siteBase + '/runtime-config.js');
+  assert.equal(configResponse.status, 200, 'Published browser configuration must exist outside private .runtime');
+  assert.match(await configResponse.text(), /window\.EULALENS_API_BASE/);
   const counts = { analysis: 0, cards: 0, comic: 0, image: 0, video: 0 };
   const categories = [{ id: 'license', title: 'License scope', severity: 'low', summary: '<img src=x onerror="window.auditSentinel=1">', sourceSegments: ['You may use the fictional app on one device.'], lenses: { impact: 'One device only.' }, lookouts: ['Check devices.'] }];
   const comics = ['first', 'second'].map(id => ({ id, title: `${id} scenario`, imagePrompt: 'Synthetic image fixture for ' + id, panels: [{ title: 'First', body: 'A source-backed example.' }] }));
@@ -49,9 +52,9 @@ try {
   page.on('pageerror', error => { errors.push(error.message); console.error('BROWSER ERROR:', error.message); });
   page.on('console', message => { if (message.type() === 'error') console.error('BROWSER CONSOLE:', message.text()); });
   await page.addInitScript(base => { window.EULALENS_API_BASE = base; }, apiBase);
-  // The checked-out runtime config overwrites init-script globals. Replace it
-  // with the fixture endpoint too, so no test request reaches production.
-  await page.route('**/.runtime/config.js', route => route.fulfill({
+  // Override the published config with the fixture endpoint so no test
+  // request can reach production; its static file was verified above.
+  await page.route('**/runtime-config.js', route => route.fulfill({
     body: `window.EULALENS_API_BASE = ${JSON.stringify(apiBase)};`, contentType: 'text/javascript'
   }));
   await page.route('https://api.eulalens.stream/**', route => route.abort('blockedbyclient'));

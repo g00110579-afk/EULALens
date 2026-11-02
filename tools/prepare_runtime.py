@@ -69,7 +69,7 @@ def main():
     changes = {name: {key: value for key, value in values.items() if current[name].get(key) != value} for name, values in expected.items()}
     changes = {name: values for name, values in changes.items() if values}
     if not args.apply:
-        print(json.dumps({'ready':not bool(changes),'configuration_updates':{name:list(values) for name,values in changes.items()},'next_step':'After publishing the matching UI and stopping services, run this command with --apply, then start_eulalens.sh.'},indent=2))
+        print(json.dumps({'ready':not bool(changes),'configuration_updates':{name:list(values) for name,values in changes.items()},'next_step':('Configuration is synchronized. Check /api/readiness on the running API.' if not changes else 'After publishing the matching UI and stopping services, run this command with --apply, then start_eulalens.sh.')},indent=2))
         return 0 if not changes else 1
     if changes:
         occupied=[]

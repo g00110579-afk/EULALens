@@ -33,11 +33,13 @@ export function health() {
   };
 }
 
-export async function analyzeEula({ text, fileName } = {}) {
-  const eulaText = String(text || '').trim();
+export async function analyzeEula({ text, fileName, signal } = {}) {
+  if (typeof text !== 'string' || text.length > 500000) throw httpError(400, 'Provide document text of at most 500,000 characters.');
+  signal?.throwIfAborted();
+  const eulaText = text;
   const documentName = String(fileName || 'Pasted_EULA.txt');
 
-  if (eulaText.length < 20) {
+  if (eulaText.trim().length < 20) {
     throw httpError(400, 'Please paste or upload a longer EULA before analyzing.');
   }
 
@@ -51,7 +53,7 @@ export async function analyzeEula({ text, fileName } = {}) {
   }
 
   try {
-    return { analysis: withoutSourceText(await analyzeWithQwen({ text: eulaText, fileName: documentName })) };
+    return { analysis: withoutSourceText(await analyzeWithQwen({ text: eulaText, fileName: documentName, signal })) };
   } catch (error) {
     if (isPresentationMode() && /QWEN_API_KEY/i.test(error?.message || '')) {
       throw httpError(
@@ -79,7 +81,7 @@ function fallbackCards(category = {}) {
   ];
 }
 
-export async function generateCategoryCards({ category, documentTitle } = {}) {
+export async function generateCategoryCards({ category, documentTitle, signal } = {}) {
   if (!category?.id && !category?.title) throw httpError(400, 'Category is required.');
 
   if (isMockMode()) {
@@ -89,11 +91,11 @@ export async function generateCategoryCards({ category, documentTitle } = {}) {
     };
   }
 
-  return generateCardsWithQwen({ category, documentTitle });
+  return generateCardsWithQwen({ category, documentTitle, signal });
 }
 
-export async function generateCategoryCardsBatch({ categories, documentTitle } = {}) {
-  if (!Array.isArray(categories)) throw httpError(400, 'Categories must be an array.');
+export async function generateCategoryCardsBatch({ categories, documentTitle, signal, onProgress } = {}) {
+  if (!Array.isArray(categories) || categories.length > 100 || categories.some(c => !c || typeof c !== 'object' || !c.id)) throw httpError(400, 'Provide at most 100 categories with IDs.');
 
   if (isMockMode()) {
     return {
@@ -106,7 +108,7 @@ export async function generateCategoryCardsBatch({ categories, documentTitle } =
   }
 
   return {
-    results: await generateCardsBatchWithQwen({ categories, documentTitle })
+    results: await generateCardsBatchWithQwen({ categories, documentTitle, signal, onProgress })
   };
 }
 
@@ -213,36 +215,36 @@ function fallbackVideoScript(category = {}) {
   };
 }
 
-export async function generateCategoryComic({ category, documentTitle } = {}) {
+export async function generateCategoryComic({ category, documentTitle, signal } = {}) {
   if (!category?.id && !category?.title) throw httpError(400, 'Category is required.');
 
   if (isMockMode()) return fallbackComic(category);
 
-  return generateComicWithQwen({ category, documentTitle });
+  return generateComicWithQwen({ category, documentTitle, signal });
 }
 
-export async function generateCategoryVideoScript({ category, documentTitle } = {}) {
+export async function generateCategoryVideoScript({ category, documentTitle, signal } = {}) {
   if (!category?.id && !category?.title) throw httpError(400, 'Category is required.');
 
   if (isMockMode()) return fallbackVideoScript(category);
 
-  return generateVideoScriptWithQwen({ category, documentTitle });
+  return generateVideoScriptWithQwen({ category, documentTitle, signal });
 }
 
-export async function renderCategoryComicImage({ category, comic, documentTitle, jobId } = {}) {
+export async function renderCategoryComicImage({ category, comic, documentTitle, jobId, signal } = {}) {
   if (!category?.id && !category?.title) throw httpError(400, 'Category is required.');
   if (!comic) throw httpError(400, 'Comic is required.');
 
-  return renderComicWithHiDream({ category, comic, documentTitle, jobId });
+  return renderComicWithHiDream({ category, comic, documentTitle, jobId, signal });
 }
 
-export async function generateCategoryVideo({ category, documentTitle, jobId } = {}) {
+export async function generateCategoryVideo({ category, documentTitle, jobId, signal, onProviderJobId } = {}) {
   if (!category?.title) throw httpError(400, 'Category is required.');
-  return generateVideo({ category, documentTitle, jobId });
+  return generateVideo({ category, documentTitle, jobId, signal, onProviderJobId });
 }
 
-export async function getVideoStatus(jobId) {
-  return checkVideoStatus(jobId);
+export async function getVideoStatus(jobId, options) {
+  return checkVideoStatus(jobId, options);
 }
 
 export async function cancelCategoryVideo(jobId) {

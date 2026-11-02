@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/data/d1/vanishri/EULALens"
-PROJECT="$ROOT/eulalens-project-dev"
+PROJECT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${EULALENS_ROOT:-$(dirname "$PROJECT")}"
 RUNTIME="$PROJECT/.runtime"
 LOGS="$RUNTIME/logs"
 
@@ -12,6 +12,7 @@ LTX="$ROOT/scripts_dev/ltx-2.3"
 CLOUDFLARED="$QWEN/bin/cloudflared"
 
 mkdir -p "$LOGS"
+python "$PROJECT/tools/prepare_runtime.py" --apply --root "$ROOT" --project "$PROJECT"
 
 echo "========================================"
 echo " Starting EULALens"
@@ -25,7 +26,17 @@ wait_for_port() {
     echo "[WAIT] $name on port $port..."
 
     for ((i=1; i<=timeout; i++)); do
-        if ss -ltn 2>/dev/null | grep -q ":${port} "; then
+        local route="/health"
+        [[ "$name" == "backend" ]] && route="/api/health"
+        if python - "$port" "$route" <<'PY_HEALTH'
+import json,sys,urllib.request
+try:
+    with urllib.request.urlopen(f'http://127.0.0.1:{sys.argv[1]}{sys.argv[2]}',timeout=2) as response:
+        raw=response.read(); data=json.loads(raw) if raw else {}
+        sys.exit(0 if data.get('ready',True) and not data.get('loadError') else 1)
+except Exception: sys.exit(1)
+PY_HEALTH
+        then
             echo "[READY] $name"
             return 0
         fi
@@ -181,32 +192,29 @@ if [[ -f "$RUNTIME/backend-tunnel.pid" ]] && \
 else
     echo "[START] permanent backend tunnel"
 
-    CF_TOKEN="$(cat "$CF_TOKEN_FILE")"
-
     nohup setsid "$CLOUDFLARED" tunnel \
         --protocol http2 \
         run \
-        --token "$CF_TOKEN" \
+        --token-file "$CF_TOKEN_FILE" \
         >"$LOGS/backend-tunnel.log" 2>&1 &
 
     echo $! >"$RUNTIME/backend-tunnel.pid"
-    unset CF_TOKEN
 fi
 
 echo "[WAIT] permanent backend tunnel..."
 
 TUNNEL_READY=0
 for _ in {1..30}; do
-    if curl -fsS --max-time 5 "$BACKEND_URL" >/dev/null 2>&1; then
+    if curl -fsS --max-time 5 "$BACKEND_URL/api/health" >/dev/null 2>&1; then
         TUNNEL_READY=1
         break
     fi
 
-    # A 404 from Express is also proof that the tunnel reached our backend.
+    # An unauthenticated health endpoint must reach the configured API.
     HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
-        --max-time 5 "$BACKEND_URL" 2>/dev/null || true)"
+        --max-time 5 "$BACKEND_URL/api/health" 2>/dev/null || true)"
 
-    if [[ "$HTTP_CODE" == "404" ]]; then
+    if [[ "$HTTP_CODE" == "200" ]]; then
         TUNNEL_READY=1
         break
     fi

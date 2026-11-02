@@ -1,0 +1,19 @@
+--- a/models/pipeline.py
++++ b/models/pipeline.py
+@@ -124,6 +124,7 @@
+         keep_original_aspect: bool = False,
+         layout_bboxes: str = None,
+         callback=None,
++        cancel_check=None,
+ ) -> Image.Image:
+     device = model.device
+     dtype = torch.bfloat16
+@@ -371,6 +372,8 @@
+     cond_deepstack_image_embeds = None
+ 
+     for step_idx, step_t in enumerate(tqdm.tqdm(sched.timesteps, desc="Generating")):
++        if cancel_check is not None:
++            cancel_check()
+         t_pixeldit = 1.0 - step_t.float() / 1000.0
+         sigma = (step_t.float() / 1000.0).to(dtype=torch.float32).clamp_min(T_EPS)
+ 

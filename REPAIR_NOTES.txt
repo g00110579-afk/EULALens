@@ -1,0 +1,204 @@
+EULALens repair record — 2026-11-02
+
+The reproduced audit defects have been repaired in source in both website trees
+and both local model-service trees. Multiple review rounds added regressions for
+newly discovered integration and lifecycle edge cases. This is a staged source
+repair, not a claim that the still-running public deployment has been replaced.
+
+Work locations
+  Redesigned site: eulalens-project-dev (this repository).
+  Original site: ../reference-project/EULALens-main.
+  Model runtime source: ../scripts_dev and ../scripts.
+  Portable reviewed model package: model-services/README.txt.
+  Original audit and immutable evidence: ../audit-2026-11-02.
+
+The original source snapshot was verified against GitHub commit
+598e10cbbaddc8710db28db0abdd66587f296e25. The redesign's starting commit is
+b0161050c3db4691eeff43b41839b16dbd811533. Existing generated assets, live .env
+files and running service processes were preserved. No remote push, public UI
+publication, service restart, model weight change or new image/video inference
+was performed during these source repairs.
+
+Audit-to-repair coverage
+
+O01 — Meaning-changing substitutions removed from legal dialogue/overlay text.
+      Source-grounded checks reject unsupported mandatory claims after bounded
+      repair. Visual-only formatting does not rewrite the explanation's rules.
+O02 — Cards, comics and videos receive every category source quotation. Context
+      accounting uses the provider tokenizer or an explicit conservative bound;
+      oversized complete evidence fails explicitly rather than dropping quotes.
+O03 — Extraction validates quotations against normalized source text and retains
+      exact original character spans and stable evidence IDs. Fabrications fail.
+O04 — Aggregation starts from valid observed severity and takes the highest
+      observed level; category fallback is reserved for invalid/missing levels.
+O05 — Final comic/video plans must satisfy required structure, timing and
+      grounding checks. Advisory style warnings do not force expensive retries.
+O06 — Original UI now follows durable video jobs and recognizes completed video
+      preloads. Generic asynchronous video providers are polled to completion.
+O07 — Original Workspace aborts on unmount/document changes; queued operations
+      check that signal before starting and accepted late jobs are canceled.
+O08 — Every Qwen stage receives cancellation and a request deadline including
+      queueing and response-body reading. The API exposes cancel on all stages.
+O09 — Length failures increase available output budget; extraction can split;
+      invalid JSON receives specific repair feedback; transient HTTP/network
+      failures use bounded retries. Context and integer settings are validated.
+O10 — PDF.js is updated and eval disabled. Positioned words/lines are preserved,
+      page/document resources are released, and cancellation is propagated.
+      Scanned PDFs without text still require OCR; neither UI invents text.
+
+N01 — All untrusted new-UI text is escaped and media URL schemes are checked.
+N02 — Automatic and manual work share deduplicated browser queues. The server
+      enforces global Qwen admission, job limits and per-model media gates.
+N03 — Accepted job identity survives transient polling and submission failures.
+      Submission retries reuse idempotency keys. Reload resumes stored job IDs.
+N04 — Missing/failed cards and media become explicit terminal states with retry.
+N05 — Complete comic collections are retained; each scenario has owned lazy
+      image rendering and can be selected without losing its siblings.
+N06 — One run/navigation identity invalidates stale uploads and late completions.
+N07 — Cards are published per category as they settle. Media can begin while
+      other cards are still running; visible work receives browser priority.
+N08 — Analysis/cards/story/video cancellation propagates through every stage.
+N09 — Jobs persist privately with retention, bounded record/admission counts and
+      owner isolation. Restart preserves completed jobs and explicitly fails
+      interrupted ones rather than silently launching duplicate generation.
+N10 — A provider submission or future URL is not considered playable completion.
+N11 — Canceled/expired/error states consistently stop polling and UI spinners.
+
+M1  — Model job artifacts use unique caller-ID/UUID directories, never timestamps
+      alone. Same-category concurrent inputs cannot overwrite each other.
+M2  — Models require service keys and default to loopback. HTTP/body/job queues
+      are bounded. Website sessions isolate job reads/writes/cancellation.
+M3  — Model artifact access uses resolved containment and extension allowlists;
+      sibling-prefix and symlink escapes are rejected.
+M4  — Speech WAV durations determine non-overlapping subtitle slots, with bounded
+      tempo adjustment and actual returned timing used by the browser.
+M5  — Audio mixing uses explicit stable gain instead of amix's changing automatic
+      normalization. Real ffmpeg tone regression checks cover the timeline.
+M6  — HiDream reports and validates supported native dimensions and fixed steps.
+      Unsupported inexpensive-looking controls fail instead of being ignored.
+M7  — Video duration/fps/frame inputs are finite and bounded, and the frame count
+      obeys 8k+1. Responses report actual frame-derived duration.
+M8  — Job deadlines cover queueing, speech and ffmpeg as well as GPU inference.
+      Speech fallback is explicit degraded output, shown by the UI.
+M9  — Cancellation escalates against owned process groups even after leader exit.
+M10 — HiDream retains worker ownership until its actual inference thread exits.
+M11 — Resident LTX rechecks cancellation after admission and during diffusion.
+M12 — Accepted job IDs remain stable through completion; filenames are separate.
+
+I01 — undici is declared and locked (7.30.1); providers share a managed dispatcher.
+I02 — Signed anonymous sessions, CSRF checks, origin allowlisting, ownership and
+      admission limits protect the application boundary. Media is delivered by
+      scoped signed asset URLs/authenticated proxy; diagnostics are not static.
+I03 — Presentation matching requires full normalized document identity. Familiar
+      filenames/prefixes cannot select another agreement. Incomplete-media
+      categories remain visible; presentation mode defaults off.
+I04 — Remote media URLs are preserved. An explicit origin allowlist and local
+      /outputs remapping replace machine-specific filesystem assumptions.
+
+Other reviewed weaknesses repaired
+  Bounded extraction parallelism preserves global vLLM admission. Chunks include
+  boundary context; merges retain later summaries, conditions and source spans.
+  Source-excerpt navigation is restored in the redesigned UI. Speaker-to-voice
+  mapping is stable. Environment overrides and model/repo paths are honored.
+  Unneeded final LTX audio decode/encode is skipped when Kokoro replaces it;
+  joint audiovisual denoising remains intact. Readiness is distinct from health.
+  The required HiDream cancellation extension is versioned with a checked,
+  idempotent patch helper. Both duplicate script trees match a checksum manifest.
+  Original serverless API adapters proxy to the persistent backend instead of
+  bypassing authentication and durable job ownership. Original dependencies and
+  PDF extraction were upgraded and the production build checked.
+
+Additional regressions caught during iterative implementation review
+  Out-of-order card progress no longer overwrites earlier categories.
+  Video responses with a URL plus processing/expired status do not finish early.
+  Ambiguous provider transport failures request cancellation by stable job ID.
+  Per-model permits are acquired before shared GPU permits, avoiding head-of-line
+  occupation by two waiting image jobs while video capacity is available.
+  Worker ownership uses an OS-backed SQLite lease that survives SIGKILL safely.
+  Corrupt startup releases the lease; completed-job retries deduplicate even at
+  the record cap. Cancellation holds retention ownership until upstream cleanup
+  finishes, preventing a pruned job from being recreated on disk.
+  Synchronous compatibility calls have separate idempotency namespaces so their
+  response shape cannot collide with a durable job response.
+  Maximum-length category IDs remain valid metadata at the image boundary.
+  PDF.js 6 loading tasks are destroyed through its supported API.
+  Restore handles missing/expired anonymous sessions with reupload guidance.
+  Reserved scenario identifiers cannot share prototype state across categories.
+  Mandatory no-document-text prompt instructions no longer trigger a contradictory
+  style check and an unnecessary second full plan generation.
+
+Verification and reproduction
+
+Use Node >=22.13; this host's tested Node is 26.10.0 in conda eulalens-web.
+From this repository:
+  npm ci
+  npm test
+  npm audit
+  python tests/runtime_config_test.py
+  python model-services/tests/test_installer.py
+  /path/to/hidream-environment/bin/python model-services/tests/test_model_services.py
+  python model-services/install.py --root /path/to/EULALens --check
+
+Real-browser acceptance uses Playwright installed separately from production
+packages, a local Chromium, actual PDF.js and actual backend sessions/jobs/media
+proxy. Inference is replaced with deterministic synthetic plan/image/video
+fixtures. The harness blocks the production API host. Configure:
+  EULALENS_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs
+  PLAYWRIGHT_BROWSERS_PATH=/path/to/playwright-browser-cache
+  EULALENS_PDFJS_BUILD_DIR=/path/to/pdfjs-dist/build
+  node tests/browser-smoke.mjs
+It checks PDF upload, safe text, progressive cards, both comic scenarios, actual
+playable MP4 metadata, native caption timing, degraded-audio notice, source
+quotes, reload without duplicate generation, and unavailable-session recovery.
+
+The original website has its own regression suite and build:
+  cd ../reference-project/EULALens-main
+  npm test
+  npm run build
+  npm audit
+
+Live Qwen-only smoke uses a synthetic agreement and isolated temporary job store:
+  node tools/smoke-text.mjs
+It needs valid existing Qwen configuration; it generates no image/video. Runtime
+configuration preparation defaults to read-only and prints key names, never key
+values:
+  python tools/prepare_runtime.py
+
+Activation boundary
+
+The public UI and API must move to the new session/job contract together. Simply
+restarting the API under the existing old published UI will break that client's
+unauthenticated requests. Likewise, rotating a model key without its matching
+backend key breaks model calls. A coordinated cutover is required.
+
+Review and publish matching frontend assets, drain jobs and stop services during
+an agreed cutover. Check the model package and HiDream patch on the deployment
+host. Then run tools/prepare_runtime.py --apply while services are stopped;
+it backs up changed .env files privately, creates matching strong credentials,
+sets loopback service hosts, updates Qwen budgets, and selects native HiDream
+size. start_eulalens.sh runs the same idempotent preparation before launch and
+checks actual health/readiness. Preparation refuses configuration changes while
+known service ports are listening; no live credentials were rotated here.
+
+After activation, verify authenticated readiness and one real image/video job,
+actual captions/audio, cancellation and byte-range playback. These fresh GPU
+acceptance checks have not been performed against newly restarted wrappers.
+
+Deliberate limits
+  Signed anonymous sessions provide ownership, not account authentication. An
+  optional access-token session gate exists for private instances, but enabling
+  it requires a client/access flow; it is not configured in the public UI.
+  Same-tab reload restores identity via sessionStorage. A new tab/browser with
+  blocked third-party cookies may need a new upload. No source text/prompts are
+  saved in browser localStorage; only opaque run/job references are retained.
+  The durable job directory permits one worker process. It is not a distributed
+  queue and intentionally refuses a second writer. Interrupted jobs fail clearly
+  and require explicit retry; there is no claim to resume an in-flight GPU kernel.
+  Cancellation acknowledgment means an upstream request was accepted, not proof
+  that a GPU kernel has already stopped. Wrappers retain ownership until workers
+  exit. Hardware/driver hangs remain operational failures.
+  Regression/fixture tests establish control-flow and boundary behavior. Exact
+  source quotation verification does not establish complete legal interpretation
+  accuracy. No statistical model-quality evaluation or production-scale GPU
+  throughput/tail-latency benchmark was run. Concurrency defaults are bounded
+  starting settings, not a claim of optimal performance for every workload.

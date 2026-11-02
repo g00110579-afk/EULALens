@@ -34,5 +34,5 @@ export function isMockMode() {
 }
 
 export function isPresentationMode() {
-  return readBoolean(process.env.PRESENTATION_MODE, true);
+  return readBoolean(process.env.PRESENTATION_MODE, false);
 }

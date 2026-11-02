@@ -1,5 +1,9 @@
 EULALens repair record — 2026-11-02
 
+Activation update: the repaired UI/API/model services have now been activated.
+See ACTIVATION_NOTES.txt for the live verification record. The record below
+describes the source-repair phase and its then-pending activation boundary.
+
 The reproduced audit defects have been repaired in source in both website trees
 and both local model-service trees. Multiple review rounds added regressions for
 newly discovered integration and lifecycle edge cases. This is a staged source

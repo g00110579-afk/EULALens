@@ -12,6 +12,7 @@ LTX="$ROOT/scripts_dev/ltx-2.3"
 CLOUDFLARED="$QWEN/bin/cloudflared"
 
 mkdir -p "$LOGS"
+chmod 700 "$RUNTIME" "$LOGS"
 python "$PROJECT/tools/prepare_runtime.py" --apply --root "$ROOT" --project "$PROJECT"
 
 echo "========================================"
@@ -232,11 +233,12 @@ echo "[READY] Permanent backend: $BACKEND_URL"
 
 
 # ---------------------------------------------------------
-# 6. Runtime configuration for optional local frontend use
+# 6. Public browser configuration (also published with Pages)
 # ---------------------------------------------------------
 
-cat >"$RUNTIME/config.js" <<CONFIG
-window.EULALENS_API_BASE = '${BACKEND_URL}';
+cat >"$PROJECT/runtime-config.js" <<CONFIG
+// Public browser endpoint only; credentials belong in the server environment.
+window.EULALENS_API_BASE = window.EULALENS_API_BASE || '${BACKEND_URL}';
 CONFIG
 
 echo "[READY] Runtime API configuration created."

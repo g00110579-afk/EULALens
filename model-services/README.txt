@@ -121,3 +121,16 @@ drained, configure credentials/paths and native image size, apply/check the
 HiDream extension, run CPU tests, then deliberately restart services and perform
 small authenticated GPU generation, cancellation, and media Range checks.
 Neither this installer nor these tests activate a live deployment.
+
+Live acceptance is explicitly opt-in. After the operator confirms readiness,
+use the staged credentials privately and test one native image plus a 49-frame
+video with short dialogue:
+  python3 model-services/tests/accept_models.py --root /path/to/EULALens --service all --report /path/to/private/model-acceptance.json --run
+The default additionally tests cancellation before admission without executing
+an extra inference. --cancel active explicitly tests interruption of one extra
+job on each otherwise idle selected service. The harness never restarts a
+service and refuses non-loopback settings. It verifies authentication, output
+metadata, HEAD/Range responses, native PNG size, decoded video frame count and
+duration, non-silent audio, and returned/sidecar caption consistency. It saves
+a caption frame for visual review; it does not claim automated visual quality
+or OCR correctness. --run is mandatory; omitting it submits no requests.

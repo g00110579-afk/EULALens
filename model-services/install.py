@@ -28,7 +28,7 @@ ALLOWED = frozenset({
     "ltx-2.3/ltx_video_server.py", "ltx-2.3/timed_ltx23_experiment.py",
     "ltx-2.3/kokoro_tts_worker.py", "ltx-2.3/serve_ltx23_video.sh",
     "ltx-2.3/.env.example", "qwen-3.5-9b/serve_qwen35_9b_vllm.sh",
-    "qwen-3.5-9b/.env.example", "tests/test_model_services.py",
+    "qwen-3.5-9b/.env.example", "tests/test_model_services.py", "tests/accept_models.py",
 })
 
 

@@ -101,6 +101,11 @@
       "sha256": "7f05f1a28234f79509d26d0af4be178f97547475bbcf26a0c785b3398622140b",
       "audited_source_sha256": "0d6f91d06fe2a8f8420716fde41bc33920f203f9091aca8ff31deae14c76a730",
       "mode": "0644"
+    },
+    {
+      "path": "tests/accept_models.py",
+      "sha256": "464a30e17cb6dd181b5684e6cf5ae5aec8be0a6465a0d9a38e31394234b4a5d0",
+      "mode": "0644"
     }
   ],
   "notes": [

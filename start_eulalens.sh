@@ -126,7 +126,7 @@ start_service qwen 8000 \
     env CUDA_VISIBLE_DEVICES=0 GPU_MEMORY_UTILIZATION=0.6 \
     "$QWEN/serve_qwen35_9b_vllm.sh"
 
-wait_for_port qwen 8000 180
+wait_for_port qwen 8000 "${EULALENS_QWEN_START_TIMEOUT_SECONDS:-600}"
 
 
 # ---------------------------------------------------------
@@ -137,7 +137,7 @@ start_service hidream 5052 \
     env CUDA_VISIBLE_DEVICES=1 \
     "$HIDREAM/serve_hidream_image.sh"
 
-wait_for_port hidream 5052 180
+wait_for_port hidream 5052 "${EULALENS_IMAGE_START_TIMEOUT_SECONDS:-600}"
 
 
 # ---------------------------------------------------------

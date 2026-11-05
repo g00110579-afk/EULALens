@@ -59,16 +59,20 @@
     let sessionStorage = options.sessionStorage;
     try { sessionStorage ||= root.sessionStorage; } catch {}
     try { sessionToken = sessionStorage?.getItem(sessionKey) || ''; } catch {}
-    async function request(url, init = {}) {
+    async function request(url, init = {}, audio = false) {
       const controller = new AbortController();
       const abort = () => controller.abort();
-      const timer = setTimeout(abort, requestTimeout);
+      const timer = setTimeout(abort, audio ? 95000 : requestTimeout);
       if (init.signal?.aborted) controller.abort();
       init.signal?.addEventListener('abort', abort, { once: true });
       try {
         const headers = { ...(init.headers || {}) };
         if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
         const response = await fetcher(`${base}${url}`, { ...init, headers, credentials: 'include', cache: 'no-store', signal: controller.signal });
+        if (audio && response.ok) {
+          if (!response.headers.get('content-type')?.startsWith('audio/')) throw new Error('The server did not return audio.');
+          return await response.blob();
+        }
         let payload;
         try { payload = await response.json(); } catch { payload = { error: `The server returned an unreadable response (${response.status}).` }; }
         if (!response.ok) {
@@ -97,7 +101,7 @@
       }
       await sessionPromise;
     }
-    async function json(url, { method = 'GET', body, signal, idempotencyKey, attempts = 4 } = {}) {
+    async function authenticated(url, { method = 'GET', body, signal, idempotencyKey, attempts = 4 } = {}, audio = false) {
       let refreshed = false;
       for (let attempt = 0; ; attempt++) {
         if (signal?.aborted) throw abortError();
@@ -107,7 +111,7 @@
           if (body !== undefined) headers['Content-Type'] = 'application/json';
           if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken;
           if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
-          return await request(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal });
+          return await request(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal }, audio);
         } catch (error) {
           if (signal?.aborted) throw abortError();
           if ([401, 403].includes(error.status) && !refreshed) { refreshed = true; await session(true); continue; }
@@ -123,7 +127,7 @@
       while (Date.now() < deadline) {
         if (signal?.aborted) throw abortError();
         let job;
-        try { job = await json(url, { signal }); failures = 0; }
+        try { job = await authenticated(url, { signal }); failures = 0; }
         catch (error) {
           if ([404, 410].includes(error.status)) { error.terminal = true; error.jobStatus = 'expired'; }
           if (signal?.aborted || [400, 401, 403, 404, 410].includes(error.status)) throw error;
@@ -142,7 +146,10 @@
       const error = new Error('Stopped waiting for this job. Use Retry to reconnect without starting another generation.');
       error.code = 'POLL_DEADLINE'; throw error;
     }
-    return { json, poll, session };
+    return {
+      json: authenticated, poll, session,
+      audio: (url, { signal } = {}) => authenticated(url, { method: 'POST', signal }, true)
+    };
   }
   // Only opaque identifiers are retained. PDF bytes, extracted text, titles, model
   // prompts, summaries, and source clauses are never written to browser storage.

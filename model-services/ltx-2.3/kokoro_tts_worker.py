@@ -7,8 +7,11 @@ its own Python environment while the LTX server keeps using its existing env.
 
 from __future__ import annotations
 
+import io
 import json
+import struct
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +19,54 @@ import soundfile as sf
 from kokoro import KPipeline
 
 
+def synthesize_line(pipeline, text: str, voice: str, speed: float = 1.0) -> np.ndarray:
+  """Synthesize a complete line, including every chunk produced by Kokoro."""
+  segments = []
+  for _graphemes, _phonemes, audio in pipeline(text, voice=voice, speed=speed):
+    if hasattr(audio, "detach"):
+      audio = audio.detach().cpu().numpy()
+    samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+    if samples.size:
+      segments.append(samples)
+  if not segments:
+    raise RuntimeError("Kokoro returned no audio for the requested line.")
+  return np.concatenate(segments)
+
+
+def serve_comic_narration() -> int:
+  """Read JSON-encoded scene text; return a four-byte length and MP3 bytes."""
+  from spacy.util import is_package
+
+  # Misaki otherwise asks pip to download the tokenizer during the first request.
+  if not is_package("en_core_web_sm"):
+    raise RuntimeError("Install the en_core_web_sm package in the Kokoro environment.")
+  output = sys.stdout.buffer
+  with redirect_stdout(sys.stderr):
+    pipeline = KPipeline(lang_code="a", device="cpu", repo_id="hexgrad/Kokoro-82M")
+    for request in sys.stdin:
+      try:
+        text = json.loads(request)
+        if not isinstance(text, str) or not text.strip() or len(text) > 4096:
+          raise ValueError("Invalid scene text")
+        audio = synthesize_line(pipeline, text, "af_heart")
+        if not np.isfinite(audio).all() or np.max(np.abs(audio)) < 0.0001:
+          raise ValueError("No audible narration")
+        encoded = io.BytesIO()
+        sf.write(encoded, audio, 24000, format="MP3", subtype="MPEG_LAYER_III")
+        payload = encoded.getvalue()
+      except Exception as error:
+        # Keep the protocol framed and avoid logging private scene text.
+        print(f"Comic narration failed ({type(error).__name__}).", file=sys.stderr)
+        payload = b""
+      output.write(struct.pack(">I", len(payload)))
+      output.write(payload)
+      output.flush()
+  return 0
+
+
 def main() -> int:
+  if sys.argv[1:] == ["--comic-narration"]:
+    return serve_comic_narration()
   if len(sys.argv) != 2:
     raise SystemExit("Usage: kokoro_tts_worker.py /path/to/job.json")
 
@@ -40,17 +90,7 @@ def main() -> int:
     output_path = Path(line["outputPath"])
     output_path.parent.mkdir(parents=True, exist_ok=True)
     voice = line.get("voice") or voice_names[0]
-    segments = []
-
-    for _graphemes, _phonemes, audio in pipeline(text, voice=voice, speed=speed):
-      if hasattr(audio, "detach"):
-        audio = audio.detach().cpu().numpy()
-      segments.append(np.asarray(audio, dtype=np.float32).reshape(-1))
-
-    if not segments:
-      raise RuntimeError(f"Kokoro returned no audio for line {index + 1}.")
-
-    sf.write(output_path, np.concatenate(segments), sample_rate)
+    sf.write(output_path, synthesize_line(pipeline, text, voice, speed), sample_rate)
     output_files.append(str(output_path))
 
   print(json.dumps({"ok": True, "outputFiles": output_files}))

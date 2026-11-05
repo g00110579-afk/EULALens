@@ -1144,7 +1144,7 @@ function normalizeComicEntry(script, category, index = 0) {
       role: truncate(script?.main_character?.role || script?.mainCharacter?.role, 80),
       appearance: truncate(script?.main_character?.appearance || script?.mainCharacter?.appearance, 180)
     },
-    storySummary: truncate(script?.story_summary || script?.storySummary, 320),
+    storySummary: sanitizeOverlayText(script?.story_summary || script?.storySummary),
     scenes: balancedScenes,
     panels,
     rawImagePrompt,
@@ -1158,15 +1158,16 @@ function normalizeComicScript(script, category) {
     .map((comic, index) => normalizeComicEntry(comic, category, index))
     .filter((comic) => comic.scenes.length && comic.rawImagePrompt);
   const primary = comics[0] || normalizeComicEntry(script, category, 0);
+  const collectionSummary = sanitizeOverlayText(script?.story_summary || script?.storySummary);
+  // A collection-level summary can describe the individual story only when
+  // the source actually contained one scenario.
+  if (rawComics.length === 1 && !primary.storySummary) primary.storySummary = collectionSummary;
 
   return {
-    categoryId: category.id,
-    title: truncate(script?.title, 90) || `${category.title} Comics`,
-    storySummary: truncate(script?.story_summary || script?.storySummary || primary.storySummary, 420),
+    ...primary,
+    storySummary: collectionSummary || primary.storySummary,
     selectedComicId: primary.id,
     comics,
-    ...primary,
-    title: primary.title,
     imagePrompt: primary.rawImagePrompt
   };
 }
@@ -1554,7 +1555,7 @@ OUTPUT FORMAT:
         "role": "string",
         "appearance": "string"
       },
-      "story_summary": "string",
+      "story_summary": "A one- or two-sentence introduction for the reader: who is involved, which agreement term matters, and the decision it leads to.",
       "story_arc": "setup -> friction -> consequence -> decision",
       "raw_image_prompt": "one complete art-only image-mosaic prompt for this scenario; no generated text, titles, labels, or bubbles",
       "scenes": [
@@ -1574,7 +1575,7 @@ OUTPUT FORMAT:
           "purpose": "setup|attempt|discovery|friction|choice|consequence|resolution|safer_action",
           "legal_point": "string",
           "legal_basis": ["short source-grounded point"],
-          "narration": "string",
+          "narration": "A short sentence to read aloud for this scene, preserving any conditions on the rule.",
           "dialogue": "string",
           "composition": "wide shot|close-up|over-the-shoulder|split-screen|object metaphor|timeline|workflow view|other",
           "visual_hook": "what makes this scene visually distinct",

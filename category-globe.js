@@ -273,6 +273,7 @@ const openCategoryGlobe = (() => {
     offset = 0;
     suppressedClick = false;
     rotation.hidden = nodes.length < 3;
+    comicPlayback?.pause();
     dialog.showModal();
     viewport.scrollTop = 0;
     lastSize = viewport.clientWidth + "/" + viewport.clientHeight;

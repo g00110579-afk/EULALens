@@ -904,6 +904,39 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   gap: 12px;
   flex-wrap: wrap;
 }
+#comic-summary-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  text-align: left;
+}
+#comic-summary-toggle:disabled {
+  opacity: 1;
+}
+#comic-summary-toggle:disabled .material-symbols-outlined {
+  display: none;
+}
+#comic-summary-toggle .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--muted);
+}
+#comic-summary-toggle[aria-expanded="true"] .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+#comic-summary {
+  color: #ceced7;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow: auto;
+  max-height: min(6.1em, 15dvh);
+  flex: none;
+  scrollbar-width: thin;
+  margin: -2px 0 4px;
+}
 #cat-comic-title {
   font-size: 17px;
   font-weight: 500;
@@ -979,6 +1012,7 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   margin: 6px auto;
 }
 .comic-story {
+  container: comic-controls / inline-size;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -1007,6 +1041,64 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
 .comic-pager .icon-button {
   width: 36px;
   min-height: 36px;
+}
+.comic-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: none;
+  min-width: 32px;
+  min-height: 34px;
+  padding: 4px 8px;
+  color: #d1d1dc;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.comic-control .material-symbols-outlined {
+  font-size: 17px;
+}
+.comic-control:hover,
+.comic-control[aria-pressed="true"] {
+  color: var(--text);
+  background: #ffffff12;
+  border-color: #ffffff55;
+}
+#comic-play-status {
+  color: var(--muted);
+  padding: 3px 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+@container comic-controls (max-width: 345px) {
+  #comic-play-label {
+    display: none;
+  }
+  .comic-pager {
+    gap: 3px;
+  }
+  .comic-pager .icon-button,
+  .comic-control {
+    min-height: 32px;
+  }
+  .comic-pager .icon-button {
+    width: 31px;
+  }
+}
+@container comic-controls (max-width: 254px) {
+  .comic-narration-label {
+    display: none;
+  }
+  .comic-control {
+    padding-inline: 3px;
+    min-width: 28px;
+  }
+  #comic-position {
+    line-height: 1.2;
+  }
 }
 .comic-script {
   overflow: auto;
@@ -1045,6 +1137,24 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   border-radius: 16px;
 }
 @media (max-width: 640px) and (orientation: portrait) {
+  .comic-scenarios {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    flex: none;
+    scrollbar-width: thin;
+  }
+  .comic-scenarios button {
+    flex: none;
+    max-width: 82%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #comic-summary {
+    font-size: 13px;
+    line-height: 1.4;
+    max-height: min(6em, 13dvh);
+  }
   .category-panel:has(#tabbtn-comic[aria-selected="true"]) .category-summary {
     display: none;
   }
@@ -1606,8 +1716,17 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
     gap: 8px;
     min-height: 140px;
   }
-  .media-heading {
-    gap: 3px 8px;
+  #right-tab-comic .media-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  #comic-summary-toggle {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  #comic-open-link {
+    padding-inline: 4px;
   }
   #cat-comic-title {
     font-size: 15px;
@@ -1736,12 +1855,8 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   .category-navigation .icon-button:first-child {
     margin: 0;
   }
-  #right-tab-comic .media-heading {
-    flex-wrap: nowrap;
-  }
   #comic-open-link {
     padding-inline: 2px;
-    flex-shrink: 0;
   }
   .upload-action {
     display: none;
@@ -1920,8 +2035,20 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   }
 }
 @media (max-width: 380px) and (max-height: 640px) and (orientation: portrait) {
+  #right-tab-comic {
+    gap: 5px;
+  }
+  #comic-open-link {
+    font-size: 0;
+    gap: 0;
+    min-height: 32px;
+    width: 32px;
+  }
+  #comic-open-link .material-symbols-outlined {
+    font-size: 18px;
+  }
   .comic-reader {
-    grid-template-rows: minmax(65px, 0.8fr) minmax(130px, 1.3fr);
+    grid-template-rows: minmax(82px, 1.12fr) minmax(100px, 1fr);
   }
   #comic-scene-title {
     font-size: 17px;

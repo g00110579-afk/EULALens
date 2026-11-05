@@ -1,5 +1,6 @@
 /* Small UI-only behaviors. Generation and cancellation stay in the existing runtime. */
 function openHelpDialog() {
+  comicPlayback?.pause();
   document.getElementById("cat-video")?.pause();
   document.getElementById("help-dialog").showModal();
 }
@@ -77,6 +78,7 @@ detailDialog.addEventListener("close", placeCategoryNotes);
 placeCategoryNotes();
 
 function openCategoryDetails() {
+  comicPlayback?.pause();
   document.getElementById("cat-video").pause();
   document
     .getElementById("dialog-notes")

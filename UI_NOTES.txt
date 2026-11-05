@@ -10,18 +10,29 @@ smaller screens. Search and List view also reach every category. Escape closes
 the chooser, and the globe button reopens it at the current category. Reduced
 motion keeps the same controls and skips the animations.
 
-Video is the initial format. The header identifies the agreement, category
+The format order is Video, Comic, Original EULA and Cue cards. Video opens first. The header identifies the agreement, category
 position and risk. Desktop has a risk-grouped category index; on smaller
 screens the position control opens the category picker. Previous/Next and the
 index retain the selected format. The player and navigation fit the viewport.
 Long documents, scene text and lists scroll within their panels. In portrait,
 the category notes sit beneath the video; Details opens them from other formats.
 
-Cue cards flip in place. The comic reader pairs each scene’s original caption
-and dialogue with the artwork and keeps the current scene across live updates.
-comic-reader.js crops a panel when thin, bright gutters identify a matching
-set of panels, including full-width scenes. Other layouts and images without
-pixel access show the full sheet. Full artwork opens the original image.
+Cue cards flip in place. The comic reader shows the selected scenario's story
+summary and separates its original dialogue and captions from the artwork.
+Thin, bright gutters that match the number of scenes permit individual panel
+framing. Other layouts show the full sheet. Full artwork opens the source image.
+
+Comics advance on a reading timer. Pause and scene arrows allow manual reading.
+Reduced motion starts paused. Narration plays the authored scene script and
+advances on audio cues. Leaving the reader or opening a dialog pauses playback.
+
+All six sample agreements include original scenario metadata and a local MP3
+per comic. The 164 recordings and 969 scene timings work on static hosting.
+To rebuild them, use the Kokoro environment with its cached weights and voice,
+NumPy and ffmpeg, and run tools/build_sample_narration.py. Use --device cuda for
+an offline batch on a GPU. The builder reuses completed tracks on interrupted
+runs, then writes sample-narration.js. Uploaded comics use the authenticated
+branch API and the existing Kokoro voice on CPU (see model-services/README.txt).
 
 ui.css provides the glass styling, ui.js handles view controls, and
 category-globe.js builds the chooser from the current agreement. The existing

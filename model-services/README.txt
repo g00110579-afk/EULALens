@@ -72,6 +72,12 @@ checkpoint, spatial upsampler, Gemma encoder and any selected LoRA. Kokoro speec
 uses an external Python process with its own installed model/runtime. ffmpeg is
 required for audio alignment, subtitle burning, and media assembly.
 
+The web API also reads comic scenes aloud through the bundled Kokoro worker.
+Set EULALENS_KOKORO_PYTHON if the kokoro-tts environment is outside the web
+environment’s sibling conda directory. Install en_core_web_sm and libsndfile
+with MP3 encoding, and cache Kokoro-82M and the af_heart voice before starting
+the API. Live comic speech uses CPU and unloads the model after two idle minutes.
+
 .env.example files describe settings, not deployable credentials. Some examples
 retain the original machine's absolute paths as a record; set paths for the
 target machine explicitly. In particular, configure LTX_REPO, LTX_MODEL_PYTHON

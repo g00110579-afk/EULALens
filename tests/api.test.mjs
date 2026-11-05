@@ -81,3 +81,42 @@ test('legacy synchronous and durable video routes keep distinct response contrac
     await direct(); await durable(); assert.equal(generated, 2);
   }
 });
+
+test('comic narration is owner-scoped, available as soon as the script exists, and cached per scenario', async t => {
+  let started, finishImage;
+  const rendering = new Promise(resolve => { started = resolve; });
+  const image = new Promise(resolve => { finishImage = resolve; });
+  const spoken = [];
+  const comics = [
+    { id: 'primary', imagePrompt: 'Original image prompt', panels: [{ body: 'Caption' }], scenes: [{ narration: 'Original narration.' }] },
+    { id: 'other', imagePrompt: 'Alternative image prompt', panels: [{ body: 'A caption.', slots: [{ text: 'A caption.' }, { text: 'Spoken words.' }] }] }
+  ];
+  const f = await fixture(t, {
+    generateCategoryComic: async () => ({ comic: { comics } }),
+    renderCategoryComicImage: async () => { started(); return image; },
+    synthesizeComicNarration: async ({ text }) => { spoken.push(text); return Buffer.from('synthetic audio'); }
+  });
+  try {
+    const { jobId } = await (await f.request('/api/categories/comic/start', { category: { id: 'c', title: 'Review' } })).json();
+    await rendering;
+    const root = '/api/categories/comic/jobs/' + jobId + '/scenarios/';
+    const primary = root + 'primary/narration/0';
+    assert.equal((await f.request(primary, {}, await f.login())).status, 404);
+    assert.equal((await f.request(primary, { text: 'Do not read user text' })).status, 400);
+    assert.equal((await f.request(root + 'other/narration/-1', {})).status, 400);
+    assert.equal((await f.request(root + 'other/narration/1', {})).status, 404);
+    assert.equal((await f.request(root + 'missing/narration/0', {})).status, 404);
+    const noCsrf = await fetch(f.base + primary, { method: 'POST', headers: { Authorization: 'Bearer ' + f.session.sessionToken } });
+    assert.equal(noCsrf.status, 403);
+    for (const url of [primary, root + 'other/narration/0', primary]) {
+      const response = await f.request(url, {});
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('content-type'), 'audio/mpeg');
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal(await response.text(), 'synthetic audio');
+    }
+    assert.deepEqual(spoken, ['Original narration.', 'A caption.\nSpoken words.']);
+  } finally {
+    finishImage({ image: { imageUrl: 'http://127.0.0.1:5052/outputs/fixture.png' } });
+  }
+});

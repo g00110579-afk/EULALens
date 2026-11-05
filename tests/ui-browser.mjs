@@ -314,6 +314,72 @@ try {
       await page.waitForFunction(
         () => document.getElementById("cat-comic-img").naturalWidth > 0,
       );
+      const tabs = await page
+        .getByRole("tablist")
+        .getByRole("tab")
+        .evaluateAll((nodes) => nodes.map((el) => el.id));
+      assert.deepEqual(tabs, [
+        "tabbtn-video",
+        "tabbtn-comic",
+        "tabbtn-eula",
+        "tabbtn-cards",
+      ]);
+      const summary = page.locator("#comic-summary");
+      assert(await summary.isVisible());
+      assert.equal(
+        await summary.textContent(),
+        await page.evaluate(() => comicReader.category.comicSummary),
+      );
+      // Silent advancement is automatic; speech begins only after opting in.
+      assert.equal(
+        await page.locator("#comic-narration").getAttribute("aria-pressed"),
+        "false",
+      );
+      await page.waitForFunction(() => comicReader.index === 1, null, {
+        timeout: 45000,
+      });
+      await page.locator("#comic-prev").click();
+      assert.equal(
+        await page.locator("#comic-playback").getAttribute("aria-label"),
+        "Play comic",
+      );
+      await page.locator("#comic-narration").click();
+      const audio = page.locator("#comic-audio");
+      await page.waitForFunction(() => {
+        const a = document.getElementById("comic-audio");
+        return !a.paused && a.currentTime > 0 && Number.isFinite(a.duration);
+      });
+      const track = await page.evaluate(
+        () => sampleNarration[comicReader.category.comic],
+      );
+      assert((await audio.evaluate((a) => a.currentSrc)).endsWith(track.src));
+      await audio.evaluate((a, t) => {
+        a.currentTime = t - 0.15;
+      }, track.starts[1]);
+      await page.waitForFunction(() => comicReader.index === 1);
+      await page.evaluate(() => refreshActiveCategory());
+      assert.equal(await audio.evaluate((a) => a.paused), false);
+      await page.locator("#comic-playback").click();
+      assert(await audio.evaluate((a) => a.paused));
+      await page.locator("#comic-playback").click();
+      await audio.evaluate((a) => {
+        a.currentTime = a.duration - 0.2;
+      });
+      await page
+        .getByRole("button", { name: "Replay comic", exact: true })
+        .waitFor();
+      await page.locator("#comic-playback").click();
+      await page.waitForFunction(
+        () =>
+          comicReader.index === 0 &&
+          !document.getElementById("comic-audio").paused,
+      );
+      await page.locator("#comic-summary-toggle").click();
+      assert(await summary.isHidden());
+      await page.locator("#comic-summary-toggle").click();
+      await page.locator("#comic-next").click();
+      assert(await audio.evaluate((a) => a.paused));
+      await page.locator("#comic-prev").click();
       const scenes = await page.evaluate(
         () => comicReader.category.comicScenes,
       );
@@ -452,7 +518,7 @@ try {
         /zoom\/eula_zoom\.pdf$/,
       );
       await fits("original PDF", true);
-      await page.locator("#tabbtn-cards").focus();
+      await page.locator("#tabbtn-video").focus();
       await page.keyboard.press("ArrowRight");
       assert.equal(
         await page.locator("#tabbtn-comic").getAttribute("aria-selected"),
@@ -653,6 +719,7 @@ try {
           "in-place cue-card flips, keyboard operation and refresh",
           "format retention",
           "category boundaries",
+          "comic summaries, automatic advance, narrated scene cues, pause and replay",
           "comic scene navigation, exact dialogue and non-overlapping artwork",
           "video playback/pause",
           "original PDF",

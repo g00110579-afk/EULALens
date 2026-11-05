@@ -90,9 +90,15 @@ function showComicScene() {
   document.getElementById("comic-story").hidden = !scenes.length;
   document.getElementById("comic-prev").disabled = i === 0;
   document.getElementById("comic-next").disabled = i + 1 >= scenes.length;
-  document.getElementById("comic-scene-title").textContent = scene.title || "";
+  document.getElementById("comic-scene-title").textContent =
+    scene.overlayTitle || scene.title || scene.scene_title || "";
   document.getElementById("comic-caption").textContent =
-    scene.caption || scene.body || "";
+    scene.caption ||
+    scene.body ||
+    scene.overlayCaption ||
+    scene.overlay_caption ||
+    scene.narration ||
+    "";
   const dialogue = document.getElementById("comic-dialogue");
   dialogue.replaceChildren();
   const slots =
@@ -145,15 +151,21 @@ function positionComicArtwork() {
   crop.hidden = false;
   const status = document.getElementById("comic-art-status");
   status.hidden = true;
+  comicPlayback?.sync();
+}
+
+function selectComicScene(index) {
+  comicReader.index = index;
+  showComicScene();
+  document.getElementById("comic-script").scrollTop = 0;
 }
 
 function moveComicScene(step) {
   const next = comicReader.index + step;
   if (next < 0 || next >= (comicReader.category?.comicScenes?.length || 0))
     return;
-  comicReader.index = next;
-  showComicScene();
-  document.getElementById("comic-script").scrollTop = 0;
+  comicPlayback?.seek();
+  selectComicScene(next);
 }
 
 function renderComicForCategory(cat) {
@@ -183,6 +195,24 @@ function renderComicForCategory(cat) {
     Math.max(0, scenes.length - 1),
   );
   title.textContent = cat.comicTitle || "Comic";
+  const selected = cat.comics?.find(
+    (comic) => comic.id === cat.selectedComicId,
+  );
+  const summary =
+    activeDocument === "live"
+      ? selected?.storySummary ||
+        selected?.visualReadThrough ||
+        selected?.storyArc ||
+        ""
+      : cat.comicSummary || "";
+  const description = document.getElementById("comic-summary");
+  const toggle = document.getElementById("comic-summary-toggle");
+  if (description.textContent !== summary || changed) {
+    description.textContent = summary;
+    description.hidden = !summary;
+  }
+  toggle.disabled = !summary;
+  toggle.setAttribute("aria-expanded", String(!description.hidden));
   reader.hidden = !scenes.length && !url;
   status.hidden = !pending && !reader.hidden;
   status.replaceChildren();
@@ -258,4 +288,5 @@ function renderComicForCategory(cat) {
   }
   reader.classList.toggle("text-only", !url && scenes.length > 0);
   showComicScene();
+  comicPlayback?.sync();
 }

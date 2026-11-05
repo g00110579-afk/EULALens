@@ -73,8 +73,13 @@ try {
   assert.equal(await page.locator('#cat-cards b').count(), 0);
   assert.match(await page.locator('#doc-analysis-title').textContent(), /fixture<img/);
   assert.equal(await page.locator('#cat-summary').textContent(), '<img src=x onerror="window.auditSentinel=1">');
+  assert.equal(await page.locator('#tabbtn-video').getAttribute('aria-selected'), 'true');
+  if (await page.locator('#category-globe').isVisible()) await page.locator('#skip-globe').click();
+  assert.match(await page.locator('#category-position').textContent(), /Category 1 of 1/);
+  await page.getByRole('button', { name: 'Category details', exact: true }).click();
   await page.locator('#source-evidence summary').click();
   assert(await page.locator('#source-evidence details').getAttribute('open') !== null);
+  await page.keyboard.press('Escape');
   await page.locator('#tabbtn-comic').click();
   await page.waitForFunction(() => document.querySelector('#cat-comic-img')?.naturalWidth > 0, undefined, { timeout: 30000 });
   assert.equal(await page.locator('#comic-scenarios button').count(), 2);

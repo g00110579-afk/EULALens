@@ -20,7 +20,7 @@ function environment(api={}) {
     hasAttribute(name){return Boolean(this.attributes[name]||(name==='src'&&this.src));}
     insertAdjacentHTML(_position,html){this.innerHTML+=html;}
     querySelector(){return null;}
-    addEventListener(){} removeEventListener(){} scrollIntoView(){} pause(){} load(){}
+    addEventListener(){} removeEventListener(){} scrollIntoView(){} focus(){} pause(){} load(){}
   }
   const get=id=>{if(!elements.has(id)){const node=new Element();node.id=id;node.parentElement=new Element();elements.set(id,node);}return elements.get(id);};
   const store=new Map();const storage={getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};

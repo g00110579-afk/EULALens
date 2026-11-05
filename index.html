@@ -109,11 +109,17 @@
         const LIVE_API_BASE = (window.EULALENS_API_BASE || 'https://api.eulalens.stream').replace(/\/+$/, '');
         const escapeHtml = EULALensRuntime.escapeHtml;
         const safeMediaUrl = value => EULALensRuntime.safeUrl(value, LIVE_API_BASE + '/');
-        function openDocumentView(doc) {
-            switchDocument(doc);
+        function showDocumentWorkspace(animate = false) {
             document.getElementById('dashboard-tab').classList.add('hidden');
             document.getElementById('documents-tab').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'instant' });
+            document.getElementById('cat-title').focus({ preventScroll: true });
+            if (animate && typeof openCategoryGlobe === 'function') openCategoryGlobe();
+        }
+
+        function openDocumentView(doc) {
+            switchDocument(doc);
+            showDocumentWorkspace(true);
         }
 
         function updateResumeButton() {
@@ -128,15 +134,15 @@
             if (activeDocument !== 'live' || !currentRun || !isRunCurrent(currentRun)) {
                 void restoreLiveRun(); return;
             }
-            document.getElementById('dashboard-tab').classList.add('hidden');
-            document.getElementById('documents-tab').classList.remove('hidden');
-            updateCancelButton(); window.scrollTo({ top: 0, behavior: 'instant' });
+            updateCancelButton();
+            showDocumentWorkspace();
         }
 
         function backToHome() {
             document.getElementById('cat-video')?.pause();
             document.getElementById('documents-tab').classList.add('hidden');
             document.getElementById('dashboard-tab').classList.remove('hidden');
+            if (!document.getElementById('learn-more-panel').classList.contains('hidden')) toggleLearnMore();
             updateResumeButton();
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
@@ -149,9 +155,8 @@
             document.getElementById('try-another-modal').close();
         }
         function selectFromDialog(doc) {
-            switchDocument(doc);
             closeTryAnotherDialog();
-            window.scrollTo({ top: 0, behavior: 'instant' });
+            openDocumentView(doc);
         }
 
         function renderComicForCategory(cat) {
@@ -209,7 +214,7 @@
 
         const cancelledLiveDocuments = new WeakSet();
         let currentRun = null;
-        let currentFormat = 'cards';
+        let currentFormat = 'video';
         let latestUploadId = 0;
         let livePdfUrl = '';
         const mediaScheduler = new EULALensRuntime.Scheduler({ comic: 2, video: 1, cards: 1 });
@@ -291,7 +296,7 @@
         function refreshActiveCategory() {
             const id = document.getElementById('active-category')?.dataset.catId;
             const cat = categories.find(item => item.id === id);
-            if (cat) updateCategoryDetails(cat, { scroll: false, preserveFormat: true });
+            if (cat) updateCategoryDetails(cat, { preserveView: true });
             updateCategoryGenerationIndicators();
         }
 
@@ -516,7 +521,7 @@
             const message = document.createElement('p');
             message.className = 'text-sm text-white';
             const labels = { queued: 'Video queued…', running: 'Preparing video…', processing: 'Preparing video…', canceling: 'Canceling video…', 'generating-script': 'Preparing video script…', 'generating-video': 'Rendering video…', reconnecting: 'Reconnecting to the existing video job…', canceled: 'Video generation canceled.', error: cat.videoError || 'Video generation failed.' };
-            message.textContent = labels[cat.videoStatus] || 'Open the Video tab to generate this explainer.';
+            message.textContent = labels[cat.videoStatus] || 'Video queued…';
             status.appendChild(message);
             if (['error', 'canceled'].includes(cat.videoStatus)) {
                 const retry = document.createElement('button'); retry.textContent = 'Retry';
@@ -633,9 +638,8 @@
         function selectCategory(id) {
             const cat = categories.find(item => item.id === id);
             if (!cat) return;
-            const format = currentFormat;
-            updateCategoryDetails(cat, { scroll: false });
-            switchRightTab(format);
+            updateCategoryDetails(cat);
+            switchRightTab(currentFormat);
         }
         function moveCategory(offset) {
             const sorted = getSortedCategories();
@@ -644,7 +648,6 @@
             const next = sorted[index + offset];
             if (!next) return;
             selectCategory(next.id);
-            document.getElementById('active-category').scrollIntoView({ behavior: 'instant', block: 'start' });
         }
         function nextCategory() { moveCategory(1); }
         function previousCategory() { moveCategory(-1); }
@@ -655,12 +658,12 @@
             const opening = panel.classList.contains('hidden');
             panel.classList.toggle('hidden', !opening);
             button.setAttribute('aria-expanded', String(opening));
-            button.querySelector('.toggle-label').textContent = opening ? 'Show less' : 'Learn more';
+            button.querySelector('.toggle-label').textContent = opening ? 'Back to home' : 'Learn more';
+            window.scrollTo({ top: 0, behavior: 'instant' });
         }
         function showResearch() {
             backToHome();
             if (document.getElementById('learn-more-panel').classList.contains('hidden')) toggleLearnMore();
-            document.getElementById('learn-more-panel').scrollIntoView({ behavior: 'instant', block: 'start' });
         }
 
         // --- "Try it yourself" PDF upload (demo UI) ---
@@ -823,16 +826,17 @@
             fallback.classList.toggle('hidden', !livePdfUrl);
             if (livePdfUrl) fallback.href = livePdfUrl;
             else fallback.removeAttribute('href');
-            document.getElementById('doc-analysis-title').textContent = `Document Analysis: ${file?.name || run.documentTitle}`;
+            document.getElementById('pdf-unavailable').hidden = Boolean(livePdfUrl);
+            document.getElementById('doc-analysis-title').textContent = file?.name || run.documentTitle;
             renderCategoryNavigation();
-            updateCategoryDetails(getSortedCategories()[0], { scroll: false });
-            document.getElementById('dashboard-tab').classList.add('hidden');
-            document.getElementById('documents-tab').classList.remove('hidden');
+            updateCategoryDetails(getSortedCategories()[0]);
             updateCancelButton(); updateResumeButton(); persistRun(run);
             setUploadStatus(`Analysis complete. Found ${liveCategories.length} categories. Cards and media appear as they finish.`);
             // Cards are admitted first, but independent media never wait for the
             // slowest category. The server enforces actual model resource limits.
             void loadLiveCards(run);
+            switchRightTab('video');
+            showDocumentWorkspace(Boolean(file));
             for (const cat of run.categories) if (cat.cardsJobId) void loadLiveCards(run, cat);
             for (const cat of getSortedCategories()) {
                 void ensureLiveComic(cat, { priority: 0 });
@@ -19175,27 +19179,61 @@
             if (!picker) return;
             const selected = document.getElementById('active-category')?.dataset.catId;
             const sorted = getSortedCategories();
+            const list = document.getElementById('category-list');
+            document.getElementById('category-count').textContent = sorted.length;
+            list.replaceChildren();
+            list.scrollTop = 0;
             picker.replaceChildren();
             let group, lastRisk;
             for (const cat of sorted) {
                 if (cat.risk !== lastRisk) {
                     group = document.createElement('optgroup');
                     group.label = `${cat.risk.charAt(0).toUpperCase() + cat.risk.slice(1)} Risk`;
-                    picker.appendChild(group); lastRisk = cat.risk;
+                    picker.appendChild(group);
+                    const heading = document.createElement('h3');
+                    heading.className = 'index-group severity-' + cat.risk;
+                    heading.textContent = group.label;
+                    list.appendChild(heading);
+                    lastRisk = cat.risk;
                 }
                 const option = document.createElement('option');
                 option.value = cat.id; option.textContent = cat.name;
                 option.selected = cat.id === selected;
                 group.appendChild(option);
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'category-item';
+                item.dataset.categoryId = cat.id;
+                item.textContent = cat.name;
+                item.onclick = () => selectCategory(cat.id);
+                list.appendChild(item);
             }
-            syncCategoryPosition();
+        }
+        function revealCategoryInList(list, button) {
+            if (!button || !list.clientHeight) return;
+            const top = button.offsetTop - list.scrollTop;
+            if (top < 0) list.scrollTop += top;
+            else if (top + button.offsetHeight > list.clientHeight) {
+                list.scrollTop += top + button.offsetHeight - list.clientHeight;
+            }
         }
         function syncCategoryPosition() {
             const sorted = getSortedCategories();
             const selected = document.getElementById('active-category')?.dataset.catId;
             const index = sorted.findIndex(cat => cat.id === selected);
             document.getElementById('category-select').value = selected || '';
-            document.getElementById('category-position').textContent = index < 0 ? '' : `${index + 1} / ${sorted.length}`;
+            const position = document.getElementById('category-position');
+            const label = index < 0 ? '' : `Category ${index + 1} of ${sorted.length}`;
+            if (position.textContent !== label) position.textContent = label;
+            const list = document.getElementById('category-list');
+            for (const button of document.querySelectorAll('#category-list .category-item')) {
+                if (button.dataset.categoryId !== selected) {
+                    button.removeAttribute('aria-current');
+                } else if (!button.hasAttribute('aria-current')) {
+                    button.setAttribute('aria-current', 'true');
+                    revealCategoryInList(list, button);
+                }
+            }
             document.getElementById('previous-category-btn').disabled = index <= 0;
             document.getElementById('next-category-btn').disabled = index < 0 || index >= sorted.length - 1;
         }
@@ -19210,16 +19248,17 @@
         };
 
         const documentRegistry = {
-            zoom: { categories: () => zoomCategories, title: 'Document Analysis: Zoom TOS' },
-            spotify: { categories: () => spotifyCategories, title: 'Document Analysis: Spotify TOU' },
-            steam: { categories: () => steamCategories, title: 'Document Analysis: Steam Subscriber Agreement' },
-            windows11: { categories: () => windows11Categories, title: 'Document Analysis: Windows 11 Use Terms' },
-            adobe: { categories: () => adobeCategories, title: 'Document Analysis: Adobe Reader EULA' },
-            deepfake: { categories: () => deepfakeCategories, title: 'Document Analysis: Deepfake Detection Challenge EULA' }
+            zoom: { categories: () => zoomCategories, title: 'Zoom TOS' },
+            spotify: { categories: () => spotifyCategories, title: 'Spotify TOU' },
+            steam: { categories: () => steamCategories, title: 'Steam Subscriber Agreement' },
+            windows11: { categories: () => windows11Categories, title: 'Windows 11 Use Terms' },
+            adobe: { categories: () => adobeCategories, title: 'Adobe Reader EULA' },
+            deepfake: { categories: () => deepfakeCategories, title: 'Deepfake Detection Challenge EULA' }
         };
 
         function setEulaSource(doc) {
             const path = originalEulaPaths[doc];
+            document.getElementById('pdf-unavailable').hidden = true;
             const eulaFrame = document.getElementById('cat-eula-frame');
             const fallbackLink = document.getElementById('cat-eula-fallback-link');
             if (eulaFrame) { eulaFrame.src = path; eulaFrame.classList.remove('hidden'); }
@@ -19245,14 +19284,11 @@
             setEulaSource(doc);
 
             renderCategoryNavigation();
-            // Land directly on the highest-risk category's output — no globe/landing step.
-            updateCategoryDetails(getSortedCategories()[0], { scroll: false });
+            updateCategoryDetails(getSortedCategories()[0]);
+            switchRightTab('video');
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            setEulaSource(activeDocument);
-            renderCategoryNavigation();
-            updateCategoryDetails(getSortedCategories()[0], { scroll: false });
             initUploadDropzone();
             updateResumeButton();
         });
@@ -19283,25 +19319,23 @@
             if (!segments.length) { const note = document.createElement('p'); note.textContent = 'No source excerpts were returned for this category.'; details.appendChild(note); }
             container.appendChild(details);
             if (restoreFocus) heading.focus({ preventScroll: true });
-            if (!livePdfUrl) {
-                const note = document.createElement('p'); note.className = 'text-xs p-2 text-on-surface-variant';
-                note.textContent = 'The original PDF stays on your device. Upload it again to reopen the PDF viewer.';
-                container.appendChild(note);
-            }
         }
 
-        function updateCategoryDetails(cat, options = {}) {
-            const { scroll = true, preserveFormat = false } = options;
+        function updateCategoryDetails(cat, { preserveView = false } = {}) {
             if (!cat) return;
             const activeCategory = document.getElementById('active-category');
             const sameCategory = activeCategory.dataset.catId === cat.id;
-            const focusedCard = preserveFormat && sameCategory && document.activeElement?.matches?.('#cat-cards summary')
+            const focusedCard = preserveView && sameCategory && document.activeElement?.matches?.('#cat-cards summary')
                 ? document.activeElement.parentElement.dataset.cardIndex : null;
-            const expandedCards = preserveFormat && sameCategory
+            const expandedCards = preserveView && sameCategory
                 ? new Set([...document.querySelectorAll('#cat-cards details[open]')].map(node => node.dataset.cardIndex)) : new Set();
             activeCategory.dataset.catId = cat.id;
 
-            activeCategory.className = 'glass-panel category-panel';
+            if (!preserveView) {
+                document.getElementById('comic-transcript').open = false;
+                document.getElementById('video-notes').scrollTop = 0;
+                for (const panel of document.querySelectorAll('.review-stage [role="tabpanel"]')) panel.scrollTop = 0;
+            }
 
             // Update Title and Badge
             document.getElementById('cat-title').textContent = cat.name;
@@ -19311,12 +19345,14 @@
 
 
             // Update Summary
-            document.getElementById('cat-summary').innerHTML = `<p>${escapeHtml(cat.summary)}</p>`;
+            document.getElementById('cat-summary').textContent = cat.summary;
+            document.getElementById('details-summary').textContent = cat.summary;
+            document.getElementById('details-title').textContent = cat.name;
 
             // Update Impact and Lookouts while preserving expanded panels during generation.
             document.getElementById('cat-impact').innerHTML = cat.impact.map(i => `<li>${escapeHtml(i)}</li>`).join('');
             document.getElementById('cat-lookouts').innerHTML = cat.lookouts.map(i => `<li>${escapeHtml(i)}</li>`).join('');
-            if (!preserveFormat || !sameCategory) collapseInsightPanels();
+            if (!preserveView || !sameCategory) collapseInsightPanels();
 
             // Update Cards
             const cardsContainer = document.getElementById('cat-cards');
@@ -19361,23 +19397,16 @@
                 const videoEl = document.getElementById('cat-video');
                 clearVideoCaptions(videoEl);
                 document.getElementById('video-degradation')?.classList.add('hidden');
-                videoEl.src = EULALensRuntime.safeUrl(cat.video, window.location.href);
+                const url = EULALensRuntime.safeUrl(cat.video, window.location.href);
+                if (url && videoEl.src !== url) videoEl.src = url;
+                else if (!url && videoEl.hasAttribute('src')) { videoEl.removeAttribute('src'); videoEl.load(); }
                 document.getElementById('cat-video-status')?.classList.add('hidden');
             }
 
-            // Show Cards first for immediate results.
-            // Existing media jobs are reused when their tabs are opened.
-            if (!preserveFormat) switchRightTab('cards');
             renderSourceEvidence(cat);
             syncCategoryPosition();
             updateCategoryGenerationIndicators();
 
-            // Scroll the category + format area into view when the user picked it
-            // (not on the initial render, to avoid an unwanted jump on page load)
-            if (scroll) {
-                const target = document.getElementById('active-category');
-                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
         }
     </script>
 </head>
@@ -19385,26 +19414,39 @@
 <a class="skip-link" href="#main-content">Skip to content</a>
 <div class="glass-background" aria-hidden="true"><div class="glass-shard shard-a"></div><div class="glass-shard shard-b"></div><div class="glass-shard shard-c"></div><div class="glass-shard shard-d"></div><div class="glass-shard shard-e"></div></div>
 <header class="site-header">
-<button type="button" class="brand-link" onclick="backToHome()" aria-label="EULALens home"><span class="material-symbols-outlined" aria-hidden="true">document_scanner</span><span>EULALens</span></button>
-<button type="button" class="quiet-button" onclick="showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button>
+  <div class="header-identity">
+    <button type="button" class="brand-link" onclick="backToHome()" aria-label="EULALens home">
+      <span class="material-symbols-outlined" aria-hidden="true">document_scanner</span><span>EULALens</span>
+    </button>
+    <div class="document-identity"><span aria-hidden="true">/</span><h1 id="doc-analysis-title"></h1></div>
+  </div>
+  <button type="button" class="quiet-button home-research-link" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="material-symbols-outlined" aria-hidden="true">info</span></button>
+  <div class="document-actions">
+    <button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="quiet-button danger-button hidden" aria-label="Cancel unfinished analysis and generation"><span class="material-symbols-outlined" aria-hidden="true">stop_circle</span><span>Cancel generation</span></button>
+    <button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()" aria-label="Try another EULA"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span><span>Try another EULA</span></button>
+    <button type="button" class="icon-button" id="help-btn" onclick="openHelpDialog()" aria-label="Help"><span class="material-symbols-outlined" aria-hidden="true">help</span></button>
+  </div>
 </header>
 <div id="main-content" tabindex="-1">
 <div id="dashboard-tab">
 <main class="home-content">
 <header class="home-hero"><h1>EULALens</h1><div class="format-list"><span><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</span><span><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comics</span><span><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Videos</span></div></header>
+<section class="upload-section" aria-labelledby="upload-heading">
+  <button type="button" class="upload-dropzone glass-panel" id="upload-dropzone" aria-labelledby="upload-heading" aria-describedby="upload-hint">
+    <span class="upload-symbol material-symbols-outlined" aria-hidden="true">upload_file</span>
+    <span class="upload-copy"><span id="upload-heading">Upload a EULA</span><span id="upload-hint">Drop a PDF here, or click to browse</span></span>
+    <span class="upload-action" aria-hidden="true"><span class="material-symbols-outlined">arrow_upward</span></span>
+  </button>
+  <input accept="application/pdf,.pdf" class="hidden" id="upload-input" type="file" aria-label="Upload a EULA PDF"/>
+  <div id="upload-status" role="status" aria-live="polite"></div>
+  <button id="resume-analysis-btn" type="button" onclick="resumeLiveAnalysis()" class="pill-button hidden">Resume Analysis</button>
+</section>
 <section class="sample-section" aria-labelledby="samples-heading"><h2 id="samples-heading">Sample EULAs</h2><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></section>
-<section class="upload-section" aria-labelledby="upload-heading">
-<div class="upload-heading"><h2 id="upload-heading">Try it yourself</h2><button id="resume-analysis-btn" type="button" onclick="resumeLiveAnalysis()" class="pill-button hidden">Resume Analysis</button></div>
-<button type="button" class="upload-dropzone" id="upload-dropzone"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><span>Drop a PDF here, or click to browse</span><span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span></button>
-<input accept="application/pdf,.pdf" class="hidden" id="upload-input" type="file" aria-label="Upload a EULA PDF"/>
-<div id="upload-status" role="status" aria-live="polite"></div>
-</section>
-<div class="learn-more-control"><button type="button" class="quiet-button" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="material-symbols-outlined chevron" aria-hidden="true">expand_more</span></button></div>
 <section id="learn-more-panel" class="research-content hidden" aria-label="About EULALens"><div class="glass-panel rounded-xl p-container-padding mb-stack-lg flex justify-center border border-white/5 shadow-lg">
 <div class="aspect-[21/9] w-full bg-surface-container/30 border border-white/10 rounded-lg flex items-center justify-center relative overflow-hidden">
 <img alt="Workflow diagram" class="w-full h-full object-contain" src="images/workflow.png" loading="lazy"/>
@@ -19489,50 +19531,83 @@ communicated to end users.
 </div>
 <div class="hidden" id="documents-tab">
 <main class="document-content">
-<div class="document-toolbar" id="doc-toolbar">
-<button type="button" class="quiet-button" onclick="backToHome()"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>Sample EULAs</button>
-<div class="document-actions"><button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span>Try another EULA</button><button type="button" class="icon-button" id="help-btn" onclick="openHelpDialog()" aria-label="Help"><span class="material-symbols-outlined" aria-hidden="true">help</span></button></div>
-</div>
-<header class="document-header" id="doc-header">
-<h1 id="doc-analysis-title">Document Analysis</h1>
-<label class="category-control" for="category-select"><span>Categories</span><select id="category-select" onchange="selectCategory(this.value)"></select></label>
-<button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="pill-button danger-button hidden" aria-label="Cancel unfinished analysis and generation">Cancel Generation</button>
-</header>
-<section class="glass-panel category-panel" id="active-category" aria-labelledby="cat-title">
-<div class="category-title"><h2 id="cat-title"></h2><span id="cat-badge" class="risk-badge"></span></div>
-<div id="cat-summary" class="category-summary"></div>
-<div id="source-evidence" class="hidden"></div>
-<div class="format-tabs" role="tablist" aria-label="Explanation format">
-<button type="button" class="format-tab" id="tabbtn-cards" role="tab" aria-controls="cat-cards" aria-selected="true" onclick="switchRightTab('cards')"><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</button>
-<button type="button" class="format-tab" id="tabbtn-comic" role="tab" aria-controls="right-tab-comic" aria-selected="false" onclick="switchRightTab('comic')"><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comic</button>
-<button type="button" class="format-tab" id="tabbtn-video" role="tab" aria-controls="right-tab-video" aria-selected="false" onclick="switchRightTab('video')"><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Video</button>
-<button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" onclick="switchRightTab('eula')"><span class="material-symbols-outlined" aria-hidden="true">article</span>Original EULA</button>
-</div>
+  <aside class="category-index glass-panel" aria-labelledby="category-index-title">
+    <header class="index-heading"><h2 id="category-index-title">Categories</h2><span id="category-count"></span></header>
+    <nav id="category-list" aria-labelledby="category-index-title"></nav>
+  </aside>
+  <section class="glass-panel category-panel" id="active-category" aria-labelledby="cat-title">
+    <header class="category-heading">
+      <div class="category-context">
+        <div class="category-meta">
+          <div class="category-picker">
+            <span id="category-position" role="status" aria-live="polite"></span>
+            <span class="material-symbols-outlined picker-arrow" aria-hidden="true">expand_more</span>
+            <select id="category-select" aria-label="Choose category" onchange="selectCategory(this.value)"></select>
+          </div>
+          <span id="cat-badge" class="risk-badge"></span>
+        </div>
+        <nav aria-label="Category navigation" class="category-navigation">
+          <button type="button" class="icon-button" id="view-globe" hidden aria-label="View category globe" title="View category globe"><span class="material-symbols-outlined" aria-hidden="true">language</span></button>
+          <button type="button" class="icon-button" id="previous-category-btn" onclick="previousCategory()" aria-label="Previous category" title="Previous category"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button>
+          <button type="button" class="icon-button" id="next-category-btn" onclick="nextCategory()" aria-label="Next category" title="Next category"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
+        </nav>
+      </div>
+      <h2 id="cat-title" tabindex="-1"></h2>
+      <p id="cat-summary" class="category-summary"></p>
+    </header>
+    <div class="review-controls">
+      <div class="format-tabs" role="tablist" aria-label="Explanation format">
+        <button type="button" class="format-tab" id="tabbtn-video" role="tab" aria-controls="right-tab-video" aria-selected="true" onclick="switchRightTab('video')"><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Video</button>
+        <button type="button" class="format-tab" id="tabbtn-cards" role="tab" aria-controls="cat-cards" aria-selected="false" tabindex="-1" onclick="switchRightTab('cards')"><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</button>
+        <button type="button" class="format-tab" id="tabbtn-comic" role="tab" aria-controls="right-tab-comic" aria-selected="false" tabindex="-1" onclick="switchRightTab('comic')"><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comic</button>
+        <button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" tabindex="-1" onclick="switchRightTab('eula')"><span class="material-symbols-outlined" aria-hidden="true">article</span>Original EULA</button>
+      </div>
+      <button type="button" class="quiet-button details-button" onclick="openCategoryDetails()" aria-label="Category details" title="Category details"><span class="material-symbols-outlined" aria-hidden="true">info</span><span>Details</span></button>
+    </div>
 <div id="generation-status" class="generation-status hidden" role="status" aria-live="polite"></div>
-<div class="cue-grid grid" id="cat-cards" role="tabpanel" aria-labelledby="tabbtn-cards"></div>
+<div class="review-stage">
+<div class="cue-grid hidden" id="cat-cards" role="tabpanel" aria-labelledby="tabbtn-cards"></div>
 <div class="media-panel hidden" id="right-tab-comic" role="tabpanel" aria-labelledby="tabbtn-comic">
 <div id="comic-scenarios" class="comic-scenarios" aria-label="Comic scenarios"></div>
 <div class="media-heading"><h3 id="cat-comic-title"></h3><a class="quiet-button" id="comic-open-link" href="#" target="_blank" rel="noopener noreferrer">Open comic<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
 <div class="comic-overlay-wrap"><img alt="Comic strip" id="cat-comic-img"/><div class="comic-overlay-grid" id="cat-comic-overlay-grid"></div></div>
 <details class="comic-transcript" id="comic-transcript"><summary>Comic text</summary><ol id="comic-transcript-scenes"></ol></details>
 </div>
-<div class="media-panel hidden" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p></div>
-<div class="media-panel hidden" id="right-tab-eula" role="tabpanel" aria-labelledby="tabbtn-eula"><iframe id="cat-eula-frame" title="Original EULA PDF"></iframe><a class="quiet-button" id="cat-eula-fallback-link" href="#" target="_blank" rel="noopener noreferrer">PDF not loading? Open it directly<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+<div class="media-panel flex" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p>
+<div id="video-notes" class="video-notes"><h3>Category details</h3></div></div>
+<div class="media-panel hidden" id="right-tab-eula" role="tabpanel" aria-labelledby="tabbtn-eula"><p id="pdf-unavailable" hidden>The original PDF stays on your device. Upload it again to reopen the PDF viewer.</p><iframe id="cat-eula-frame" title="Original EULA PDF"></iframe><a class="quiet-button" id="cat-eula-fallback-link" href="#" target="_blank" rel="noopener noreferrer">PDF not loading? Open it directly<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+</div>
+  </section>
+</main>
+</div>
+</div>
+<dialog id="category-details" class="glass-dialog detail-dialog" aria-labelledby="details-title">
+  <div class="dialog-header"><div><p class="dialog-kicker">Category details</p><h2 id="details-title"></h2></div>
+    <button type="button" class="icon-button" onclick="this.closest('dialog').close()" aria-label="Close category details"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+  </div>
+  <div id="dialog-notes"><div id="category-notes">
+  <p id="details-summary"></p>
+  <div id="source-evidence" class="hidden"></div>
 <div class="insights" id="insight-accordion">
 <div id="insight-box-impact"><button type="button" class="insight-button" id="insight-accbtn-impact" onclick="toggleInsightPanel('impact')" aria-expanded="false" aria-controls="insight-panel-impact-wrap"><span>Impact</span><span class="material-symbols-outlined" id="insight-chevron-impact" aria-hidden="true">expand_more</span></button><div class="hidden insight-content" id="insight-panel-impact-wrap"><ul id="cat-impact"></ul></div></div>
 <div id="insight-box-lookouts"><button type="button" class="insight-button" id="insight-accbtn-lookouts" onclick="toggleInsightPanel('lookouts')" aria-expanded="false" aria-controls="insight-panel-lookouts-wrap"><span>Lookouts</span><span class="material-symbols-outlined" id="insight-chevron-lookouts" aria-hidden="true">expand_more</span></button><div class="hidden insight-content" id="insight-panel-lookouts-wrap"><ul id="cat-lookouts"></ul></div></div>
 </div>
-</section>
-<footer class="category-footer"><button type="button" class="pill-button" id="previous-category-btn" onclick="previousCategory()"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>Previous</button><span id="category-position" role="status" aria-live="polite"></span><button type="button" class="pill-button" id="next-category-btn" onclick="nextCategory()">Next Category<span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></footer>
-</main>
-</div>
-</div>
+  </div></div>
+</dialog>
+<dialog id="category-globe" class="glass-dialog globe-dialog" aria-labelledby="globe-document" aria-describedby="globe-count">
+  <div class="globe-header"><div class="globe-origin"><span class="material-symbols-outlined" aria-hidden="true">description</span><h2 id="globe-document"></h2></div>
+    <button type="button" class="pill-button" id="skip-globe" autofocus>Skip<span class="material-symbols-outlined" aria-hidden="true">skip_next</span></button>
+  </div>
+  <canvas id="globe-canvas" aria-hidden="true"></canvas>
+  <div class="globe-caption"><p id="globe-count"></p><h3 id="globe-category"></h3></div>
+</dialog>
 <dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title"><div class="dialog-header"><h2 id="sample-dialog-title">Try another EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close sample EULAs"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></dialog>
-<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a question to reveal its answer.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl></dialog>
+<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a question to reveal its answer.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
+<script src="category-globe.js"></script>
 <script src="ui.js"></script>
 </body></html>

@@ -165,6 +165,21 @@ test('comic overlay wording and late legal qualifiers are preserved verbatim',as
  mockCompletion(async()=>success(plan));const result=await generateComicWithQwen({category});const scene=result.comic.scenes[0];
  assert.equal(scene.overlaySlots[0].text,wording);assert.equal(scene.legalPoint,longLegal);assert.equal(scene.narration,longLegal);
 });
+test('comic summaries retain qualifiers and stay attached to their scenarios', async () => {
+  const scene = { narration: 'A user opens a folder.', visual_description: 'A user holds a folder.' };
+  const base = { id: 'first', protagonist_goal: 'Review a file.', visual_read_through: 'The user reviews a file.', scenes: Array(4).fill(scene) };
+  const summary = 'The user carefully reviews the file and its conditions. '.repeat(7) + 'Permission depends on written consent.';
+  let plan = { story_summary: summary, comics: [base] };
+  mockCompletion(async () => success(plan));
+  const single = await generateComicWithQwen({ category });
+  assert.equal(single.comic.comics[0].storySummary, summary);
+  plan = { story_summary: 'Two employees consider different ways of using a file.', comics: [{ ...base, story_summary: summary }, { ...base, id: 'second' }] };
+  const multiple = await generateComicWithQwen({ category });
+  assert.equal(multiple.comic.storySummary, plan.story_summary);
+  assert.equal(multiple.comic.comics[0].storySummary, summary);
+  assert.equal(multiple.comic.comics[1].storySummary, '');
+});
+
 test('null comic scenes fail validation cleanly rather than throwing a TypeError',async()=>{
  mockCompletion(async()=>success({comics:[{scenes:[null,null,null,null]}]}));
  await assert.rejects(generateComicWithQwen({category}),error=>error.code==='QWEN_INVALID_PLAN');

@@ -9,7 +9,6 @@ LOGS="$RUNTIME/logs"
 QWEN="$ROOT/scripts_dev/qwen-3.5-9b"
 HIDREAM="$ROOT/scripts_dev/hidream-o1-image-2604"
 LTX="$ROOT/scripts_dev/ltx-2.3"
-CLOUDFLARED="$QWEN/bin/cloudflared"
 
 mkdir -p "$LOGS"
 chmod 700 "$RUNTIME" "$LOGS"
@@ -63,61 +62,6 @@ start_service() {
     nohup setsid "$@" >"$LOGS/${name}.log" 2>&1 &
     echo $! >"$RUNTIME/${name}.pid"
 }
-
-start_tunnel() {
-    local name="$1"
-    local local_url="$2"
-    local logfile="$LOGS/${name}.log"
-    local pidfile="$RUNTIME/${name}.pid"
-
-    if [[ ! -x "$CLOUDFLARED" ]]; then
-        echo "[ERROR] cloudflared not found at:"
-        echo "        $CLOUDFLARED"
-        return 1
-    fi
-
-    rm -f "$logfile"
-
-    echo "[START] $name"
-
-    nohup setsid "$CLOUDFLARED" tunnel \
-        --no-autoupdate \
-        --protocol http2 \
-        --url "$local_url" \
-        >"$logfile" 2>&1 &
-
-    echo $! >"$pidfile"
-}
-
-wait_for_tunnel_url() {
-    local name="$1"
-    local timeout="${2:-30}"
-    local logfile="$LOGS/${name}.log"
-    local url=""
-
-    echo "[WAIT] $name URL..."
-
-    for ((i=1; i<=timeout; i++)); do
-        if [[ -f "$logfile" ]]; then
-            url="$(
-                grep -Eo 'https://[A-Za-z0-9-]+\.trycloudflare\.com' "$logfile" \
-                | head -1 || true
-            )"
-        fi
-
-        if [[ -n "$url" ]]; then
-            printf '%s\n' "$url"
-            return 0
-        fi
-
-        sleep 1
-    done
-
-    echo "[ERROR] Could not obtain URL for $name." >&2
-    echo "        Check: $logfile" >&2
-    return 1
-}
-
 
 # ---------------------------------------------------------
 # 1. Qwen - GPU 0
@@ -179,28 +123,7 @@ wait_for_port backend 5050 60
 
 BACKEND_URL="https://api.eulalens.stream"
 FRONTEND_URL="https://g00110579-afk.github.io/EULALens/"
-CF_TOKEN_FILE="$HOME/.cloudflared/eulalens-backend.token"
-
-if [[ ! -s "$CF_TOKEN_FILE" ]]; then
-    echo "[ERROR] Cloudflare tunnel token not found:"
-    echo "        $CF_TOKEN_FILE"
-    exit 1
-fi
-
-if [[ -f "$RUNTIME/backend-tunnel.pid" ]] && \
-   kill -0 "$(cat "$RUNTIME/backend-tunnel.pid")" 2>/dev/null; then
-    echo "[OK] permanent backend tunnel already running"
-else
-    echo "[START] permanent backend tunnel"
-
-    nohup setsid "$CLOUDFLARED" tunnel \
-        --protocol http2 \
-        run \
-        --token-file "$CF_TOKEN_FILE" \
-        >"$LOGS/backend-tunnel.log" 2>&1 &
-
-    echo $! >"$RUNTIME/backend-tunnel.pid"
-fi
+bash "$PROJECT/tools/backend-tunnel.sh" start
 
 echo "[WAIT] permanent backend tunnel..."
 
@@ -225,7 +148,8 @@ done
 
 if [[ "$TUNNEL_READY" -ne 1 ]]; then
     echo "[ERROR] Permanent backend tunnel did not become reachable."
-    echo "        Check: $LOGS/backend-tunnel.log"
+    echo "        Check: journalctl --user -u eulalens-backend-tunnel.service"
+    echo "        For standalone mode: $LOGS/backend-tunnel.log"
     exit 1
 fi
 

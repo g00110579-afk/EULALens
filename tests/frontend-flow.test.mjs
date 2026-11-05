@@ -6,6 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import '../live-runtime.js';
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const script=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(match=>match[1]).find(value=>value.includes('const LIVE_API_BASE'));
+const comicReader=fs.readFileSync(new URL('../comic-reader.js',import.meta.url),'utf8');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function environment(api={}) {
   const elements=new Map();
@@ -20,7 +21,7 @@ function environment(api={}) {
     hasAttribute(name){return Boolean(this.attributes[name]||(name==='src'&&this.src));}
     insertAdjacentHTML(_position,html){this.innerHTML+=html;}
     querySelector(){return null;}
-    addEventListener(){} removeEventListener(){} scrollIntoView(){} pause(){} load(){}
+    addEventListener(){} removeEventListener(){} scrollIntoView(){} focus(){} pause(){} load(){}
   }
   const get=id=>{if(!elements.has(id)){const node=new Element();node.id=id;node.parentElement=new Element();elements.set(id,node);}return elements.get(id);};
   const store=new Map();const storage={getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};
@@ -28,7 +29,7 @@ function environment(api={}) {
     location:{href:'https://web.test/'},localStorage:storage,sessionStorage:storage,addEventListener(){},scrollTo(){},requestAnimationFrame(){},
     document:{getElementById:get,createElement:()=>new Element(),querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){}},
     EULALensRuntime:{...globalThis.EULALensRuntime,createApi:()=>({json:async()=>({}),poll:async()=>({}),...api})}};
-  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(script,ctx);
+  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(script,ctx);vm.runInContext(comicReader,ctx);
   const run=source=>vm.runInContext(source,ctx);
   return {ctx,run,get,elements,store};
 }
@@ -66,10 +67,11 @@ test('choosing a sample invalidates older extraction before any analysis POST',a
   assert.equal(e.run('activeDocument'),'zoom');assert.equal(requests,0);
 });
 
-test('filenames, summaries, cards and comic overlays remain text',()=>{
+test('filenames, summaries, cards and comic dialogue remain text',()=>{
   const e=environment();const attack='<img src=x onerror="window.pwned=1">';e.ctx.attack=attack;
   e.run(`currentRun=newLiveRun();activeDocument='live';const cat=convertLiveCategory({id:'c1',title:attack,summary:attack,lenses:{impact:attack,lookouts:[attack]}});categories=[cat];currentRun.categories=categories;cat.cards=[{icon:attack,front:attack,backTitle:attack,backDetail:attack}];cat.cardsStatus='ready';cat.comicStatus='ready';cat.comic='javascript:alert(1)';cat.comicScenes=[{title:attack,caption:attack,slots:[{text:attack,kind:attack,position:attack}]}];updateCategoryDetails(cat,{scroll:false});setUploadStatus(attack);`);
-  for(const id of ['cat-summary','cat-impact','cat-lookouts','cat-cards','cat-comic-overlay-grid'])assert.doesNotMatch(e.get(id).innerHTML,/<img/);
+  for(const id of ['cat-summary','cat-impact','cat-lookouts','cat-cards','comic-dialogue'])assert.doesNotMatch(e.get(id).innerHTML,/<img/);
+  assert.equal(e.get('comic-caption').textContent,attack);assert.equal(e.get('comic-dialogue').children[0].textContent,attack);
   assert.equal(e.get('upload-status').children[0].textContent,attack);assert.equal(e.get('cat-comic-img').src,'');
 });
 
@@ -91,6 +93,18 @@ test('all comic scenarios remain selectable; initial scenario does not create a 
   finish({status:'ready',comics,comic:comics[0],render:{image:{imageUrl:'/api/comic-assets/first.webp'}}});await pending;await tick();
   assert.equal(e.run(`categories[0].comics.length`),2);assert.equal(e.get('comic-scenarios').children.length,2);
   assert.equal(e.run(`categories[0].comicStatus`),'ready');
+});
+
+test('a background comic scenario updates its category without replacing the visible reader',()=>{
+  const e=environment();e.run(setupRun);
+  e.run(`const [visible, background]=categories; document.getElementById('active-category').dataset.catId=visible.id;
+    visible.comicStatus='ready';visible.comicTitle='Current comic';visible.comicScenes=[{title:'A'},{title:'B'}];
+    renderComicForCategory(visible);moveComicScene(1);
+    background.comics=[{id:'other',title:'Background story',panels:[{title:'Other scene'}]}];
+    displayComicScenario(background,'other');`);
+  assert.equal(e.run('categories[1].selectedComicId'),'other');
+  assert.equal(e.get('cat-comic-title').textContent,'Current comic');
+  assert.equal(e.get('comic-scene-title').textContent,'B');
 });
 
 test('frontend retry reconnects to an accepted job after transport failure without another POST',async()=>{

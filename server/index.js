@@ -11,6 +11,7 @@ import { closeProviderConnections } from './providers/http-client.js';
 import { JobStore } from './jobs.js';
 import { Gate, positiveInt } from './concurrency.js';
 import { createSecurity } from './security.js';
+import { createComicNarration } from './comic-narration.js';
 import { attachArtifact, serveArtifact } from './assets.js';
 
 const asyncRoute = handler => (req, res, next) => Promise.resolve().then(() => handler(req, res)).catch(next);
@@ -45,7 +46,8 @@ export function createApp(options = {}) {
     maxRecords: positiveInt(process.env.JOB_MAX_RECORDS, 1000, 10000), ttlMs: positiveInt(process.env.JOB_RETENTION_MS, 86400000),
     deadlineMs: positiveInt(process.env.JOB_DEADLINE_MS, 3600000), limits: { analysis: 2, cards: 2, comic: 2, video: 2 }, onRecover: cancelUpstream, ...options.store });
   app.locals.jobs = store; app.locals.security = security;
-  app.locals.close = () => store.close();
+  const narration = createComicNarration({ synthesize: api.synthesizeComicNarration });
+  app.locals.close = () => Promise.all([narration.close(), store.close()]);
   app.disable('x-powered-by'); app.set('trust proxy', 'loopback');
   app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); res.set('Referrer-Policy', 'no-referrer'); next(); });
   app.use((req, res, next) => { try { security.checkOrigin(req); next(); } catch (e) { next(e); } });
@@ -145,6 +147,18 @@ export function createApp(options = {}) {
   app.post('/api/videos/generate/start', asyncRoute((req, res) => {
     if (!req.body?.category?.video?.modelPrompt) throw httpError(400, 'A validated video script is required.');
     start(req, res, 'clip');
+  }));
+  app.post('/api/categories/comic/jobs/:jobId/scenarios/:scenarioId/narration/:sceneIndex', asyncRoute(async (req, res) => {
+    const job = store.get(req.params.jobId, req.owner);
+    if (!/^(0|[1-9]\d*)$/.test(req.params.sceneIndex)) throw httpError(400, 'Invalid scene index.');
+    if (req.body && Object.keys(req.body).length) throw httpError(400, 'Narration uses the stored comic scenario.');
+    const controller = new AbortController();
+    const disconnected = () => { if (!res.writableFinished) controller.abort(); };
+    req.once('aborted', disconnected); res.once('close', disconnected);
+    try {
+      const audio = await narration.audio(job, req.params.scenarioId, Number(req.params.sceneIndex), controller.signal);
+      if (!res.destroyed) res.type('audio/mpeg').send(audio);
+    } finally { req.off('aborted', disconnected); res.off('close', disconnected); }
   }));
   app.post('/api/categories/comic/jobs/:jobId/scenarios/:scenarioId/render', asyncRoute((req, res) => {
     const parent = store.get(req.params.jobId, req.owner);

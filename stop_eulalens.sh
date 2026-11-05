@@ -47,7 +47,7 @@ stop_service() {
 
 # Stop public tunnels first
 stop_service frontend-tunnel
-stop_service backend-tunnel
+bash "$PROJECT/tools/backend-tunnel.sh" stop || exit 1
 
 # Then stop application services
 stop_service frontend

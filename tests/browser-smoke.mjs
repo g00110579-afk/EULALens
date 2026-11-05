@@ -10,9 +10,9 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { createApp } from '../server/index.js';
 import { closeProviderConnections } from '../server/providers/http-client.js';
-const { chromium } = await import(pathToFileURL(process.env.EULALENS_PLAYWRIGHT_MODULE || '/tmp/eulalens-browser-tests/node_modules/playwright/index.mjs'));
+const { chromium } = await import(process.env.EULALENS_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.EULALENS_PLAYWRIGHT_MODULE).href : 'playwright');
 const root = path.resolve('.');
-const pdfjsBuild = process.env.EULALENS_PDFJS_BUILD_DIR || path.resolve('../reference-project/EULALens-main/node_modules/pdfjs-dist/build');
+const pdfjsBuild = process.env.EULALENS_PDFJS_BUILD_DIR || path.resolve('node_modules/pdfjs-dist/build');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'eula-browser-'));
 const servers = []; let browser; let app;
 async function listen(application) { const server = application.listen(0, '127.0.0.1'); servers.push(server); await new Promise(resolve => server.once('listening', resolve)); return `http://127.0.0.1:${server.address().port}`; }
@@ -25,8 +25,10 @@ function pdf(text) {
   return Buffer.from(data);
 }
 try {
-  fs.writeFileSync(path.join(temporary, 'image.png'), Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=', 'base64'));
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x80', '-vf', 'drawbox=x=79:y=0:w=2:h=ih:color=white:t=fill', '-frames:v', '1', path.join(temporary, 'image.png')]);
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:r=12', '-t', '1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', path.join(temporary, 'video.mp4')]);
+  execFileSync('ffmpeg', ['-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=440:sample_rate=24000','-t','1.2','-codec:a','libmp3lame',path.join(temporary,'voice.mp3')]);
+  const spoken=[];
   const model = express(); model.use((req, res, next) => req.get('authorization') === 'Bearer fixture-key' ? next() : res.sendStatus(401)); model.use('/outputs', express.static(temporary));
   const modelBase = await listen(model);
   process.env.HIDREAM_IMAGE_API_URL = modelBase; process.env.VIDEO_API_URL = modelBase + '/generate'; process.env.VIDEO_PROVIDER = 'ltx-local'; process.env.HIDREAM_API_KEY = process.env.VIDEO_API_KEY = 'fixture-key';
@@ -36,8 +38,9 @@ try {
   assert.match(await configResponse.text(), /window\.EULALENS_API_BASE/);
   const counts = { analysis: 0, cards: 0, comic: 0, image: 0, video: 0 };
   const categories = [{ id: 'license', title: 'License scope', severity: 'low', summary: '<img src=x onerror="window.auditSentinel=1">', sourceSegments: ['You may use the fictional app on one device.'], lenses: { impact: 'One device only.' }, lookouts: ['Check devices.'] }];
-  const comics = ['first', 'second'].map(id => ({ id, title: `${id} scenario`, imagePrompt: 'Synthetic image fixture for ' + id, panels: [{ title: 'First', body: 'A source-backed example.' }] }));
+  const comics = ['first', 'second'].map(id => ({ id, title: `${id} scenario`, storySummary:`A summary of the ${id} scenario.`, scenes:[{narration:`The ${id} story begins.`},{narration:`The ${id} story ends.`}], imagePrompt: 'Synthetic image fixture for ' + id, panels: [{ title: 'First', body: 'A source-backed example.' }, { title: 'Second', caption: 'A second scene.' }] }));
   app = createApp({ directory: path.join(temporary, 'jobs'), origins: [siteBase], cancelImage: async () => {}, handlers: {
+    synthesizeComicNarration: async ({text})=>{spoken.push(text);return fs.readFileSync(path.join(temporary,'voice.mp3'));},
     analyzeEula: async ({ text }) => { counts.analysis++; assert(text.includes('fictional')); return { analysis: { categories, document: { title: 'Synthetic fixture' } } }; },
     generateCategoryCardsBatch: async ({ onProgress }) => { counts.cards++; const entry = { ok: true, categoryId: 'license', cards: [{ question: '<b>How many devices?</b>', answer: 'One', backTitle: 'Scope', backDetail: 'One device.' }] }; await onProgress(entry, 0); return { results: [entry] }; },
     generateCategoryComic: async () => { counts.comic++; return { comic: { comics, selectedComicId: 'first' } }; },
@@ -73,17 +76,39 @@ try {
   assert.equal(await page.locator('#cat-cards b').count(), 0);
   assert.match(await page.locator('#doc-analysis-title').textContent(), /fixture<img/);
   assert.equal(await page.locator('#cat-summary').textContent(), '<img src=x onerror="window.auditSentinel=1">');
+  assert.equal(await page.locator('#tabbtn-video').getAttribute('aria-selected'), 'true');
+  await page.getByRole('dialog', { name: 'Choose a category' }).getByRole('button', {name:'License scope', exact:true}).click();
+  assert.match(await page.locator('#category-position').textContent(), /Category 1 of 1/);
+  await page.getByRole('button', { name: 'Category details', exact: true }).click();
+  await page.locator('#source-evidence summary').click();
+  assert(await page.locator('#source-evidence details').getAttribute('open') !== null);
+  await page.keyboard.press('Escape');
   await page.locator('#tabbtn-comic').click();
   await page.waitForFunction(() => document.querySelector('#cat-comic-img')?.naturalWidth > 0, undefined, { timeout: 30000 });
+  assert.equal(await page.locator('#comic-caption').textContent(), 'A source-backed example.');
+  await page.waitForFunction(() => comicReader.boxes.length === 2);
+  assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the first scenario.');
+  await page.locator('#comic-narration').click();
+  await page.waitForFunction(()=>document.getElementById('comic-audio').currentTime>0);
+  await page.waitForFunction(()=>document.getElementById('comic-position').textContent==='Scene 2 of 2');
+  await page.getByRole('button',{name:'Replay comic',exact:true}).waitFor();
+  assert.deepEqual(spoken,['The first story begins.','The first story ends.']);
+  assert.equal(await page.locator('#comic-caption').textContent(), 'A second scene.');
   assert.equal(await page.locator('#comic-scenarios button').count(), 2);
   await page.locator('#comic-scenarios button').nth(1).click();
   await page.waitForFunction(() => document.querySelector('#cat-comic-title')?.textContent === 'second scenario' && document.querySelector('#cat-comic-img')?.naturalWidth > 0);
+  assert.equal(await page.locator('#comic-position').textContent(), 'Scene 1 of 2');
+  assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the second scenario.');
+  await page.locator('#comic-narration').click();
+  await page.waitForFunction(()=>!document.getElementById('comic-audio').paused && document.getElementById('comic-audio').currentTime>0);
   await page.locator('#tabbtn-video').click();
+  assert(await page.locator('#comic-audio').evaluate(a=>a.paused));
   await page.waitForFunction(() => document.querySelector('#cat-video')?.readyState >= 1, undefined, { timeout: 30000 });
   assert.equal(await page.locator('#cat-video track').count(), 1);
   await page.waitForFunction(() => document.querySelector('#cat-video')?.textTracks[0]?.cues?.length === 1);
   assert.deepEqual(await page.evaluate(() => { const cue = document.querySelector('#cat-video').textTracks[0].cues[0]; return { text: cue.text, start: cue.startTime, end: cue.endTime }; }), { text: 'One device.', start: 0, end: 0.8 });
   assert.match(await page.locator('#video-degradation').textContent(), /audio/i);
+  assert(await page.locator('#source-evidence details').getAttribute('open') !== null, 'Generation updates retain expanded source evidence');
   await page.locator('#tabbtn-eula').click(); assert.match(await page.locator('#source-evidence').textContent(), /one device/);
   const beforeReload = { ...counts };
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -100,7 +125,7 @@ try {
   assert.match(await page.locator('#upload-status').textContent(), /Upload the PDF again/);
   assert.deepEqual(counts, beforeReload, 'An inaccessible saved run must not regenerate automatically');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['actual PDF upload', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'scenario selection', 'speech captions and degradation', 'source excerpts', 'reload without duplicate generation', 'expired-session restore recovery'], requests: counts }, null, 2));
+  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['actual PDF upload', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'scenario summaries and narrated comic playback', 'scenario selection', 'speech captions and degradation', 'source excerpts', 'reload without duplicate generation', 'expired-session restore recovery'], requests: counts }, null, 2));
 } finally {
   await browser?.close(); await app?.locals.close();
   await Promise.all(servers.map(server => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); })));

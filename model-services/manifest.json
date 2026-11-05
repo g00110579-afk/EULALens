@@ -68,7 +68,7 @@
     },
     {
       "path": "ltx-2.3/kokoro_tts_worker.py",
-      "sha256": "60e3890ae9a9eb9d43750bdfab0a5f40813222909fb12180f53c23e6a7f5b230",
+      "sha256": "93046180699ef258626640544673ad4f77a5e8cd38a445f63f5d687ce86f8b32",
       "audited_source_sha256": "60e3890ae9a9eb9d43750bdfab0a5f40813222909fb12180f53c23e6a7f5b230",
       "mode": "0644"
     },

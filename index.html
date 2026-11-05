@@ -166,59 +166,6 @@
             openDocumentView(doc);
         }
 
-        function renderComicForCategory(cat) {
-            const image = document.getElementById('cat-comic-img');
-            const title = document.getElementById('cat-comic-title');
-            const grid = document.getElementById('cat-comic-overlay-grid');
-            if (!image || !title || !grid || !cat) return;
-            renderComicScenarios(cat);
-            if (activeDocument === 'live' && cat.comicStatus !== 'ready') {
-                image.removeAttribute('src'); grid.replaceChildren();
-                Object.assign(grid.style, { left: '0', top: '0', right: '0', bottom: '0', width: '100%', height: '100%' });
-                document.getElementById('comic-open-link')?.classList.add('hidden');
-                document.getElementById('comic-transcript')?.classList.add('hidden');
-                const labels = { idle: 'Comic queued for generation.', queued: 'Comic queued…', running: 'Preparing comic…', processing: 'Preparing comic…', canceling: 'Canceling comic…', 'generating-story': 'Generating comic story…', 'rendering-image': 'Rendering comic artwork…', reconnecting: 'Reconnecting to the existing comic job…', canceled: 'Comic generation canceled.', error: cat.comicError || 'Comic generation failed.' };
-                title.textContent = 'Comic';
-                const message = document.createElement('div');
-                message.className = 'col-span-full flex flex-col items-center justify-center gap-2 h-full text-sm text-on-surface-variant';
-                const text = document.createElement('p'); text.textContent = labels[cat.comicStatus] || 'Preparing comic…';
-                message.appendChild(text);
-                if (['error', 'canceled'].includes(cat.comicStatus)) {
-                    const retry = document.createElement('button'); retry.textContent = 'Retry';
-                    retry.className = 'px-3 py-2 rounded-md border border-secondary/30 text-secondary';
-                    retry.onclick = () => retryLiveMedia('comic'); message.appendChild(retry);
-                }
-                grid.appendChild(message); return;
-            }
-            title.textContent = cat.comicTitle || '';
-            const url = EULALensRuntime.safeUrl(cat.comic, window.location.href);
-            const openLink = document.getElementById('comic-open-link');
-            if (openLink) { openLink.classList.toggle('hidden', !url); if (url) openLink.href = url; else openLink.removeAttribute('href'); }
-            if (url) image.src = url; else image.removeAttribute('src');
-            image.alt = 'Comic explanation';
-            const scenes = Array.isArray(cat.comicScenes) ? cat.comicScenes : [];
-            grid.style.gridTemplateRows = `repeat(${Math.max(1, Math.ceil(scenes.length / 2))}, 1fr)`;
-            grid.innerHTML = scenes.map(scene => {
-                const slots = scene.slots || scene.overlaySlots || scene.overlay_slots || scene.bubbles || [];
-                const bubbles = (Array.isArray(slots) ? slots : []).map(slot => {
-                    const kind = ['speech', 'thought', 'narration'].includes(slot.kind) ? slot.kind : 'speech';
-                    const position = String(slot.position || 'top_left').replace(/-/g, '_');
-                    const safePosition = /^(top|middle|bottom)_(left|right)$|^center$/.test(position) ? position : 'top_left';
-                    return `<div class="comic-bubble kind-${kind} pos-${safePosition}">${escapeHtml(slot.text)}</div>`;
-                }).join('');
-                return `<div class="comic-overlay-cell">${bubbles}<div class="comic-caption-bar"><span class="cap-title">${escapeHtml(scene.title)}</span>${escapeHtml(scene.caption)}</div></div>`;
-            }).join('');
-            const transcript = document.getElementById('comic-transcript-scenes');
-            if (transcript) transcript.innerHTML = scenes.map(scene => {
-                const slots = scene.slots || scene.overlaySlots || scene.overlay_slots || scene.bubbles || [];
-                const dialogue = (Array.isArray(slots) ? slots : []).map(slot => `<p>${escapeHtml(slot.text)}</p>`).join('');
-                return `<li><h4>${escapeHtml(scene.title)}</h4><p>${escapeHtml(scene.caption)}</p>${dialogue}</li>`;
-            }).join('');
-            document.getElementById('comic-transcript')?.classList.toggle('hidden', !scenes.length);
-            image.onload = positionComicOverlay;
-            if (image.complete) requestAnimationFrame(positionComicOverlay);
-        }
-
         const cancelledLiveDocuments = new WeakSet();
         let currentRun = null;
         let currentFormat = 'video';
@@ -326,7 +273,7 @@
             return owner[field];
         }
 
-        function displayComicScenario(cat, scenarioId) {
+        function displayComicScenario(cat, scenarioId, render = true) {
             const comic = (cat.comics || []).find(item => item.id === scenarioId);
             if (!comic) return;
             cat.selectedComicId = comic.id;
@@ -336,7 +283,7 @@
             cat.comic = state.imageUrl || '';
             cat.comicStatus = state.status || 'idle';
             cat.comicError = state.error || '';
-            renderComicForCategory(cat);
+            if (render && document.getElementById('active-category').dataset.catId === cat.id) renderComicForCategory(cat);
         }
 
         function renderComicScenarios(cat) {
@@ -352,7 +299,6 @@
                 button.setAttribute('aria-pressed', String(comic.id === cat.selectedComicId));
                 button.onclick = () => {
                     displayComicScenario(cat, comic.id);
-                    renderComicScenarios(cat);
                     void ensureLiveComic(cat, { priority: 10, scenarioId: comic.id });
                 };
                 container.appendChild(button);
@@ -362,7 +308,7 @@
         function refreshMedia(cat, kind) {
             updateCategoryGenerationIndicators();
             if (document.getElementById('active-category')?.dataset.catId !== cat.id) return;
-            if (kind === 'comic') { renderComicForCategory(cat); renderComicScenarios(cat); }
+            if (kind === 'comic') renderComicForCategory(cat);
             else refreshVideoUI(cat);
         }
 
@@ -418,7 +364,7 @@
                     const state = (cat.scenarioRenders ||= Object.create(null))[comic.id] ||= {};
                     Object.assign(state, { status: 'ready', imageUrl: url, jobId: id, error: '' });
                     cat.selectedComicId ||= comic.id;
-                    if (cat.selectedComicId === comic.id) displayComicScenario(cat, comic.id);
+                    if (cat.selectedComicId === comic.id) displayComicScenario(cat, comic.id, false);
                     owner[failureField] = false;
                 } else {
                     const url = safeMediaUrl(job.video?.videoUrl);
@@ -558,12 +504,6 @@
             });
 
             if (tab === 'comic') {
-                // Container was hidden (display:none) while the image loaded, so
-                // dimensions weren't available then. Recompute now that it's visible.
-                requestAnimationFrame(positionComicOverlay);
-
-                // For uploaded PDFs, generate the comic only when the user
-                // actually opens the Comic tab. Fixed sample comics remain unchanged.
                 if (activeDocument === 'live') {
                     const catId =
                         document.getElementById('active-category')?.dataset.catId;
@@ -589,36 +529,6 @@
                 }
             }
         }
-
-        function positionComicOverlay() {
-            const img = document.getElementById('cat-comic-img');
-            const grid = document.getElementById('cat-comic-overlay-grid');
-            if (!img || !grid || !img.naturalWidth) return;
-
-            const wrap = img.parentElement;
-            const containerW = wrap.clientWidth;
-            const containerH = wrap.clientHeight;
-            const naturalW = img.naturalWidth;
-            const naturalH = img.naturalHeight;
-
-            const scale = Math.min(containerW / naturalW, containerH / naturalH);
-            const renderedW = naturalW * scale;
-            const renderedH = naturalH * scale;
-            const offsetX = (containerW - renderedW) / 2;
-            const offsetY = (containerH - renderedH) / 2;
-
-            grid.style.left = `${offsetX}px`;
-            grid.style.top = `${offsetY}px`;
-            grid.style.width = `${renderedW}px`;
-            grid.style.height = `${renderedH}px`;
-            grid.style.right = 'auto';
-            grid.style.bottom = 'auto';
-        }
-        window.addEventListener('resize', () => {
-            if (document.getElementById('right-tab-comic') && !document.getElementById('right-tab-comic').classList.contains('hidden')) {
-                positionComicOverlay();
-            }
-        });
 
         function toggleInsightPanel(tab) {
             const wrap = document.getElementById(`insight-panel-${tab}-wrap`);
@@ -19338,14 +19248,13 @@
             if (!cat) return;
             const activeCategory = document.getElementById('active-category');
             const sameCategory = activeCategory.dataset.catId === cat.id;
-            const focusedCard = preserveView && sameCategory && document.activeElement?.matches?.('#cat-cards summary')
-                ? document.activeElement.parentElement.dataset.cardIndex : null;
-            const expandedCards = preserveView && sameCategory
-                ? new Set([...document.querySelectorAll('#cat-cards details[open]')].map(node => node.dataset.cardIndex)) : new Set();
+            const focusedCard = preserveView && sameCategory && document.activeElement?.matches?.('#cat-cards .cue-card')
+                ? document.activeElement.dataset.cardIndex : null;
+            const flipped = preserveView && sameCategory
+                ? new Set([...document.querySelectorAll('#cat-cards [aria-pressed="true"]')].map(node => node.dataset.cardIndex)) : new Set();
             activeCategory.dataset.catId = cat.id;
 
             if (!preserveView) {
-                document.getElementById('comic-transcript').open = false;
                 document.getElementById('video-notes').scrollTop = 0;
                 for (const panel of document.querySelectorAll('.review-stage [role="tabpanel"]')) panel.scrollTop = 0;
             }
@@ -19391,14 +19300,25 @@
             }
 
             cat.cards.forEach((cardData, index) => {
+                const answer = flipped.has(String(index));
                 cardsContainer.insertAdjacentHTML('beforeend', `
-                    <details class="cue-card" data-card-index="${index}" ${expandedCards.has(String(index)) ? 'open' : ''}>
-                        <summary>${escapeHtml(cardData.front)}<span class="material-symbols-outlined" aria-hidden="true">expand_more</span></summary>
-                        <div class="cue-card-answer"><h3>${escapeHtml(cardData.backTitle)}</h3><p>${escapeHtml(cardData.backDetail)}</p></div>
-                    </details>`);
+                    <button type="button" class="cue-card" data-card-index="${index}" aria-pressed="${answer}" aria-label="${escapeHtml(cardData.front)}" aria-describedby="${answer ? 'cue-answer-' + index : 'cue-flip-help'}">
+                        <span class="cue-turn">
+                            <span class="cue-face cue-front" aria-hidden="${answer}">
+                                <span class="material-symbols-outlined cue-icon" aria-hidden="true">${escapeHtml(cardData.icon || 'style')}</span>
+                                <span class="cue-question">${escapeHtml(cardData.front)}</span>
+                                <span class="cue-hint">Flip<span class="material-symbols-outlined" aria-hidden="true">flip_camera_android</span></span>
+                            </span>
+                            <span class="cue-face cue-back" id="cue-answer-${index}" aria-hidden="${!answer}">
+                                <span class="cue-answer-title">${escapeHtml(cardData.backTitle)}</span>
+                                <span class="cue-answer-text">${escapeHtml(cardData.backDetail)}</span>
+                                <span class="cue-hint">Flip back<span class="material-symbols-outlined" aria-hidden="true">flip_camera_android</span></span>
+                            </span>
+                        </span>
+                    </button>`);
             });
 
-            if (focusedCard !== null) cardsContainer.querySelector(`details[data-card-index="${focusedCard}"] summary`)?.focus({ preventScroll: true });
+            if (focusedCard !== null) cardsContainer.querySelector(`.cue-card[data-card-index="${focusedCard}"]`)?.focus({ preventScroll: true });
 
             // Update Comic
             renderComicForCategory(cat);
@@ -19579,12 +19499,19 @@ communicated to end users.
     </div>
 <div id="generation-status" class="generation-status hidden" role="status" aria-live="polite"></div>
 <div class="review-stage">
+<span hidden id="cue-flip-help">Flip to read the answer.</span>
 <div class="cue-grid hidden" id="cat-cards" role="tabpanel" aria-labelledby="tabbtn-cards"></div>
 <div class="media-panel hidden" id="right-tab-comic" role="tabpanel" aria-labelledby="tabbtn-comic">
 <div id="comic-scenarios" class="comic-scenarios" aria-label="Comic scenarios"></div>
-<div class="media-heading"><h3 id="cat-comic-title"></h3><a class="quiet-button" id="comic-open-link" href="#" target="_blank" rel="noopener noreferrer">Open comic<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
-<div class="comic-overlay-wrap"><img alt="Comic strip" id="cat-comic-img"/><div class="comic-overlay-grid" id="cat-comic-overlay-grid"></div></div>
-<details class="comic-transcript" id="comic-transcript"><summary>Comic text</summary><ol id="comic-transcript-scenes"></ol></details>
+<div class="media-heading"><h3 id="cat-comic-title"></h3><a class="quiet-button hidden" id="comic-open-link" target="_blank" rel="noopener noreferrer">Full artwork<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+<div id="comic-status" class="comic-status" role="status"></div>
+<div id="comic-reader" class="comic-reader" hidden>
+  <div class="comic-art"><div id="comic-crop" class="comic-crop"><img alt="" id="cat-comic-img"/></div><div id="comic-art-status" role="status"></div></div>
+  <section id="comic-story" class="comic-story" aria-label="Comic scenes">
+    <nav class="comic-pager" aria-label="Comic navigation"><span id="comic-position" role="status"></span><button type="button" class="icon-button" id="comic-prev" aria-label="Previous scene" title="Previous scene" onclick="moveComicScene(-1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="comic-next" aria-label="Next scene" title="Next scene" onclick="moveComicScene(1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></nav>
+    <div class="comic-script" id="comic-script" aria-live="polite" aria-atomic="true"><h4 id="comic-scene-title"></h4><p id="comic-caption"></p><div id="comic-dialogue"></div></div>
+  </section>
+</div>
 </div>
 <div class="media-panel flex" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p>
 <div id="video-notes" class="video-notes"><h3>Category details</h3></div></div>
@@ -19607,12 +19534,15 @@ communicated to end users.
 </div>
   </div></div>
 </dialog>
-<dialog id="category-globe" class="glass-dialog globe-dialog" aria-labelledby="globe-document" aria-describedby="globe-count">
-  <div class="globe-header"><div class="globe-origin"><span class="material-symbols-outlined" aria-hidden="true">description</span><h2 id="globe-document"></h2></div>
-    <button type="button" class="pill-button" id="skip-globe" autofocus>Skip<span class="material-symbols-outlined" aria-hidden="true">skip_next</span></button>
-  </div>
-  <canvas id="globe-canvas" aria-hidden="true"></canvas>
-  <div class="globe-caption"><p id="globe-count"></p><h3 id="globe-category"></h3></div>
+<dialog id="category-globe" class="glass-dialog globe-dialog" aria-labelledby="globe-heading" aria-describedby="globe-document globe-count">
+  <header class="globe-header">
+    <div class="globe-context"><span class="material-symbols-outlined" aria-hidden="true">description</span><span id="globe-document"></span><span class="globe-divider" aria-hidden="true">/</span><span id="globe-count" role="status"></span></div>
+    <button type="button" class="icon-button" id="close-globe" aria-label="Close category chooser"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    <h2 id="globe-heading" tabindex="-1" autofocus>Choose a category</h2>
+    <div class="globe-tools"><label class="globe-search"><span class="material-symbols-outlined" aria-hidden="true">search</span><input id="globe-search" type="search" aria-label="Find a category" placeholder="Find a category" autocomplete="off"/></label><button type="button" id="globe-layout" class="quiet-button" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">list</span>List view</button></div>
+  </header>
+  <div class="globe-viewport" id="globe-viewport"><div class="globe-surface" id="globe-surface" role="group" aria-label="Categories"></div><p id="globe-empty" hidden>No matching categories.</p></div>
+  <div class="globe-rotation" id="globe-rotation"><button type="button" class="icon-button" id="globe-left" aria-label="Rotate globe left"><span class="material-symbols-outlined" aria-hidden="true">rotate_left</span></button><span id="globe-turn-hint">Rotate</span><button type="button" class="icon-button" id="globe-right" aria-label="Rotate globe right"><span class="material-symbols-outlined" aria-hidden="true">rotate_right</span></button></div>
 </dialog>
 <dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title"><div class="dialog-header"><h2 id="sample-dialog-title">Try another EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close sample EULAs"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
@@ -19620,7 +19550,8 @@ communicated to end users.
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></dialog>
-<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a question to reveal its answer.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
+<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
+<script src="comic-reader.js"></script>
 <script src="category-globe.js"></script>
 <script src="ui.js"></script>
 </body></html>

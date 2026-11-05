@@ -76,7 +76,7 @@ try {
       await cold.locator("#globe-document").textContent(),
       "Spotify TOU",
     );
-    await cold.getByRole("button", { name: "Skip", exact: true }).click();
+    await cold.locator(".globe-choice").first().click();
     assert.equal(
       await cold.locator("#tabbtn-video").getAttribute("aria-selected"),
       "true",
@@ -142,6 +142,7 @@ try {
     ["Adobe", 31],
     ["Deepfake Challenge", 10],
   ]) {
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.getByRole("button", { name, exact: true }).click();
     const globe = page.locator("#category-globe");
     assert(await globe.isVisible());
@@ -149,20 +150,66 @@ try {
       await page.locator("#globe-count").textContent(),
       count + " categories",
     );
+    const choices = globe.locator(".globe-choice");
+    assert.deepEqual(
+      await choices.allTextContents(),
+      await page.locator("#category-select option").allTextContents(),
+    );
     if (name === "Zoom") {
-      if (screenshotDir) {
-        await page.waitForTimeout(1500);
-        await screenshot("zoom-globe");
-      }
+      await page.waitForTimeout(850);
+      await screenshot("zoom-globe");
+      const dialogBox = await globe.boundingBox();
+      assert.equal(dialogBox.width, 1440);
+      assert.equal(dialogBox.height, 900);
+      await page.setViewportSize({ width: 390, height: 844 });
       await page.waitForFunction(
-        () =>
-          document.getElementById("globe-category").textContent ===
-          document.getElementById("cat-title").textContent,
+        () => document.querySelectorAll(".globe-choice").length < 35,
       );
-      await globe.waitFor({ state: "hidden" });
-    } else {
-      await page.getByRole("button", { name: "Skip", exact: true }).click();
+      await screenshot("globe-mobile");
+      const seen = new Set(await choices.allTextContents());
+      const firstFace = new Set(seen);
+      let rotatedChoice;
+      for (let step = 0; step < 15 && seen.size < count; step++) {
+        await page.locator("#globe-right").click();
+        for (const label of await choices.allTextContents()) {
+          if (!firstFace.has(label)) rotatedChoice = label;
+          seen.add(label);
+        }
+      }
+      assert.equal(
+        seen.size,
+        count,
+        "Every category must rotate onto the face on a phone",
+      );
+      await globe
+        .getByRole("button", { name: rotatedChoice, exact: true })
+        .click();
+      assert.equal(
+        await page.locator("#cat-title").textContent(),
+        rotatedChoice,
+      );
+      await page.locator("#view-globe").click();
+      assert.equal(
+        await globe.locator("[aria-current]").textContent(),
+        rotatedChoice,
+      );
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await globe.getByRole("button", { name: "List view" }).click();
+      assert.equal(await choices.count(), count);
+      await globe.getByRole("button", { name: "List view" }).click();
     }
+    const pick = name === "Zoom" ? 0 : count - 1;
+    const chosen = await page
+      .locator("#category-select option")
+      .nth(pick)
+      .textContent();
+    await globe.getByRole("button", { name: chosen, exact: true }).click();
+    assert.equal(await page.locator("#cat-title").textContent(), chosen);
+    assert(
+      await page
+        .locator("#cat-title")
+        .evaluate((el) => el === document.activeElement),
+    );
     const current = page.locator("#category-list [aria-current]");
     assert.equal(await page.locator("#category-select option").count(), count);
     assert.equal(
@@ -171,7 +218,7 @@ try {
     );
     assert.equal(
       await page.locator("#category-position").textContent(),
-      "Category 1 of " + count,
+      "Category " + (pick + 1) + " of " + count,
     );
     assert.equal(
       await current.textContent(),
@@ -221,22 +268,29 @@ try {
     }
     await page.getByRole("tab", { name: "Cue cards", exact: true }).click();
     const card = page.locator(".cue-card").first();
-    await card.locator("summary").click();
-    assert(await card.locator(".cue-card-answer").isVisible());
-    await fits("cue cards", true);
-    await card.locator("summary").focus();
-    // An asynchronous media refresh must not collapse an answer the user is reading.
-    await page.evaluate(() => refreshActiveCategory());
-    assert(
-      (await page.locator(".cue-card").first().getAttribute("open")) !== null,
-    );
+    const beforeFlip = await card.boundingBox();
+    await card.focus();
+    await page.keyboard.press("Space");
+    assert.equal(await card.getAttribute("aria-pressed"), "true");
     assert.equal(
-      await page
-        .locator(".cue-card summary")
-        .first()
-        .evaluate((node) => node === document.activeElement),
-      true,
+      await card.locator(".cue-back").getAttribute("aria-hidden"),
+      "false",
     );
+    assert.deepEqual(
+      await card.boundingBox(),
+      beforeFlip,
+      "Flipping a card must keep its footprint",
+    );
+    await fits("cue cards", true);
+    await page.evaluate(() => refreshActiveCategory());
+    assert.equal(await card.getAttribute("aria-pressed"), "true");
+    assert(await card.evaluate((node) => node === document.activeElement));
+    if (name === "Zoom") {
+      await page.waitForTimeout(500);
+      await screenshot("cue-flipped-mobile");
+    }
+    await page.keyboard.press("Enter");
+    assert.equal(await card.getAttribute("aria-pressed"), "false");
     await page
       .getByRole("button", { name: "Category details", exact: true })
       .click();
@@ -260,10 +314,61 @@ try {
       await page.waitForFunction(
         () => document.getElementById("cat-comic-img").naturalWidth > 0,
       );
-      await page.locator("#comic-transcript summary").click();
-      assert((await page.locator("#comic-transcript-scenes li").count()) > 0);
-      await fits("comic", true);
-      await screenshot("comic-mobile");
+      const scenes = await page.evaluate(
+        () => comicReader.category.comicScenes,
+      );
+      assert.equal(
+        await page.locator("#comic-position").textContent(),
+        "Scene 1 of " + scenes.length,
+      );
+      assert(await page.locator("#comic-prev").isDisabled());
+      const cropCount = await page.evaluate(() => comicReader.boxes.length);
+      assert.equal(
+        cropCount,
+        scenes.length,
+        "The Zoom artwork has six distinct bordered panels",
+      );
+      for (const [width, height] of viewports) {
+        await page.setViewportSize({ width, height });
+        await fits("comic", true);
+        const art = await page.locator("#comic-crop").boundingBox();
+        const script = await page.locator("#comic-script").boundingBox();
+        const next = await page.locator("#comic-next").boundingBox();
+        assert(art.width > 40 && art.height > 40 && script.height > 0);
+        assert(
+          art.x + art.width <= script.x + 1 ||
+            art.y + art.height <= script.y + 1,
+          "Dialogue must have its own space outside artwork",
+        );
+        assert(
+          next.y + next.height <= height && next.x + next.width <= width,
+          "Scene controls must fit",
+        );
+        if (width === 390 || width === 1366) await screenshot("comic-" + width);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (let i = 1; i < scenes.length; i++) {
+        await page.locator("#comic-next").click();
+        assert.equal(
+          await page.locator("#comic-scene-title").textContent(),
+          scenes[i].title,
+        );
+        assert.equal(
+          await page.locator("#comic-caption").textContent(),
+          scenes[i].caption,
+        );
+        assert.deepEqual(
+          await page.locator("#comic-dialogue p").allTextContents(),
+          scenes[i].slots.map((slot) => slot.text),
+        );
+      }
+      assert(await page.locator("#comic-next").isDisabled());
+      await page.evaluate(() => refreshActiveCategory());
+      assert.equal(
+        await page.locator("#comic-position").textContent(),
+        `Scene ${scenes.length} of ${scenes.length}`,
+      );
+      await page.locator("#comic-prev").click();
       await page
         .getByRole("button", { name: "Next category", exact: true })
         .click();
@@ -272,6 +377,56 @@ try {
         "true",
         "Category changes retain the chosen format",
       );
+      assert.match(
+        await page.locator("#comic-position").textContent(),
+        /^Scene 1 of/,
+      );
+      await page
+        .locator("#category-select")
+        .selectOption({ label: "Arbitration Mandate" });
+      await page.waitForFunction(() => comicReader.boxes.length === 5);
+      for (let count = 0; count < 4; count++)
+        await page.locator("#comic-next").click();
+      assert.equal(
+        await page.evaluate(() => comicReader.boxes[4].width),
+        1,
+        "This five-scene sheet has a full-width final panel",
+      );
+      await page
+        .locator("#category-select")
+        .selectOption({ label: "Prohibited High Risk Use" });
+      await page.waitForFunction(() => comicReader.measuredCount === 4);
+      assert.equal(
+        await page.evaluate(() => comicReader.boxes.length),
+        0,
+        "Ambiguous artwork must stay whole",
+      );
+      assert.equal(
+        await page.locator("#cat-comic-img").evaluate((el) => el.style.width),
+        "100%",
+      );
+      // A failed asset must leave all dialogue and scene controls usable.
+      let attempts = 0;
+      await page.route("**/*comic*?test-art-retry", (route) =>
+        ++attempts === 1 ? route.abort() : route.continue(),
+      );
+      await page.evaluate(() => {
+        const cat = comicReader.category;
+        cat.comic += "?test-art-retry";
+        renderComicForCategory(cat);
+      });
+      await page.getByRole("button", { name: "Reload artwork" }).waitFor();
+      await page.locator("#comic-next").click();
+      assert.equal(
+        await page.locator("#comic-position").textContent(),
+        "Scene 2 of 4",
+      );
+      await page.getByRole("button", { name: "Reload artwork" }).click();
+      await page.locator("#comic-crop").waitFor({ state: "visible" });
+      assert.equal(attempts, 2);
+      await page.evaluate(() => {
+        comicReader.category.comic = comicReader.category.comic.split("?")[0];
+      });
       await page.getByRole("tab", { name: "Video", exact: true }).click();
       await page.waitForFunction(
         () => document.getElementById("cat-video").readyState >= 1,
@@ -338,8 +493,9 @@ try {
       .click();
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
-  // Error/retry UI remains clickable even though comic overlays ignore pointer events.
+  // Generation failure exposes retry without removing the available story.
   await page.getByRole("button", { name: "Zoom", exact: true }).click();
+  await page.locator(".globe-choice").first().click();
   await page.getByRole("tab", { name: "Comic", exact: true }).click();
   await page.waitForFunction(
     () => document.getElementById("cat-comic-img").naturalWidth > 0,
@@ -360,7 +516,7 @@ try {
     renderComicForCategory(cat);
   });
   await page
-    .locator("#cat-comic-overlay-grid")
+    .locator("#comic-status")
     .getByRole("button", { name: "Retry", exact: true })
     .click();
   assert.equal(await page.evaluate(() => window.retryObserved), true);
@@ -373,6 +529,7 @@ try {
     .click();
   // Dialog selection also exercises replacement of the active document.
   await page.getByRole("button", { name: "Zoom", exact: true }).click();
+  await page.locator(".globe-choice").first().click();
   await page
     .getByRole("button", { name: "Try another EULA", exact: true })
     .click();
@@ -380,6 +537,7 @@ try {
     .getByRole("dialog")
     .getByRole("button", { name: "Steam", exact: true })
     .click();
+  await page.locator(".globe-choice").first().click();
   assert.match(
     await page.locator("#doc-analysis-title").textContent(),
     /Steam/,
@@ -409,6 +567,7 @@ try {
   await page.locator("#learn-more-toggle").click();
   assert.equal(await page.locator("#learn-more-panel").isVisible(), false);
   await page.getByRole("button", { name: "Zoom", exact: true }).click();
+  await page.locator(".globe-choice").first().click();
   await page.getByRole("button", { name: "Help", exact: true }).click();
   await page.getByRole("button", { name: "Learn more", exact: true }).click();
   assert(await page.locator("#dashboard-tab").isVisible());
@@ -422,7 +581,14 @@ try {
     "auto",
   );
   await page.getByRole("button", { name: "Zoom", exact: true }).click();
-  assert.equal(await page.locator("#category-globe").isVisible(), false);
+  assert.equal(await page.locator("#category-globe").isVisible(), true);
+  assert.equal(
+    await page
+      .locator("#globe-surface")
+      .evaluate((el) => el.getAnimations({ subtree: true }).length),
+    0,
+  );
+  await page.locator(".globe-choice").first().click();
   assert.equal(
     await page.locator("#tabbtn-video").getAttribute("aria-selected"),
     "true",
@@ -435,13 +601,27 @@ try {
     .click();
   assert.equal(
     await page.locator("#globe-count").textContent(),
-    "Category 2 of 35",
+    "35 categories",
   );
   assert.equal(
-    await page.locator("#globe-category").textContent(),
+    await page.locator(".globe-choice[aria-current]").textContent(),
     await page.locator("#cat-title").textContent(),
   );
   await page.keyboard.press("Escape");
+  assert(
+    await page
+      .locator("#view-globe")
+      .evaluate((el) => el === document.activeElement),
+  );
+  await page.locator("#view-globe").click();
+  await page.getByRole("searchbox").fill("no such category");
+  assert(await page.locator("#globe-empty").isVisible());
+  await page.getByRole("searchbox").fill("Recording Consent");
+  await page.getByRole("searchbox").press("Enter");
+  assert.equal(
+    await page.locator("#cat-title").textContent(),
+    "Recording Consent",
+  );
   const ids = await page
     .locator("[id]")
     .evaluateAll((nodes) => nodes.map((node) => node.id));
@@ -461,14 +641,14 @@ try {
         layouts,
         coverage: [
           "upload priority and compact samples",
-          "globe completion, skip, and reduced-motion view",
+          "full-screen selectable globe, search, list and reduced motion",
           "video-first category context and sidebar",
           "primary controls fit the desktop and phone viewport",
           "unchanged sample content",
-          "cue-card expansion survives asynchronous refresh",
+          "in-place cue-card flips, keyboard operation and refresh",
           "format retention",
           "category boundaries",
-          "comic and transcript",
+          "comic scene navigation, exact dialogue and non-overlapping artwork",
           "video playback/pause",
           "original PDF",
           "keyboard tabs",

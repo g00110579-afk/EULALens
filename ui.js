@@ -38,7 +38,19 @@ document.querySelector(".format-tabs").addEventListener("keydown", (event) => {
   tabs[next].click();
 });
 
-// Native details expose cue-card answers to keyboard and assistive technology.
+document.getElementById("cat-cards").addEventListener("click", (event) => {
+  const card = event.target.closest(".cue-card");
+  if (!card) return;
+  const answer = card.getAttribute("aria-pressed") !== "true";
+  card.setAttribute("aria-pressed", String(answer));
+  card.querySelector(".cue-front").setAttribute("aria-hidden", String(answer));
+  card.querySelector(".cue-back").setAttribute("aria-hidden", String(!answer));
+  card.setAttribute(
+    "aria-describedby",
+    answer ? card.querySelector(".cue-back").id : "cue-flip-help",
+  );
+});
+
 // Pause playback when the browser puts the page in the background.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) document.getElementById("cat-video")?.pause();
@@ -71,11 +83,6 @@ function openCategoryDetails() {
     .appendChild(document.getElementById("category-notes"));
   detailDialog.showModal();
 }
-
-// Resizing the transcript also changes the image rectangle within the panel.
-new ResizeObserver(positionComicOverlay).observe(
-  document.querySelector(".comic-overlay-wrap"),
-);
 
 const categoryVideo = document.getElementById("cat-video");
 categoryVideo.addEventListener("loadedmetadata", () => {

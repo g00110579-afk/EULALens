@@ -3,21 +3,29 @@ Dark glass UI — dark-glass-ui
 The homepage puts PDF upload first, with six compact sample EULAs below it.
 The samples retain their original 164 categories, summaries and media.
 
-Opening a sample or a newly analyzed PDF animates that agreement’s categories
-from a document into a globe and focuses the first category in risk order.
-Skip or Escape opens the review immediately. Reduced motion and restored runs
-go directly to the review; the globe button can revisit the current category.
+Opening a sample or a newly analyzed PDF opens a full-screen category chooser.
+The agreement’s category names assemble into a globe. Click a name to open its
+review. Drag or use the rotation buttons to bring names around the globe on
+smaller screens. Search and List view also reach every category. Escape closes
+the chooser, and the globe button reopens it at the current category. Reduced
+motion keeps the same controls and skips the animations.
 
 Video is the initial format. The header identifies the agreement, category
 position and risk. Desktop has a risk-grouped category index; on smaller
 screens the position control opens the category picker. Previous/Next and the
 index retain the selected format. The player and navigation fit the viewport.
-Long documents, transcripts and lists scroll within their panels. In portrait,
+Long documents, scene text and lists scroll within their panels. In portrait,
 the category notes sit beneath the video; Details opens them from other formats.
 
-ui.css provides the shared glass styling, ui.js handles view controls, and
-category-globe.js draws the animation from the current category data. The
-existing API and scheduler handle uploaded PDFs and media generation.
+Cue cards flip in place. The comic reader pairs each scene’s original caption
+and dialogue with the artwork and keeps the current scene across live updates.
+comic-reader.js crops a panel when thin, bright gutters identify a matching
+set of panels, including full-width scenes. Other layouts and images without
+pixel access show the full sheet. Full artwork opens the original image.
+
+ui.css provides the glass styling, ui.js handles view controls, and
+category-globe.js builds the chooser from the current agreement. The existing
+API and scheduler handle uploads and media generation.
 
 Verification (Node >=22.13; ffmpeg for the upload/media fixture test):
   npm ci

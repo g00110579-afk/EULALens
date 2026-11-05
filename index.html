@@ -117,7 +117,13 @@
             if (animate && typeof openCategoryGlobe === 'function') openCategoryGlobe();
         }
 
+        // Keep the latest sample click while the review controls are downloading.
+        let pendingSample = null;
         function openDocumentView(doc) {
+            if (document.readyState === 'loading') {
+                pendingSample = doc;
+                return;
+            }
             switchDocument(doc);
             showDocumentWorkspace(true);
         }
@@ -139,6 +145,7 @@
         }
 
         function backToHome() {
+            pendingSample = null;
             document.getElementById('cat-video')?.pause();
             document.getElementById('documents-tab').classList.add('hidden');
             document.getElementById('dashboard-tab').classList.remove('hidden');
@@ -653,6 +660,7 @@
         function previousCategory() { moveCategory(-1); }
 
         function toggleLearnMore() {
+            pendingSample = null;
             const panel = document.getElementById('learn-more-panel');
             const button = document.getElementById('learn-more-toggle');
             const opening = panel.classList.contains('hidden');
@@ -19291,6 +19299,11 @@
         document.addEventListener("DOMContentLoaded", () => {
             initUploadDropzone();
             updateResumeButton();
+            if (pendingSample !== null) {
+                const doc = pendingSample;
+                pendingSample = null;
+                openDocumentView(doc);
+            }
         });
 
         window.addEventListener('pagehide', () => { persistRun(); });

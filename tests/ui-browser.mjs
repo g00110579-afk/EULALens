@@ -56,6 +56,35 @@ try {
       );
     layouts.push({ screen, ...geometry });
   };
+  // A fast click can occur before the last script arrives on a cold preview.
+  const cold = await browser.newPage();
+  let releaseGlobe;
+  const delayedGlobe = new Promise((resolve) => {
+    releaseGlobe = resolve;
+  });
+  await cold.route("**/category-globe.js", async (route) => {
+    await delayedGlobe;
+    await route.continue();
+  });
+  try {
+    await cold.goto(base, { waitUntil: "commit" });
+    await cold.getByRole("button", { name: "Zoom", exact: true }).click();
+    await cold.getByRole("button", { name: "Spotify", exact: true }).click();
+    releaseGlobe();
+    await cold.locator("#category-globe[open]").waitFor();
+    assert.equal(
+      await cold.locator("#globe-document").textContent(),
+      "Spotify TOU",
+    );
+    await cold.getByRole("button", { name: "Skip", exact: true }).click();
+    assert.equal(
+      await cold.locator("#tabbtn-video").getAttribute("aria-selected"),
+      "true",
+    );
+  } finally {
+    releaseGlobe();
+    await cold.close();
+  }
   await page.goto(base, { waitUntil: "networkidle" });
   assert.equal(await page.locator(".home-content .sample-button").count(), 6);
   assert.equal(

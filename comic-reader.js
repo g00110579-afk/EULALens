@@ -228,15 +228,9 @@ function renderComicForCategory(cat) {
       : pending
         ? ""
         : "Artwork unavailable.";
-    // The API signs this URL and allows the site origin to read the image.
-    // Ask for pixel access so uploaded comics can use the same scene framing.
-    if (
-      url &&
-      activeDocument === "live" &&
-      new URL(url).origin ===
-        new URL(LIVE_API_BASE, window.location.href).origin
-    )
-      image.crossOrigin = "anonymous";
+    // Even a same-origin sample path can redirect to a separate asset host.
+    // Read its pixels when allowed, then fall back to displaying the full sheet.
+    if (url) image.crossOrigin = "anonymous";
     else image.removeAttribute("crossorigin");
     image.onload = positionComicArtwork;
     image.onerror = () => {

@@ -328,6 +328,11 @@ try {
         scenes.length,
         "The Zoom artwork has six distinct bordered panels",
       );
+      assert.equal(
+        await page.locator("#cat-comic-img").getAttribute("crossorigin"),
+        "anonymous",
+        "Relative sample images can redirect to a different host",
+      );
       for (const [width, height] of viewports) {
         await page.setViewportSize({ width, height });
         await fits("comic", true);
@@ -408,7 +413,7 @@ try {
       // A failed asset must leave all dialogue and scene controls usable.
       let attempts = 0;
       await page.route("**/*comic*?test-art-retry", (route) =>
-        ++attempts === 1 ? route.abort() : route.continue(),
+        ++attempts <= 2 ? route.abort() : route.continue(),
       );
       await page.evaluate(() => {
         const cat = comicReader.category;
@@ -423,7 +428,7 @@ try {
       );
       await page.getByRole("button", { name: "Reload artwork" }).click();
       await page.locator("#comic-crop").waitFor({ state: "visible" });
-      assert.equal(attempts, 2);
+      assert.equal(attempts, 3);
       await page.evaluate(() => {
         comicReader.category.comic = comicReader.category.comic.split("?")[0];
       });

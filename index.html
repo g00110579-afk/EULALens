@@ -294,7 +294,6 @@
             cat.comic = state.imageUrl || '';
             cat.comicStatus = state.status || 'idle';
             cat.comicError = state.error || '';
-            if (typeof categoryGallery !== 'undefined') categoryGallery.updateArtwork(cat);
             if (render && document.getElementById('active-category').dataset.catId === cat.id) renderComicForCategory(cat);
         }
 
@@ -20725,7 +20724,6 @@ communicated to end users.
 <script src="sample-narration.js"></script>
 <script src="comic-reader.js"></script>
 <script src="comic-playback.js"></script>
-<script src="category-posters.js"></script>
 <script src="category-gallery.js"></script>
 <script src="ui.js"></script>
 </body></html>

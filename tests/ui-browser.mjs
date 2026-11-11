@@ -66,6 +66,7 @@ try {
     await delayedGallery;
     await route.continue();
   });
+  await cold.route("**/images/category-objects.webp", route => route.abort("failed"));
   try {
     await cold.goto(base, { waitUntil: "commit" });
     await cold.getByRole("button", { name: "Zoom", exact: true }).click();
@@ -76,11 +77,29 @@ try {
       await cold.locator("#gallery-document").textContent(),
       "Spotify TOU",
     );
+    const coldArt = cold.locator(".gallery-art").first();
+    assert(await coldArt.evaluate(el => Boolean(el.dataset.mark) && getComputedStyle(el, "::before").display !== "none"));
     await cold.locator(".gallery-choice").first().click();
     assert.equal(
       await cold.locator("#tabbtn-video").getAttribute("aria-selected"),
       "true",
     );
+    // Titles alone must work, including unfamiliar terms with identical initials.
+    await cold.evaluate(() => {
+      activeDocument = "live";
+      categories = ["Solar Horizon", "Silent Harbor", "個人契約", "Privacy consent"]
+        .map((name, i) => ({ id: "title-" + i, name, risk: "low" }));
+      categoryGallery.open();
+    });
+    const titleArt = cold.locator("#category-gallery .gallery-art");
+    const marks = await titleArt.evaluateAll(els => els.map(el => ({
+      mark: el.dataset.mark, topics: el.dataset.topics, engraving: el.style.cssText,
+    })));
+    assert.deepEqual(marks.map(m => m.mark), ["SH", "SH", "個人", "PC"]);
+    assert.deepEqual(marks.map(m => m.topics), ["", "", "", "fingerprint"]);
+    assert.notEqual(marks[0].engraving, marks[1].engraving);
+    await cold.locator("#gallery-search").fill("Silent Harbor");
+    assert.equal(await titleArt.evaluate(el => el.style.cssText), marks[1].engraving);
   } finally {
     releaseGallery();
     await cold.close();
@@ -184,8 +203,8 @@ try {
     assert.equal(await page.locator("#gallery-count").textContent(), count + " categories");
     const choices = gallery.locator(".gallery-choice");
     const expected = await page.locator("#category-select option").allTextContents();
+    await page.locator("#category-gallery.art-ready").waitFor();
     if (name === "Zoom") {
-      await choices.first().locator("img").evaluate(img => img.decode());
       await screenshot("category-gallery-desktop");
       const bounds = await gallery.boundingBox();
       assert.equal(bounds.width, 1440);
@@ -195,8 +214,8 @@ try {
       await screenshot("category-gallery-mobile");
     }
     const seen = [];
+    const designs = new Set();
     for (let i = 0; i < count; i++) {
-      await choices.first().locator("img").evaluate(img => img.decode());
       await page.waitForFunction(() => {
         const body = document.getElementById("gallery-body");
         return body.scrollHeight <= body.clientHeight + 1;
@@ -207,12 +226,21 @@ try {
         }));
         assert.fail(name + " gallery overflows: " + JSON.stringify(bounds));
       });
-      assert.equal(await choices.locator(".gallery-still").count(), await choices.count());
+      const art = await choices.locator(".gallery-art").evaluateAll(nodes => nodes.map(el => ({
+        topics: el.dataset.topics, mark: el.dataset.mark, shared: el.classList.contains("shared-art"),
+        visible: el.children.length ? getComputedStyle(el.firstElementChild).display !== "none"
+          : getComputedStyle(el, "::before").display !== "none",
+      })));
+      for (const item of art) {
+        assert(item.mark && item.visible);
+        designs.add(item.topics + (item.shared || !item.topics ? "-" + item.mark : ""));
+      }
       seen.push(...await choices.locator(".gallery-caption").allTextContents());
       if (await page.locator("#gallery-next").isDisabled()) break;
       await page.locator("#gallery-next").click();
     }
     assert.deepEqual(seen, expected, "Every category is reachable in the same order as the workspace");
+    assert(designs.size >= count * 0.9, name + " should have visually distinguishable category choices");
     if (name === "Zoom") {
       await choices.last().click();
       await page.locator("#view-gallery").click();
@@ -754,7 +782,7 @@ try {
         layouts,
         coverage: [
           "upload priority and compact samples",
-          "image-led gallery, pagination, search and reduced motion",
+          "topic illustrations, title marks when artwork is unavailable, pagination, search and reduced motion",
           "video-first category context and sidebar",
           "primary controls fit the desktop and phone viewport",
           "unchanged sample content",

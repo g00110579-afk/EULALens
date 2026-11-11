@@ -14,7 +14,7 @@ const { chromium } = await import(process.env.EULALENS_PLAYWRIGHT_MODULE ? pathT
 const root = path.resolve('.');
 const pdfjsBuild = process.env.EULALENS_PDFJS_BUILD_DIR || path.resolve('node_modules/pdfjs-dist/build');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'eula-browser-'));
-const servers = []; let browser; let app;
+const servers = []; let browser; let app; let releaseMedia;
 async function listen(application) { const server = application.listen(0, '127.0.0.1'); servers.push(server); await new Promise(resolve => server.once('listening', resolve)); return `http://127.0.0.1:${server.address().port}`; }
 function pdf(text) {
   const stream = `BT /F1 12 Tf 40 750 Td (${text.replace(/[()\\]/g, '\\$&')}) Tj ET`;
@@ -37,15 +37,16 @@ try {
   assert.equal(configResponse.status, 200, 'Published browser configuration must exist outside private .runtime');
   assert.match(await configResponse.text(), /window\.EULALENS_API_BASE/);
   const counts = { analysis: 0, cards: 0, comic: 0, image: 0, video: 0 };
+  const mediaGate = new Promise(resolve => { releaseMedia = resolve; });
   const categories = [{ id: 'license', title: 'License scope', severity: 'low', summary: '<img src=x onerror="window.auditSentinel=1">', sourceSegments: ['You may use the fictional app on one device.'], lenses: { impact: 'One device only.' }, lookouts: ['Check devices.'] }];
   const comics = ['first', 'second'].map(id => ({ id, title: `${id} scenario`, storySummary:`A summary of the ${id} scenario.`, scenes:[{narration:`The ${id} story begins.`},{narration:`The ${id} story ends.`}], imagePrompt: 'Synthetic image fixture for ' + id, panels: [{ title: 'First', body: 'A source-backed example.' }, { title: 'Second', caption: 'A second scene.' }] }));
   app = createApp({ directory: path.join(temporary, 'jobs'), origins: [siteBase], cancelImage: async () => {}, handlers: {
     synthesizeComicNarration: async ({text})=>{spoken.push(text);return fs.readFileSync(path.join(temporary,'voice.mp3'));},
     analyzeEula: async ({ text }) => { counts.analysis++; assert(text.includes('fictional')); return { analysis: { categories, document: { title: 'Synthetic fixture' } } }; },
     generateCategoryCardsBatch: async ({ onProgress }) => { counts.cards++; const entry = { ok: true, categoryId: 'license', cards: [{ question: '<b>How many devices?</b>', answer: 'One', backTitle: 'Scope', backDetail: 'One device.' }] }; await onProgress(entry, 0); return { results: [entry] }; },
-    generateCategoryComic: async () => { counts.comic++; return { comic: { comics, selectedComicId: 'first' } }; },
+    generateCategoryComic: async () => { counts.comic++; await mediaGate; return { comic: { comics, selectedComicId: 'first' } }; },
     renderCategoryComicImage: async () => { counts.image++; return { image: { imageUrl: modelBase + '/outputs/image.png' } }; },
-    generateCategoryVideoScript: async () => ({ video: { modelPrompt: 'Synthetic video fixture', subtitleLines: [] } }),
+    generateCategoryVideoScript: async () => { await mediaGate; return { video: { modelPrompt: 'Synthetic video fixture', subtitleLines: [] } }; },
     generateCategoryVideo: async () => { counts.video++; return { status: 'completed', videoUrl: modelBase + '/outputs/video.mp4', embeddedSubtitles: false, raw: { subtitleLines: [{ startSeconds: 0, endSeconds: 0.8, text: 'One device.', speaker: 'User' }], degraded: true } }; },
     cancelCategoryVideo: async () => ({})
   } });
@@ -70,6 +71,17 @@ try {
   await page.goto(siteBase, { waitUntil: 'domcontentloaded' });
   await page.locator('#upload-input').setInputFiles({ name: 'fixture<img src=x onerror=window.auditSentinel=2>.pdf', mimeType: 'application/pdf', buffer: pdf('You may use the fictional app on one device. Do not redistribute it.') });
   try { await page.waitForFunction(() => document.querySelector('#cat-title')?.textContent === 'License scope', undefined, { timeout: 30000 }); } catch(error) { console.error('UPLOAD STATUS:', await page.locator('#upload-status').textContent()); throw error; }
+  const galleryChoice = page.getByRole('dialog', { name: 'Choose a category' }).getByRole('button', {name:'License scope', exact:true});
+  await galleryChoice.waitFor();
+  await page.locator('#category-gallery.art-ready').waitFor();
+  const art = galleryChoice.locator('.gallery-art');
+  assert.equal(await art.getAttribute('data-topics'), 'key book');
+  assert(await art.locator('[data-object="key"]').isVisible());
+  assert.equal(counts.image, 0);
+  assert.equal(counts.video, 0);
+  const initialArtwork = await art.innerHTML();
+  await galleryChoice.click();
+  releaseMedia();
   await page.waitForFunction(() => document.querySelector('#cat-cards')?.textContent.includes('How many devices?'), undefined, { timeout: 30000 });
   assert.equal(await page.evaluate(() => window.auditSentinel), undefined);
   assert.equal(await page.locator('#cat-summary img').count(), 0);
@@ -77,7 +89,6 @@ try {
   assert.match(await page.locator('#doc-analysis-title').textContent(), /fixture<img/);
   assert.equal(await page.locator('#cat-summary').textContent(), '<img src=x onerror="window.auditSentinel=1">');
   assert.equal(await page.locator('#tabbtn-video').getAttribute('aria-selected'), 'true');
-  await page.getByRole('dialog', { name: 'Choose a category' }).getByRole('button', {name:'License scope', exact:true}).click();
   assert.match(await page.locator('#category-position').textContent(), /Category 1 of 1/);
   await page.getByRole('button', { name: 'Category details', exact: true }).click();
   await page.locator('#source-evidence summary').click();
@@ -110,6 +121,9 @@ try {
   await page.locator('#tabbtn-video').click();
   assert(await page.locator('#comic-audio').evaluate(a=>a.paused));
   await page.waitForFunction(() => document.querySelector('#cat-video')?.readyState >= 1, undefined, { timeout: 30000 });
+  await page.locator('#view-gallery').click();
+  assert.equal(await art.innerHTML(), initialArtwork, 'Finishing media must preserve an uploaded category’s illustration');
+  await page.keyboard.press('Escape');
   assert.equal(await page.locator('#cat-video track').count(), 1);
   await page.waitForFunction(() => document.querySelector('#cat-video')?.textTracks[0]?.cues?.length === 1);
   assert.deepEqual(await page.evaluate(() => { const cue = document.querySelector('#cat-video').textTracks[0].cues[0]; return { text: cue.text, start: cue.startTime, end: cue.endTime }; }), { text: 'One device.', start: 0, end: 0.8 });
@@ -133,6 +147,7 @@ try {
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['actual PDF upload', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'scenario summaries and narrated comic playback', 'scenario selection', 'speech captions and degradation', 'source excerpts', 'reload without duplicate generation', 'expired-session restore recovery'], requests: counts }, null, 2));
 } finally {
+  releaseMedia?.();
   await browser?.close(); await app?.locals.close();
   await Promise.all(servers.map(server => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); })));
   await closeProviderConnections(); fs.rmSync(temporary, { recursive: true, force: true });

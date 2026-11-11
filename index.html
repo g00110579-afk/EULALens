@@ -292,6 +292,7 @@
             cat.comicTitle = comic.title || comic.scenarioTitle || 'EULA Comic';
             cat.comicScenes = comicScenesFor(comic);
             cat.comic = state.imageUrl || '';
+            cat.comicFrames = state.frames;
             cat.comicStatus = state.status || 'idle';
             cat.comicError = state.error || '';
             if (render && document.getElementById('active-category').dataset.catId === cat.id) renderComicForCategory(cat);
@@ -373,7 +374,7 @@
                     if (!comic || !url) throw Object.assign(new Error('The finished comic has no usable image.'), { terminal: true });
                     if (!cat.comics?.length) cat.comics = job.comics?.length ? job.comics : [comic];
                     const state = (cat.scenarioRenders ||= Object.create(null))[comic.id] ||= {};
-                    Object.assign(state, { status: 'ready', imageUrl: url, jobId: id, error: '' });
+                    Object.assign(state, { status: 'ready', imageUrl: url, frames: job.render.image.frames, jobId: id, error: '' });
                     cat.selectedComicId ||= comic.id;
                     if (cat.selectedComicId === comic.id) displayComicScenario(cat, comic.id, false);
                     owner[failureField] = false;
@@ -948,6 +949,7 @@
             }
         ],
         "comic": "zoom/comics/system-requirements-responsibility-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.342],[0.5,0,1,0.342],[0,0.342,0.5,0.666],[0.5,0.342,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Outdated Laptop",
         "comicSummary": "The Project Manager prepares for a meeting but discovers their laptop is too old to run the latest software and their internet connection is unstable, preventing them from joining.",
         "comicScenes": [
@@ -1066,6 +1068,7 @@
             }
         ],
         "comic": "zoom/comics/data-accuracy-liability-comic-1-vendor-handoff.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Vendor Handoff Error",
         "comicSummary": "The manager prepares a vendor contract with billing details. They hand the file to a partner. The partner notices the address is wrong. The manager realizes Zoom won't fix it and must correct the file themselves before resending.",
         "comicScenes": [
@@ -1184,6 +1187,7 @@
             }
         ],
         "comic": "zoom/comics/scope-exclusion-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Reseller Mix-Up",
         "comicSummary": "An IT manager tries to use the Reseller Customer Agreement to govern both Zoom software services and a separate purchase of office chairs from the same reseller. The agreement clarifies that unrelated transactions are excluded.",
         "comicScenes": [
@@ -1302,6 +1306,7 @@
             }
         ],
         "comic": "zoom/comics/authority-warranty-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unauthorized Sign-Up",
         "comicSummary": "Sarah assumes she can sign up for the service for her company, but the terms require explicit authority to bind the entity, which she does not have.",
         "comicScenes": [
@@ -1420,6 +1425,7 @@
             }
         ],
         "comic": "zoom/comics/service-modification-comic-1-zoom-feature-loss.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missing Feature",
         "comicSummary": "The manager prepares for a client pitch using a beloved collaborative whiteboard feature. Upon logging in, the feature is missing. They attempt to recreate the functionality manually but realize the complexity is too high for a quick fix.",
         "comicScenes": [
@@ -1538,6 +1544,7 @@
             }
         ],
         "comic": "zoom/comics/beta-services-governance-comic-1-beta-switch.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Hidden Beta Switch",
         "comicSummary": "The manager tries to use a new 'Beta' filter. They realize the standard contract doesn't cover it. They must find the separate terms.",
         "comicScenes": [
@@ -1650,6 +1657,7 @@
             }
         ],
         "comic": "zoom/comics/premier-support-terms-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Extra Fee Surprise",
         "comicSummary": "The reseller intends to sell a standard upgrade but discovers the 'Premier Support' tier is not just a checkbox; it triggers a separate fee and a distinct legal agreement.",
         "comicScenes": [
@@ -1768,6 +1776,7 @@
             }
         ],
         "comic": "zoom/comics/recording-consent-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unexpected Mic",
         "comicSummary": "Alex joins a Zoom meeting for a strategy session. The host has enabled recording. Alex sees the notification, realizes they are being recorded, and chooses to leave the call to avoid being recorded.",
         "comicScenes": [
@@ -1880,6 +1889,7 @@
             }
         ],
         "comic": "zoom/comics/account-termination-comic-1-age-violation.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Underage Account",
         "comicSummary": "A parent discovers their child created an account without permission. Upon realizing the child is under 16, the parent finds the account has been terminated immediately without warning.",
         "comicScenes": [
@@ -1991,6 +2001,7 @@
             }
         ],
         "comic": "zoom/comics/eligibility-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Age Gate",
         "comicSummary": "A 15-year-old student tries to sign up for a professional webinar on Zoom. They realize the terms require them to be at least 16. They cannot proceed alone and must wait or ask for help.",
         "comicScenes": [
@@ -2102,6 +2113,7 @@
             }
         ],
         "comic": "zoom/comics/intended-use-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Freelancer's Dilemma",
         "comicSummary": "The creator wants to use a premium business tool for a side project. They realize the tool is marketed for business, so they pause to check the terms before starting.",
         "comicScenes": [
@@ -2220,6 +2232,7 @@
             }
         ],
         "comic": "zoom/comics/proprietary-rights-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Framing Trap",
         "comicSummary": "The developer wants to make login easier by framing Zoom's page. They write the code, but realize the EULA forbids framing without consent. They delete the code and choose a standard redirect instead.",
         "comicScenes": [
@@ -2344,6 +2357,7 @@
             }
         ],
         "comic": "zoom/comics/confidentiality-exclusions-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Public Domain Discovery",
         "comicSummary": "A developer wants to use a standard integration method. They discover it is documented publicly. They realize sharing this method does not breach confidentiality.",
         "comicScenes": [
@@ -2462,6 +2476,7 @@
             }
         ],
         "comic": "zoom/comics/confidentiality-legal-exception-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Subpoena Dilemma",
         "comicSummary": "The Compliance Officer receives a subpoena requiring the production of confidential research data. Instead of immediately handing over the files, they realize the contract allows them to notify the other party first to try and get a protective order.",
         "comicScenes": [
@@ -2580,6 +2595,7 @@
             }
         ],
         "comic": "zoom/comics/copyright-infringement-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.344],[0.5,0,1,0.344],[0,0.344,0.5,0.666],[0.5,0.344,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missing Permission Slip",
         "comicSummary": "The manager wants to boost engagement by sharing a viral movie scene. They upload it, realize they don't own the rights, and delete it before being banned.",
         "comicScenes": [
@@ -2703,6 +2719,7 @@
             }
         ],
         "comic": "zoom/comics/termination-for-cause-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Violation and the Void",
         "comicSummary": "The manager tries to host a meeting but is blocked by a system alert indicating immediate termination due to a prior violation. They realize the fees paid are non-refundable.",
         "comicScenes": [
@@ -2825,6 +2842,7 @@
             }
         ],
         "comic": "zoom/comics/termination-survival-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Cancellation and the Lingering Rule",
         "comicSummary": "The researcher cancels their account to save money. They assume all access and rules end. They discover that their duty to keep certain data secret continues indefinitely.",
         "comicScenes": [
@@ -2943,6 +2961,7 @@
             }
         ],
         "comic": "zoom/comics/termination-obligations-comic-1-local-cleanup.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Immediate Local Cleanup",
         "comicSummary": "Upon receiving a termination notice, the employee immediately stops using the Zoom service on their workstation and proceeds to delete all local copies of the software and associated data from their possession.",
         "comicScenes": [
@@ -3067,6 +3086,7 @@
             }
         ],
         "comic": "zoom/comics/export-compliance-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.336],[0.5,0,1,0.336],[0,0.336,0.5,0.664],[0.5,0.336,1,0.664],[0,0.664,0.5,1],[0.5,0.664,1,1]],
         "comicTitle": "Restricted Jurisdiction Access",
         "comicSummary": "The researcher tries to access the service from a location subject to trade sanctions. The system or legal framework blocks the connection, forcing the researcher to find an alternative location or method.",
         "comicScenes": [
@@ -3185,6 +3205,7 @@
             }
         ],
         "comic": "zoom/comics/prohibited-high-risk-use-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Control Room Mistake",
         "comicSummary": "An engineer attempts to use a standard service to monitor a nuclear facility. They realize the service is not licensed for hazardous environments and must stop.",
         "comicScenes": [
@@ -3279,6 +3300,7 @@
             }
         ],
         "comic": "zoom/comics/injunctive-relief-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unrestricted Stop",
         "comicSummary": "The developer tries to share sensitive technical info. They realize this violates the agreement. The agreement states Zoom can stop them immediately without asking for a bond.",
         "comicScenes": [
@@ -3397,6 +3419,7 @@
             }
         ],
         "comic": "zoom/comics/no-warranties-comic-1-zoom-failure.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unreliable Upload",
         "comicSummary": "The designer uploads a final project file to the service. The upload bar freezes, and the file appears corrupted. They realize the service offers no guarantee of data integrity or uptime.",
         "comicScenes": [
@@ -3508,6 +3531,7 @@
             }
         ],
         "comic": "zoom/comics/indemnification-indemn-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Defamatory Meeting",
         "comicSummary": "During a live session, a guest speaker makes a damaging claim. The platform is sued. The trainer realizes they must pay for the defense.",
         "comicScenes": [
@@ -3626,6 +3650,7 @@
             }
         ],
         "comic": "zoom/comics/arbitration-waiver-comic-01.webp",
+        "comicFrames": [[0,0,0.666,0.332],[0.666,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Solo Path",
         "comicSummary": "A user in the US notices a widespread service outage. They attempt to organize a group complaint but are blocked by a contractual clause requiring individual arbitration, forcing them to pursue the issue alone.",
         "comicScenes": [
@@ -3744,6 +3769,7 @@
             }
         ],
         "comic": "zoom/comics/data-processing-comic-vendor-handoff.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.554],[0,0.333,0.5,0.666],[0.5,0.554,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Vendor Data Handoff",
         "comicSummary": "The manager tries to streamline a workflow by sharing data with a vendor but discovers the agreement requires strict processing rules and an addendum.",
         "comicScenes": [
@@ -3862,6 +3888,7 @@
             }
         ],
         "comic": "zoom/comics/state-privacy-addendum-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The California Trigger",
         "comicSummary": "The manager plans a webinar for California clients. They realize their company acts as a 'controller' for this data. The EULA reveals a separate addendum applies, requiring them to review specific state privacy rules before proceeding.",
         "comicScenes": [
@@ -3980,6 +4007,7 @@
             }
         ],
         "comic": "zoom/comics/governing-law-venue-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unexpected Jurisdiction",
         "comicSummary": "A user in a non-California location signs up for a service, then imagines a dispute, only to find the agreement mandates California courts.",
         "comicScenes": [
@@ -4098,6 +4126,7 @@
             }
         ],
         "comic": "zoom/comics/contract-modification-comic-1-zoom-update.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Silent Rule Change",
         "comicSummary": "The manager prepares for a routine meeting, but a system notification interrupts the flow, revealing that the service terms have been updated unilaterally.",
         "comicScenes": [
@@ -4216,6 +4245,7 @@
             }
         ],
         "comic": "zoom/comics/terms-modification-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Ten-Day Notice",
         "comicSummary": "An employee receives a notice of updated Terms of Service. They realize the agreement states that continuing to use the service after a specific period counts as acceptance. They must decide whether to stop using the tool or proceed under the new rules.",
         "comicScenes": [
@@ -4339,6 +4369,7 @@
             }
         ],
         "comic": "zoom/comics/arbitration-mandate-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.354,0.666],[0.354,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Class Action Wall",
         "comicSummary": "The user gathers with others affected by the same Zoom outage to discuss filing a joint complaint but finds the agreement blocks their plan.",
         "comicScenes": [
@@ -4445,6 +4476,7 @@
             }
         ],
         "comic": "zoom/comics/statute-of-limitations-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missed Deadline",
         "comicSummary": "Sarah notices a duplicate charge. She hesitates, thinking she can fix it later. Months pass. She tries to file a claim, but the agreement's one-year rule blocks her.",
         "comicScenes": [
@@ -4557,6 +4589,7 @@
             }
         ],
         "comic": "zoom/comics/governing-language-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Translation Trap",
         "comicSummary": "A student downloads a translated Terms of Service to understand their rights. They notice a clause in the translation differs from the official English version. They realize the translation is just for convenience and the English text is the law.",
         "comicScenes": [
@@ -4674,6 +4707,7 @@
             }
         ],
         "comic": "zoom/comics/incorporation-of-terms-comic-1-zoom-merge.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Silent Merge",
         "comicSummary": "Sarah wants to use the 'Whiteboard' feature for a client meeting. She clicks the button, but a system prompt stops her, requiring a software update and agreement to new terms. She realizes these new terms merge with her existing Zoom contract.",
         "comicScenes": [
@@ -4786,6 +4820,7 @@
             }
         ],
         "comic": "zoom/comics/arbitration-costs-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Fee Barrier",
         "comicSummary": "The user wants to arbitrate a dispute but realizes they cannot afford the upfront costs. They discover Zoom covers these costs initially, but only if they lose.",
         "comicScenes": [
@@ -4904,6 +4939,7 @@
             }
         ],
         "comic": "zoom/comics/severability-severability-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.605,1],[0.605,0.666,1,1]],
         "comicTitle": "The Severed Clause",
         "comicSummary": "An employee reviews their employment agreement. They learn that the class action waiver is unenforceable. The severability clause ensures the rest of the arbitration agreement stays in place.",
         "comicScenes": [
@@ -5037,6 +5073,7 @@
             }
         ],
         "comic": "spotify/comics/age-eligibility-requirements-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Age Barrier",
         "comicSummary": "The young user attempts to register alone, discovers the age limit, and realizes they must wait for a parent.",
         "comicScenes": [
@@ -5155,6 +5192,7 @@
             }
         ],
         "comic": "spotify/comics/service-limitations-and-modifications-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missing Playlist",
         "comicSummary": "Alex prepares for a morning run relying on a specific 'Morning Motivation' playlist. Upon arrival at the park, the playlist is gone. Alex realizes the service is undergoing maintenance and must choose between waiting or using a backup.",
         "comicScenes": [
@@ -5267,6 +5305,7 @@
             }
         ],
         "comic": "spotify/comics/account-security-and-ownership-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Stolen Login",
         "comicSummary": "Alex notices strange activity on their account, realizes the password was stolen, and immediately tries to report it, but the breach has already occurred.",
         "comicScenes": [
@@ -5385,6 +5424,7 @@
             }
         ],
         "comic": "spotify/comics/proprietary-rights-and-brand-usage-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Logo Trap",
         "comicSummary": "Alex wants to share a playlist but mistakenly thinks they can use the Spotify logo to make it look official. They realize the terms forbid this and switch to generic icons.",
         "comicScenes": [
@@ -5503,6 +5543,7 @@
             }
         ],
         "comic": "spotify/comics/prohibited-use-and-guidelines-spotify-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unauthorized Stream",
         "comicSummary": "The organizer wants to use Spotify for a festival. They realize the terms forbid commercial use without permission. They decide to hire a licensed music service instead.",
         "comicScenes": [
@@ -5625,6 +5666,7 @@
             }
         ],
         "comic": "spotify/comics/price-change-acceptance-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.385,1],[0.385,0.666,1,1]],
         "comicTitle": "The Silent Price Hike",
         "comicSummary": "Alex listens to music daily. Spotify announces a price increase. Alex ignores the email and keeps listening. When the new billing cycle arrives, Alex sees the higher charge and realizes they didn't cancel in time.",
         "comicScenes": [
@@ -5743,6 +5785,7 @@
             }
         ],
         "comic": "spotify/comics/tax-rate-adjustments-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Automatic Tax Update",
         "comicSummary": "Alex checks their bank statement and sees a higher charge for their Spotify subscription. They realize the increase is due to updated local tax rates applied automatically.",
         "comicScenes": [
@@ -5867,6 +5910,7 @@
             }
         ],
         "comic": "spotify/comics/withdrawal-right-limitations-comic-trial-missed.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missed Deadline",
         "comicSummary": "Alex signs up for a 30-day trial, gets distracted by work, and misses the 14-day cancellation window, losing the right to withdraw.",
         "comicScenes": [
@@ -5979,6 +6023,7 @@
             }
         ],
         "comic": "spotify/comics/no-refunds-policy-comic-missed-deadline.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missed Cancellation Window",
         "comicSummary": "Alex checks their calendar, sees the cancellation deadline has passed, receives a renewal notice, and realizes they cannot get a refund for the remaining days.",
         "comicScenes": [
@@ -6109,6 +6154,7 @@
             }
         ],
         "comic": "spotify/comics/export-control-compliance-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Restricted Location Block",
         "comicSummary": "The listener tries to log in from a location identified as a Sanctioned Country. The system detects the location and blocks the connection, citing trade control laws.",
         "comicScenes": [
@@ -6233,6 +6279,7 @@
             }
         ],
         "comic": "spotify/comics/endorsement-restrictions-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unofficial Collab Post",
         "comicSummary": "The blogger attempts to use an artist's logo to imply a partnership, discovers the lack of written consent, and corrects the graphic to avoid misrepresentation.",
         "comicScenes": [
@@ -6351,6 +6398,7 @@
             }
         ],
         "comic": "spotify/comics/user-content-responsibility-comic-unintended-reuse.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unintended Billboard",
         "comicSummary": "The designer uploads a logo for feedback. Later, they see the logo on a public kiosk in a mall, modified and used as a brand. They realize their public sharing settings allowed this and decide to restrict future uploads.",
         "comicScenes": [
@@ -6469,6 +6517,7 @@
             }
         ],
         "comic": "spotify/comics/feedback-ownership-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Idea Submission",
         "comicSummary": "Alex, a music creator, has a brilliant idea for a new playlist algorithm. They draft it in their notebook and prepare to email it to Spotify's support team. Upon reading the Terms of Use, they realize their idea becomes Spotify's property with no compensation.",
         "comicScenes": [
@@ -6581,6 +6630,7 @@
             }
         ],
         "comic": "spotify/comics/device-access-license-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Hardware Utilization",
         "comicSummary": "A commuter uses Spotify on their phone. They notice the device is working harder than expected. They realize the app is using the processor and storage to function, as permitted by the license.",
         "comicScenes": [
@@ -6699,6 +6749,7 @@
             }
         ],
         "comic": "spotify/comics/survival-clause-comic-1-ip-rights.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Playlist After Cancellation",
         "comicSummary": "After canceling Spotify, the user attempts to delete their library and stop using the music, but the terms dictate that IP rights and dispute rules survive the termination.",
         "comicScenes": [
@@ -6823,6 +6874,7 @@
             }
         ],
         "comic": "spotify/comics/indemnification-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.333],[0,0.333,0.5,0.666],[0.5,0.333,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Copyright Claim",
         "comicSummary": "The creator uploads a remix. A third party claims copyright infringement. The platform notifies the creator that they are liable for the resulting legal costs.",
         "comicScenes": [
@@ -6941,6 +6993,7 @@
             }
         ],
         "comic": "spotify/comics/class-action-waiver-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Solo Suit",
         "comicSummary": "Alex notices a duplicate charge. They look for a way to fight it with others but find the contract forbids group action.",
         "comicScenes": [
@@ -7065,6 +7118,7 @@
             }
         ],
         "comic": "spotify/comics/mandatory-arbitration-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Locked Hall",
         "comicSummary": "The subscriber discovers a billing error and wants to join a class action lawsuit. The terms of service block this, forcing them to pursue a private arbitration instead.",
         "comicScenes": [
@@ -7171,6 +7225,7 @@
             }
         ],
         "comic": "spotify/comics/arbitration-procedure-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Language Barrier",
         "comicSummary": "A consumer attempts to file a dispute but discovers the mandatory English language requirement, altering their approach to communication.",
         "comicScenes": [
@@ -7289,6 +7344,7 @@
             }
         ],
         "comic": "spotify/comics/settlement-protection-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Minimum Guarantee",
         "comicSummary": "Alex wins a small arbitration award but fears it's too low. The terms reveal a 'greater of' clause guaranteeing at least $1,000 or the last offer.",
         "comicScenes": [
@@ -7400,6 +7456,7 @@
             }
         ],
         "comic": "spotify/comics/confidentiality-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.664],[0.5,0.334,1,0.664],[0,0.664,0.5,1],[0.5,0.664,1,1]],
         "comicTitle": "The Sealed File",
         "comicSummary": "A user receives arbitration documents and learns they must be kept strictly confidential, limiting their use only to the specific dispute.",
         "comicScenes": [
@@ -7523,6 +7580,7 @@
             }
         ],
         "comic": "spotify/comics/arbitration-confidentiality-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Public Post",
         "comicSummary": "The user drafts a post about their arbitration with Spotify, intending to warn others. They realize the terms forbid public comments on the dispute, so they delete the post and keep the matter private.",
         "comicScenes": [
@@ -7647,6 +7705,7 @@
             }
         ],
         "comic": "spotify/comics/arbitration-provision-modification-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.755,1],[0.755,0.666,1,1]],
         "comicTitle": "Rejecting the Arbitration Change",
         "comicSummary": "Alex reads the updated Terms, decides to reject the arbitration change, sends written notice, and immediately loses access to their account.",
         "comicScenes": [
@@ -7765,6 +7824,7 @@
             }
         ],
         "comic": "spotify/comics/arbitration-severability-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Domino Effect of Invalid Clauses",
         "comicSummary": "The consumer tries to rely on an arbitration clause to resolve a dispute. Upon learning that the class action waiver within that clause is unenforceable, the entire arbitration section becomes void, forcing the dispute back to regular court jurisdiction.",
         "comicScenes": [
@@ -7883,6 +7943,7 @@
             }
         ],
         "comic": "spotify/comics/terms-modification-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Silent Update",
         "comicSummary": "Alex listens to a new playlist. A pop-up about updated terms appears. Alex dismisses it to keep listening. Later, Alex realizes that by continuing to use the app, they have legally accepted the changes.",
         "comicScenes": [
@@ -8006,6 +8067,7 @@
             }
         ],
         "comic": "spotify/comics/entire-agreement-comic-1-superseding-promise.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Verbal Promise vs. The Written Terms",
         "comicSummary": "Alex asks a support agent about a feature. The agent says 'yes' verbally. Later, Alex tries to use it and finds the Terms state the written document is the only agreement, invalidating the verbal promise.",
         "comicScenes": [
@@ -8117,6 +8179,7 @@
             }
         ],
         "comic": "spotify/comics/severability-severability-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Broken Clause",
         "comicSummary": "Alex tries to use a music service. They notice a specific clause about 'guaranteed offline access' is legally unenforceable in their region. Instead of canceling the whole account, they realize the core service (streaming) is still fully functional.",
         "comicScenes": [
@@ -8235,6 +8298,7 @@
             }
         ],
         "comic": "spotify/comics/assignment-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Shared Account Trap",
         "comicSummary": "Alex attempts to transfer their subscription rights to a third party (roommate). The contract blocks this action. Simultaneously, the platform demonstrates its own right to assign rights to others.",
         "comicScenes": [
@@ -8350,6 +8414,7 @@
             }
         ],
         "comic": "steam/comics/age-restriction-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Age Gate",
         "comicSummary": "Leo tries to sign up for Steam on his own. He realizes he is under 13. He stops and decides to ask his older brother for help instead.",
         "comicScenes": [
@@ -8461,6 +8526,7 @@
             }
         ],
         "comic": "steam/comics/contracting-party-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Marketplace Dispute",
         "comicSummary": "Alex buys a game key from a third-party seller on Steam. The seller disappears. Alex tries to sue the seller but realizes the contract is only with Valve.",
         "comicScenes": [
@@ -8585,6 +8651,7 @@
             }
         ],
         "comic": "steam/comics/account-security-obligation-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Shared Login",
         "comicSummary": "A user shares their password with a friend to let them play a game. Later, the user discovers unauthorized activity on their account and realizes the friend was the cause.",
         "comicScenes": [
@@ -8708,6 +8775,7 @@
             }
         ],
         "comic": "steam/comics/binding-terms-integration-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Hidden Web of Rules",
         "comicSummary": "The gamer clicks to accept the main agreement, not realizing this single action legally binds them to three other specific documents (Subscription Terms, Rules of Use, Privacy Policy) that they haven't seen.",
         "comicScenes": [
@@ -8826,6 +8894,7 @@
             }
         ],
         "comic": "steam/comics/account-transfer-restrictions-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Monetization Attempt",
         "comicSummary": "Alex wants to make extra cash by selling their Steam account to a friend. They prepare the login details and a price tag, but the agreement's rules block the transaction.",
         "comicScenes": [
@@ -8955,6 +9024,7 @@
             }
         ],
         "comic": "steam/comics/contract-formation-mechanism-comic-digital-content.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Buying a Digital Game",
         "comicSummary": "The gamer places an order for a digital game. They receive an order confirmation. The system deducts the price and makes the game available. The contract is formed at this moment.",
         "comicScenes": [
@@ -9073,6 +9143,7 @@
             }
         ],
         "comic": "steam/comics/payment-processing-authority-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The European Card Route",
         "comicSummary": "Alex tries to buy a game. They notice their card is from Europe. The system routes the payment to a specific subsidiary instead of the main company.",
         "comicScenes": [
@@ -9191,6 +9262,7 @@
             }
         ],
         "comic": "steam/comics/beta-software-terms-comic-beta-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Early Access Choice",
         "comicSummary": "Alex wants to play the new game immediately. They see the Beta option, realize it's a distinct subscription, and decide whether to accept the terms to get early access.",
         "comicScenes": [
@@ -9303,6 +9375,7 @@
             }
         ],
         "comic": "steam/comics/dedicated-server-liability-comic-1-outage.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Outage Cost",
         "comicSummary": "The owner relies on a dedicated server for their shop. When the internet cuts out, the shop stops. The owner expects help but realizes they must cover the downtime costs themselves.",
         "comicScenes": [
@@ -9432,6 +9505,7 @@
             }
         ],
         "comic": "steam/comics/prohibited-use-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Resale Trap",
         "comicSummary": "Alex buys extra games but decides to sell the keys to recoup costs. The system flags this as a violation of the non-transferable terms.",
         "comicScenes": [
@@ -9544,6 +9618,7 @@
             }
         ],
         "comic": "steam/comics/wallet-limits-and-changes-comic-1-aggregate-limit.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The $2,000 Ceiling",
         "comicSummary": "A gamer tries to top up their wallet but discovers the $2,000 aggregate limit (balance + spending) is reached. The deposit fails, and they must wait for their activity to drop below the threshold before trying again.",
         "comicScenes": [
@@ -9662,6 +9737,7 @@
             }
         ],
         "comic": "steam/comics/japanese-wallet-expiration-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Six-Month Clock",
         "comicSummary": "Kenji adds funds to his Steam Wallet in Tokyo. He forgets to spend them. Six months pass. The funds vanish.",
         "comicScenes": [
@@ -9762,6 +9838,7 @@
             }
         ],
         "comic": "steam/comics/marketplace-ownership-rights-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The External Sale Attempt",
         "comicSummary": "Alex buys a subscription, wants to resell it to a friend, but the license terms block any transfer outside the Steam ecosystem.",
         "comicScenes": [
@@ -9880,6 +9957,7 @@
             }
         ],
         "comic": "steam/comics/third-party-liability-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Third-Party Outage",
         "comicSummary": "The shop owner depends on a third-party vendor for inventory. The vendor goes offline. The owner tries to claim damages but finds the provider offers no warranty or compensation, forcing the owner to absorb the loss and plan a backup.",
         "comicScenes": [
@@ -10009,6 +10087,7 @@
             }
         ],
         "comic": "steam/comics/refund-policy-comic-missed-window.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missed Window",
         "comicSummary": "Alex buys a game, forgets the 14-day rule, sees the calendar date pass, gets the bill, and realizes the refund is gone.",
         "comicScenes": [
@@ -10121,6 +10200,7 @@
             }
         ],
         "comic": "steam/comics/prohibited-automation-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Macro Device",
         "comicSummary": "The gamer connects a small external device to their computer to run a script, notices the game flags the behavior, and removes the script.",
         "comicScenes": [
@@ -10239,6 +10319,7 @@
             }
         ],
         "comic": "steam/comics/account-termination-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Locked Door",
         "comicSummary": "Alex logs in to play, but the system blocks access immediately. They realize a violation occurred, and the account is terminated without any prior warning.",
         "comicScenes": [
@@ -10351,6 +10432,7 @@
             }
         ],
         "comic": "steam/comics/online-conduct-rules-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Hidden Host Rules",
         "comicSummary": "The gamer logs in and assumes standard platform rules apply everywhere. Upon entering a specific third-party hosted game, they discover additional conduct requirements that differ from the general Steam rules.",
         "comicScenes": [
@@ -10468,6 +10550,7 @@
             }
         ],
         "comic": "steam/comics/anti-cheat-obligations-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unauthorized Modification",
         "comicSummary": "A gamer attempts to use unauthorized software to modify a game's process. The system detects this interference with the execution of the content and services, preventing the action.",
         "comicScenes": [
@@ -10580,6 +10663,7 @@
             }
         ],
         "comic": "steam/comics/free-subscription-fees-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Free Trap",
         "comicSummary": "Alex thought the subscription was free forever. He saw a calendar reminder but ignored it. A bill arrived, showing connection fees. He realized he missed the window and set a physical alarm.",
         "comicScenes": [
@@ -10692,6 +10776,7 @@
             }
         ],
         "comic": "steam/comics/authorized-reseller-support-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Wrong Contact",
         "comicSummary": "Alex buys a game key from a third-party reseller. When the key fails to activate, Alex assumes Valve is responsible and tries to contact them directly, only to be blocked by the agreement.",
         "comicScenes": [
@@ -10822,6 +10907,7 @@
             }
         ],
         "comic": "steam/comics/user-generated-content-license-comic-1-promo-reuse.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Billboard Surprise",
         "comicSummary": "The artist uploads a unique texture pack to Steam. Weeks later, they see their texture used on a massive, unbranded billboard advertising a generic game, realizing Valve used it for promotion.",
         "comicScenes": [
@@ -10934,6 +11020,7 @@
             }
         ],
         "comic": "steam/comics/workshop-content-rights-comic-unintended-reuse.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Billboard Surprise",
         "comicSummary": "The designer uploads a custom texture to the Workshop. Later, they see that texture used on a large, unbranded commercial billboard. They realize the recipient treated it as a standard subscription asset and modified it for commercial display without permission.",
         "comicScenes": [
@@ -11052,6 +11139,7 @@
             }
         ],
         "comic": "steam/comics/workshop-removal-discretion-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Sudden Restriction",
         "comicSummary": "The creator uploads a map, it becomes popular, but Valve exercises its right to restrict it for an unspecified reason, leaving the creator confused and without recourse.",
         "comicScenes": [
@@ -11170,6 +11258,7 @@
             }
         ],
         "comic": "steam/comics/derivative-works-license-comic-promo-reuse.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Unintended Commercial Reuse",
         "comicSummary": "After uploading a custom weapon skin, the creator discovers it has been altered and featured on a city-wide billboard as a generic 'Steam Exclusive' promotion, with no credit or payment.",
         "comicScenes": [
@@ -11288,6 +11377,7 @@
             }
         ],
         "comic": "steam/comics/promotional-disclosure-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Free Game Endorsement",
         "comicSummary": "A streamer receives a free copy of a game from a publisher. They decide to play it and stream it. They realize the agreement requires them to tell their viewers that the game was free, not that they bought it.",
         "comicScenes": [
@@ -11406,6 +11496,7 @@
             }
         ],
         "comic": "steam/comics/ip-warranty-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unlicensed Model",
         "comicSummary": "Alex finds a detailed 3D model online, downloads it, and attempts to upload it to the Steam Workshop. They realize the model was created by a third-party artist and they have no license to share it. They delete the file and create their own instead.",
         "comicScenes": [
@@ -11530,6 +11621,7 @@
             }
         ],
         "comic": "steam/comics/disclaimer-of-warranty-comic-1-global-disclaimer.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Broken Game Reality",
         "comicSummary": "A gamer purchases a game expecting it to work. When it fails, they realize the agreement explicitly disclaims all warranties, meaning they cannot sue for negligence or demand a repair based on quality promises.",
         "comicScenes": [
@@ -11659,6 +11751,7 @@
             }
         ],
         "comic": "steam/comics/unilateral-amendment-comic-1-deadline-miss.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The 30-Day Notice Trap",
         "comicSummary": "Alex receives an email about a new Steam rule change. They see the 30-day deadline but get distracted. When the date passes, they try to cancel to avoid the new terms but are told no refund is available for the time already used.",
         "comicScenes": [
@@ -11771,6 +11864,7 @@
             }
         ],
         "comic": "steam/comics/termination-comic-1-cancel.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Right to Walk Away",
         "comicSummary": "Alex decides to stop playing games on Steam. He navigates the settings to cancel his account, realizing that while he can leave, his digital library disappears with him.",
         "comicScenes": [
@@ -11883,6 +11977,7 @@
             }
         ],
         "comic": "steam/comics/bundle-termination-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The All-or-Nothing Bundle",
         "comicSummary": "Alex wants to stop playing 'Horror Game' but keep the other titles in the 'Spooky Pack'. They attempt to remove just that one game, but the system or agreement dictates that removing one triggers the loss of all.",
         "comicScenes": [
@@ -12001,6 +12096,7 @@
             }
         ],
         "comic": "steam/comics/survival-of-terms-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unlocked Account",
         "comicSummary": "Alex decides to quit a game. They delete their local files and log out, expecting a clean break. However, the agreement's 'survival' clause means that rules regarding data ownership, refund limits, and conduct restrictions stay active even though Alex is no longer playing.",
         "comicScenes": [
@@ -12119,6 +12215,7 @@
             }
         ],
         "comic": "steam/comics/severability-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,1,1]],
         "comicTitle": "The Broken Clause",
         "comicSummary": "The subscriber relies on a standard agreement. A court finds one specific provision unenforceable. The agreement automatically removes that part while keeping the rest valid.",
         "comicScenes": [
@@ -12219,6 +12316,7 @@
             }
         ],
         "comic": "steam/comics/law-enforcement-compliance-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Sealed Request",
         "comicSummary": "The gamer is playing normally until an official legal document arrives, signaling that Valve must comply with a government request, potentially restricting their access or sharing their data.",
         "comicScenes": [
@@ -12337,6 +12435,7 @@
             }
         ],
         "comic": "steam/comics/export-control-comic-1-export-law-compliance.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Restricted Location Access",
         "comicSummary": "The gamer attempts to log in from a country where encryption exports are restricted. The system detects the location and blocks the connection to comply with export laws.",
         "comicScenes": [
@@ -12458,6 +12557,7 @@
             }
         ],
         "comic": "windows11/comics/arbitration-class-action-waiver-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.336],[0.5,0,1,0.336],[0,0.336,0.5,0.664],[0.5,0.336,1,0.664],[0,0.664,0.5,1],[0.5,0.664,1,1]],
         "comicTitle": "The Class Action Wall",
         "comicSummary": "The user tries to find solidarity with others facing the same problem but is legally barred from doing so, forcing a solitary resolution.",
         "comicScenes": [
@@ -12570,6 +12670,7 @@
             }
         ],
         "comic": "windows11/comics/refund-policy-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Missed Deadline",
         "comicSummary": "Alex buys a laptop with Windows 11. They see a reminder about the return window but ignore it. A bill arrives. They realize the deadline passed. They set a reminder for next time.",
         "comicScenes": [
@@ -12688,6 +12789,7 @@
             }
         ],
         "comic": "windows11/comics/privacy-consent-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Activation Gate",
         "comicSummary": "An office worker tries to launch a new tool but is stopped by an activation screen requiring consent to transmit information. They locate the privacy statement, review the transmission details, and then proceed with the activation.",
         "comicScenes": [
@@ -12806,6 +12908,7 @@
             }
         ],
         "comic": "windows11/comics/genuine-software-requirement-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The False Hope of Updates",
         "comicSummary": "Alex downloads a pirated version of an OS. When it crashes, they try to fix it using the official update tool. The tool runs but refuses to grant a license for the new version, leaving Alex with a broken, unauthorized system.",
         "comicScenes": [
@@ -12924,6 +13027,7 @@
             }
         ],
         "comic": "windows11/comics/device-definition-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.335],[0.5,0,1,0.335],[0,0.335,0.5,1],[0.5,0.335,1,1]],
         "comicTitle": "The Cloud Deployment Block",
         "comicSummary": "The developer tries to use the software on a cloud instance, but the definition of 'device' restricts the license to local hardware with internal storage.",
         "comicScenes": [
@@ -13030,6 +13134,7 @@
             }
         ],
         "comic": "windows11/comics/prohibited-use-comic-virtualization-server.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Virtualization Trap",
         "comicSummary": "The developer attempts to use the OEM license for server purposes, violating the restriction against using the software as server software or for commercial hosting.",
         "comicScenes": [
@@ -13160,6 +13265,7 @@
             }
         ],
         "comic": "windows11/comics/multi-use-scenarios-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.333],[0,0.333,0.5,0.667],[0.5,0.333,1,0.667],[0,0.667,0.5,1],[0.5,0.667,1,1]],
         "comicTitle": "The Virtual Machine Trap",
         "comicSummary": "The developer attempts to maximize efficiency by running the OS on several virtual machines. They discover the license restricts this to a single instance, forcing a change in workflow.",
         "comicScenes": [
@@ -13278,6 +13384,7 @@
             }
         ],
         "comic": "windows11/comics/backup-copy-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Backup Limit",
         "comicSummary": "The user wants to secure their software by making a backup. They discover the agreement permits exactly one backup copy for safety but forbids creating multiple backups or using them for other purposes.",
         "comicScenes": [
@@ -13390,6 +13497,7 @@
             }
         ],
         "comic": "windows11/comics/privacy-data-collection-comic-1-data-handoff.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Hidden Handoff",
         "comicSummary": "The worker installs Windows 11, agreeing to broad data collection. They see their usage data being routed to various Microsoft services and partners. Realizing the lack of control, they navigate settings to restrict future disclosures.",
         "comicScenes": [
@@ -13514,6 +13622,7 @@
             }
         ],
         "comic": "windows11/comics/activation-and-genuineness-comic-activation-self-repair.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Self-Repairing System",
         "comicSummary": "A user attempts to activate their software. The system automatically contacts the provider, detects tampered files, and replaces them with genuine versions before the user even notices the issue.",
         "comicScenes": [
@@ -13632,6 +13741,7 @@
             }
         ],
         "comic": "windows11/comics/automatic-updates-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unexpected Reboot",
         "comicSummary": "The manager tries to open a critical file, but the system forces an update, changing the software layout and consuming bandwidth, leaving them with no choice but to wait.",
         "comicScenes": [
@@ -13756,6 +13866,7 @@
             }
         ],
         "comic": "windows11/comics/downgrade-rights-comic-1-downgrade-workflow.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Compatibility Switch",
         "comicSummary": "The worker tries to downgrade their OS for legacy app compatibility. They realize they cannot just click a button to get the old version; they must manually install it and ensure their hardware supports it.",
         "comicScenes": [
@@ -13874,6 +13985,7 @@
             }
         ],
         "comic": "windows11/comics/disclaimer-of-warranties-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Broken Promise",
         "comicSummary": "The owner installs new software to manage inventory. When it fails a critical task, they expect a full refund or replacement based on 'merchantability,' but the terms strip that right.",
         "comicScenes": [
@@ -13992,6 +14104,7 @@
             }
         ],
         "comic": "windows11/comics/limited-remedies-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Broken System",
         "comicSummary": "A professional tries to work on a laptop, fails due to a system crash, and realizes the pre-installed software is the culprit. They look at a contract, expecting a payout for lost time, but the document shows only repair or refund options.",
         "comicScenes": [
@@ -14110,6 +14223,7 @@
             }
         ],
         "comic": "windows11/comics/damages-exclusion-comic-1-outage.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Outage Cap",
         "comicSummary": "The owner's shop stops working due to a software outage. Orders pile up. The owner confronts the provider with invoices for lost sales. The provider points to a small 'refund' box. The owner realizes they cannot claim the lost profits and must budget for the loss.",
         "comicScenes": [
@@ -14234,6 +14348,7 @@
             }
         ],
         "comic": "windows11/comics/arbitration-mechanics-comic-1-filing-workflow.webp",
+        "comicFrames": [[0,0,0.5,0.346],[0.5,0,1,0.346],[0,0.346,0.5,0.67],[0.5,0.346,1,0.67],[0,0.67,1,1]],
         "comicTitle": "Filing the Claim",
         "comicSummary": "The protagonist attempts to file a claim, discovers the mandatory form requirement, executes the specific mailing procedure to the manufacturer, and waits for the process to begin.",
         "comicScenes": [
@@ -14345,6 +14460,7 @@
             }
         ],
         "comic": "windows11/comics/related-cases-batching-comic-batch-split.webp",
+        "comicFrames": [[0.05,0.055,0.5,0.351],[0.5,0.055,0.951,0.351],[0.05,0.351,0.5,0.679],[0.5,0.351,0.951,0.679],[0.05,0.679,0.951,0.953]],
         "comicTitle": "Splitting the Wave",
         "comicSummary": "The representative gathers 60 clients with similar software bugs. Upon learning the 'Related Cases' rule limits filings to 50, they must physically separate the group into two batches to proceed.",
         "comicScenes": [
@@ -14451,6 +14567,7 @@
             }
         ],
         "comic": "windows11/comics/severability-severability-main.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Broken Link",
         "comicSummary": "A user faces a legal challenge to a specific arbitration rule. The severability clause ensures the rest of the arbitration agreement stays alive.",
         "comicScenes": [
@@ -14569,6 +14686,7 @@
             }
         ],
         "comic": "windows11/comics/governing-law-comic-1-local-law.webp",
+        "comicFrames": [[0,0,0.5,0.5],[0.5,0,1,0.5],[0,0.5,0.5,1],[0.5,0.5,1,1]],
         "comicTitle": "Local Laws Apply",
         "comicSummary": "The user encounters a potential issue with the software and wonders which legal system will judge the dispute. They realize the agreement points to their own location's laws.",
         "comicScenes": [
@@ -14675,6 +14793,7 @@
             }
         ],
         "comic": "windows11/comics/regional-consumer-rights-comic-australia-refund.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Australia: The Major Failure Refund",
         "comicSummary": "An Australian user buys software that fails. They try to rely on the agreement's limited warranty but realize the Australian Consumer Law guarantees a replacement or refund for major failures, overriding the contract.",
         "comicScenes": [
@@ -14787,6 +14906,7 @@
             }
         ],
         "comic": "windows11/comics/party-identification-comic-1-direct-party.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.333],[0,0.333,0.5,0.667],[0.5,0.333,1,0.667],[0,0.667,0.5,1],[0.5,0.667,1,1]],
         "comicTitle": "Direct Purchase Path",
         "comicSummary": "The designer purchases Windows 11 directly from Microsoft's official store. When a critical bug arises, the contract terms allow them to negotiate directly with Microsoft.",
         "comicScenes": [
@@ -14917,6 +15037,7 @@
             }
         ],
         "comic": "windows11/comics/patent-license-restrictions-comic-1-commercial-use.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Unintended Commercial Use",
         "comicSummary": "The creator uploads a video made with licensed software. Later, they see a modified version of their video on an unbranded billboard. They realize the software's patent license only covers personal, non-commercial use, so they stop using it for commercial outputs.",
         "comicScenes": [
@@ -15029,6 +15150,7 @@
             }
         ],
         "comic": "windows11/comics/malware-protection-behavior-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Exclusive Shield",
         "comicSummary": "Alex installs the new software hoping to boost security, but discovers the system has automatically turned off their trusted old antivirus.",
         "comicScenes": [
@@ -15159,6 +15281,7 @@
             }
         ],
         "comic": "windows11/comics/limited-rights-versions-comic-eval-live.webp",
+        "comicFrames": [[0,0,0.5,0.336],[0.5,0,1,0.336],[0,0.336,0.5,0.664],[0.5,0.336,1,0.664],[0,0.664,0.5,1],[0.5,0.664,1,1]],
         "comicTitle": "Evaluation Software in Live Environment",
         "comicSummary": "The administrator tries to use an evaluation copy of Windows 11 in a live operating environment to test stability. The terms forbid this. The system fails or is deemed unstable, forcing a change in workflow.",
         "comicScenes": [
@@ -15277,6 +15400,7 @@
             }
         ],
         "comic": "windows11/comics/entire-agreement-and-dispute-process-comic-1-installation.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Click That Binds",
         "comicSummary": "The worker installs software, accepts terms by clicking, and later realizes the agreement is the only contract governing their use.",
         "comicScenes": [
@@ -15398,6 +15522,7 @@
             }
         ],
         "comic": "adobe/comics/acceptance-conditions-comic-age.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Age Barrier",
         "comicSummary": "A student tries to install professional design software. The system detects they are a minor and blocks the installation, explaining that a binding contract cannot be formed.",
         "comicScenes": [
@@ -15516,6 +15641,7 @@
             }
         ],
         "comic": "adobe/comics/genuine-software-verification-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Silent Block",
         "comicSummary": "The designer tries to work, the background service runs its check, identifies the software as non-genuine, and the application becomes partially or completely inoperable.",
         "comicScenes": [
@@ -15634,6 +15760,7 @@
             }
         ],
         "comic": "adobe/comics/disabled-features-comic-1-disabled-features.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Locked Toolbox",
         "comicSummary": "The assistant tries to use premium editing features on a PDF received from a colleague. The tools are grayed out. They realize the file was not created with the required proprietary engine and must request a new version.",
         "comicScenes": [
@@ -15763,6 +15890,7 @@
             }
         ],
         "comic": "adobe/comics/no-reverse-engineering-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Black Box Barrier",
         "comicSummary": "The developer wants to see how the software works to fix a bug. They try to decompile it, but the EULA forbids it without permission. Even if they got permission, they couldn't share the findings.",
         "comicScenes": [
@@ -15886,6 +16014,7 @@
             }
         ],
         "comic": "adobe/comics/no-sublicensing-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Rental Request",
         "comicSummary": "A freelancer offers a software license to a client, but the license key or access is blocked or returned with a warning.",
         "comicScenes": [
@@ -16004,6 +16133,7 @@
             }
         ],
         "comic": "adobe/comics/intellectual-property-ownership-comic-1-ownership-reservation.webp",
+        "comicFrames": [[0,0,0.498,0.332],[0.498,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Reserved Rights Clause",
         "comicSummary": "The designer believes they own the software they use to work. They try to claim the source code and structure as their own property, but the agreement reserves all rights to the vendor.",
         "comicScenes": [
@@ -16122,6 +16252,7 @@
             }
         ],
         "comic": "adobe/comics/privacy-policy-reference-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The External Link",
         "comicSummary": "The user reads the agreement, realizes it doesn't explain data practices, and is directed to an external link to find the details.",
         "comicScenes": [
@@ -16234,6 +16365,7 @@
             }
         ],
         "comic": "adobe/comics/automatic-internet-connection-comic-1-silent-connect.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.666,1],[0.666,0.666,1,1]],
         "comicTitle": "The Offline Illusion",
         "comicSummary": "The designer tries to work in a remote cabin with no internet. They manually disconnect the router. However, the software on their device suddenly pings a server, revealing the connection was never truly broken.",
         "comicScenes": [
@@ -16346,6 +16478,7 @@
             }
         ],
         "comic": "adobe/comics/online-services-access-and-fees-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Membership Wall",
         "comicSummary": "The designer attempts to use a familiar online service, only to find that access now requires a separate membership and agreement to new terms.",
         "comicScenes": [
@@ -16470,6 +16603,7 @@
             }
         ],
         "comic": "adobe/comics/third-party-data-collection-in-pdf-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.623,0.666],[0.623,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Hidden Connection",
         "comicSummary": "A researcher opens a PDF containing dynamic content. The file triggers a connection to an external third-party server for tracking. The researcher realizes the data leaves their control and decides to check the file settings or avoid dynamic content.",
         "comicScenes": [
@@ -16588,6 +16722,7 @@
             }
         ],
         "comic": "adobe/comics/automatic-software-updates-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Silent Install",
         "comicSummary": "The designer is deep in a project when the software automatically updates, changing the interface and potentially affecting their work, leading to a moment of confusion and a decision to verify the change.",
         "comicScenes": [
@@ -16706,6 +16841,7 @@
             }
         ],
         "comic": "adobe/comics/unilateral-modification-rights-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.664],[0.5,0.334,1,0.664],[0,0.664,0.5,1],[0.5,0.664,1,1]],
         "comicTitle": "The Vanishing Tool",
         "comicSummary": "The designer builds a workflow around a specific Adobe feature. One day, that feature vanishes from the interface. The designer realizes the software has changed without notice and must rebuild their process.",
         "comicScenes": [
@@ -16830,6 +16966,7 @@
             }
         ],
         "comic": "adobe/comics/third-party-liability-exclusion-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Third-Party Outage",
         "comicSummary": "The shop owner integrates a third-party inventory system to manage stock. The system goes down, halting operations. The owner attempts to seek recourse from the provider, only to find the contract explicitly excludes liability for third-party failures. The owner must then switch to manual tracking.",
         "comicScenes": [
@@ -16953,6 +17090,7 @@
             }
         ],
         "comic": "adobe/comics/digital-certificate-restrictions-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Tampered Key",
         "comicSummary": "A developer finds a digital certificate file and considers modifying it to fix a compatibility issue, only to realize the strict prohibition against tampering.",
         "comicScenes": [
@@ -17071,6 +17209,7 @@
             }
         ],
         "comic": "adobe/comics/font-licensing-comic-1-embed.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Safe Embedding for Print",
         "comicSummary": "The designer follows the license to embed fonts for printing, ensuring the service bureau can process the file correctly.",
         "comicScenes": [
@@ -17189,6 +17328,7 @@
             }
         ],
         "comic": "adobe/comics/termination-rights-comic-1-termination.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Sudden Stop",
         "comicSummary": "A designer receives a formal letter indicating the agreement is ending. Despite having a project deadline, the contract allows the provider to end the agreement for any reason with 30 days' notice. The designer must stop using the software immediately upon termination and destroy their copy.",
         "comicScenes": [
@@ -17307,6 +17447,7 @@
             }
         ],
         "comic": "adobe/comics/class-action-waiver-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Isolated Complaint",
         "comicSummary": "Alex notices a critical bug affecting thousands of users. They try to organize a collective complaint but are stopped by the contract's requirement for individual resolution.",
         "comicScenes": [
@@ -17430,6 +17571,7 @@
             }
         ],
         "comic": "adobe/comics/mandatory-arbitration-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unresolved Glitch",
         "comicSummary": "Maya discovers a critical rendering bug in her design software. She contacts support for help. After 30 days of waiting for a response and a fix, the bug remains. She realizes she cannot sue in court and must arbitrate.",
         "comicScenes": [
@@ -17548,6 +17690,7 @@
             }
         ],
         "comic": "adobe/comics/governing-law-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.333],[0,0.333,0.5,0.667],[0.5,0.333,1,0.667],[0,0.667,0.5,1],[0.5,0.667,1,1]],
         "comicTitle": "The Location Check",
         "comicSummary": "The user wants to know the legal framework of their agreement. They realize the rules change based on geography. They check their location against the map to determine which law applies.",
         "comicScenes": [
@@ -17666,6 +17809,7 @@
             }
         ],
         "comic": "adobe/comics/export-compliance-comic-1-researcher.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.498,0.666],[0.498,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Restricted Dataset",
         "comicSummary": "The researcher tries to use the software but realizes the tool is subject to strict international laws that might prohibit its use in their specific location.",
         "comicScenes": [
@@ -17796,6 +17940,7 @@
             }
         ],
         "comic": "adobe/comics/survival-provisions-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.664],[0.5,0.334,1,0.664],[0,0.664,0.5,1],[0.5,0.664,1,1]],
         "comicTitle": "The Switch-Off",
         "comicSummary": "The researcher attempts to terminate their agreement by stopping use. The software immediately stops working, but the legal obligations regarding liability and IP ownership persist in the background.",
         "comicScenes": [
@@ -17914,6 +18059,7 @@
             }
         ],
         "comic": "adobe/comics/arbitration-procedure-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Jurisdiction Fork",
         "comicSummary": "The designer attempts to sue for a refund in their home country. The agreement's location clause intercepts this, redirecting the dispute to either Singapore or London depending on where they live.",
         "comicScenes": [
@@ -18032,6 +18178,7 @@
             }
         ],
         "comic": "adobe/comics/us-government-compliance-comic-eo-11246.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Affirmative Action Check",
         "comicSummary": "The specialist discovers the vendor's file lacks the specific affirmative action clause required by Executive Order 11246, halts the purchase, and demands the corrected documentation.",
         "comicScenes": [
@@ -18150,6 +18297,7 @@
             }
         ],
         "comic": "adobe/comics/audit-obligation-comic-audit-01.webp",
+        "comicFrames": [[0,0,0.5,0.342],[0.5,0,1,0.342],[0,0.342,0.5,0.668],[0.5,0.342,1,0.668],[0,0.668,0.5,1],[0.5,0.668,1,1]],
         "comicTitle": "The Audit Request",
         "comicSummary": "The manager receives an official audit request, realizes the 30-day constraint, and mobilizes the team to collect usage logs and license keys.",
         "comicScenes": [
@@ -18268,6 +18416,7 @@
             }
         ],
         "comic": "adobe/comics/consumer-rights-protection-comic-nz-consumer-rights.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "New Zealand Consumer Guarantees",
         "comicSummary": "The owner buys software for their small business. They review the terms and realize that despite the standard agreement, New Zealand law guarantees their rights as a consumer, preventing the vendor from waiving these statutory protections.",
         "comicScenes": [
@@ -18391,6 +18540,7 @@
             }
         ],
         "comic": "adobe/comics/agreement-modification-comic-1-silent-update.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Silent Shift",
         "comicSummary": "The designer uses the tool daily. A new update adds a feature. The designer tries to use it but realizes the old rules don't cover the new behavior. They must find the updated agreement.",
         "comicScenes": [
@@ -18503,6 +18653,7 @@
             }
         ],
         "comic": "adobe/comics/modification-acceptance-comic-silent-update.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.333],[0,0.333,0.5,0.667],[0.5,0.333,1,0.667],[0,0.667,0.5,1],[0.5,0.667,1,1]],
         "comicTitle": "The Silent Update",
         "comicSummary": "Alex is deep in a design sprint. A notice about updated terms appears. Alex dismisses it to maintain flow. Later, Alex realizes the new terms apply simply because they didn't stop working.",
         "comicScenes": [
@@ -18621,6 +18772,7 @@
             }
         ],
         "comic": "adobe/comics/entire-agreement-comic-1-entire-agreement.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,1,1]],
         "comicTitle": "Verbal Promise vs. Signed Contract",
         "comicSummary": "The designer recalls a sales rep saying a specific tool would be free. They try to use it, but the system enforces the written terms which contradict the memory.",
         "comicScenes": [
@@ -18725,6 +18877,7 @@
             }
         ],
         "comic": "adobe/comics/governing-language-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Translation Discrepancy",
         "comicSummary": "A designer reviews a contract in their native language but notices a clause that seems different from the English version. They realize the contract specifies English as the controlling language.",
         "comicScenes": [
@@ -18836,6 +18989,7 @@
             }
         ],
         "comic": "adobe/comics/severability-severability-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Broken Clause",
         "comicSummary": "Maya uses Adobe software. A court later finds a specific privacy clause unenforceable. She worries the whole contract is void, but the severability clause keeps the rest working.",
         "comicScenes": [
@@ -18947,6 +19101,7 @@
             }
         ],
         "comic": "adobe/comics/no-waiver-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The First Slip-Up",
         "comicSummary": "The manager skips a required compliance check to meet a deadline. The team notices but no one stops them. Later, the manager tries to skip the same check again, but this time the system blocks them.",
         "comicScenes": [
@@ -19068,6 +19223,7 @@
             }
         ],
         "comic": "deepfake/comics/permitted-use-comic-001.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Commercial Pivot",
         "comicSummary": "The researcher plans to commercialize the dataset but discovers the license forbids any for-profit activity, forcing a change in their business plan.",
         "comicScenes": [
@@ -19191,6 +19347,7 @@
             }
         ],
         "comic": "deepfake/comics/upstream-license-compliance-comic-1.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unlicensed Source",
         "comicSummary": "A researcher downloads a dataset, assumes it is free to use, but later discovers a restriction notice on the source material that they missed, forcing them to stop their project.",
         "comicScenes": [
@@ -19309,6 +19466,7 @@
             }
         ],
         "comic": "deepfake/comics/access-control-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unauthorized Share",
         "comicSummary": "Dr. Aris wants to help Dr. Lee from a partner university analyze a dataset. Aris tries to send the file directly but is blocked by the access rules requiring formal registration.",
         "comicScenes": [
@@ -19433,6 +19591,7 @@
             }
         ],
         "comic": "deepfake/comics/redistribution-prohibition-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Public Upload Block",
         "comicSummary": "The researcher wants to contribute to the open-source community by uploading the challenge dataset. They discover the prohibition on public posting and must stop the upload to avoid violating the agreement.",
         "comicScenes": [
@@ -19551,6 +19710,7 @@
             }
         ],
         "comic": "deepfake/comics/publication-requirements-comic-1-citation-chain.webp",
+        "comicFrames": [[0,0,0.5,0.334],[0.5,0,1,0.334],[0,0.334,0.5,0.666],[0.5,0.334,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "Building the Citation Chain",
         "comicSummary": "The researcher starts drafting a poster but hits a wall when realizing the citation requirements are more complex than standard academic norms.",
         "comicScenes": [
@@ -19669,6 +19829,7 @@
             }
         ],
         "comic": "deepfake/comics/licensor-discretion-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Sudden Lockout",
         "comicSummary": "The researcher is deep in analysis when the licensor exercises their right to revoke access, halting progress instantly.",
         "comicScenes": [
@@ -19793,6 +19954,7 @@
             }
         ],
         "comic": "deepfake/comics/no-warranties-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Flawed Dataset",
         "comicSummary": "The researcher downloads the dataset expecting it to be ready for training. They quickly find gaps and inaccuracies. The 'as is' clause clarifies that these flaws are the user's responsibility to handle.",
         "comicScenes": [
@@ -19911,6 +20073,7 @@
             }
         ],
         "comic": "deepfake/comics/indemnity-obligation-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Unauthorized Training Run",
         "comicSummary": "The researcher tries to bypass a usage restriction to speed up their project. They discover the restriction and realize the financial risk of proceeding.",
         "comicScenes": [
@@ -20029,6 +20192,7 @@
             }
         ],
         "comic": "deepfake/comics/termination-and-deletion-comic-1-breach-trigger.webp",
+        "comicFrames": [[0,0,0.5,0.332],[0.5,0,1,0.332],[0,0.332,0.5,0.666],[0.5,0.332,1,0.666],[0,0.666,0.5,1],[0.5,0.666,1,1]],
         "comicTitle": "The Breach Discovery",
         "comicSummary": "The researcher is working on a critical analysis when they realize a procedural error occurred. The license terminates automatically, cutting off access. They must immediately cease all use and begin the process of deleting or destroying every copy of the materials in their possession.",
         "comicScenes": [
@@ -20141,6 +20305,7 @@
             }
         ],
         "comic": "deepfake/comics/acceptance-mechanism-comic-01.webp",
+        "comicFrames": [[0,0,0.5,0.333],[0.5,0,1,0.333],[0,0.333,0.5,0.667],[0.5,0.333,1,0.667],[0,0.667,0.5,1],[0.5,0.667,1,1]],
         "comicTitle": "The Missing Signature",
         "comicSummary": "The researcher prepares to enter the challenge but discovers the entry portal is locked until a formal acceptance document is signed and returned.",
         "comicScenes": [
@@ -20639,8 +20804,8 @@ communicated to end users.
       <div class="format-tabs" role="tablist" aria-label="Explanation format">
         <button type="button" class="format-tab" id="tabbtn-video" role="tab" aria-controls="right-tab-video" aria-selected="true" onclick="switchRightTab('video')"><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Video</button>
         <button type="button" class="format-tab" id="tabbtn-comic" role="tab" aria-controls="right-tab-comic" aria-selected="false" tabindex="-1" onclick="switchRightTab('comic')"><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comic</button>
-        <button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" tabindex="-1" onclick="switchRightTab('eula')"><span class="material-symbols-outlined" aria-hidden="true">article</span>Original EULA</button>
         <button type="button" class="format-tab" id="tabbtn-cards" role="tab" aria-controls="cat-cards" aria-selected="false" tabindex="-1" onclick="switchRightTab('cards')"><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</button>
+        <button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" tabindex="-1" onclick="switchRightTab('eula')"><span class="material-symbols-outlined" aria-hidden="true">article</span>Original EULA</button>
       </div>
       <button type="button" class="quiet-button details-button" onclick="openCategoryDetails()" aria-label="Category details" title="Category details"><span class="material-symbols-outlined" aria-hidden="true">info</span><span>Details</span></button>
     </div>
@@ -20651,10 +20816,10 @@ communicated to end users.
 <div class="media-panel hidden" id="right-tab-comic" role="tabpanel" aria-labelledby="tabbtn-comic">
 <div id="comic-scenarios" class="comic-scenarios" aria-label="Comic scenarios"></div>
 <div class="media-heading"><h3><button type="button" id="comic-summary-toggle" aria-controls="comic-summary" aria-expanded="true" title="Show or hide story summary"><span id="cat-comic-title"></span><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></button></h3>
-  <div id="comic-views" class="comic-views" role="group" aria-label="Comic view" hidden>
+  <div class="comic-view-tools"><div id="comic-views" class="comic-views" role="group" aria-label="Comic view" hidden>
     <button type="button" id="comic-view-scenes" aria-pressed="true">Scenes</button>
     <button type="button" id="comic-open-link" aria-pressed="false">Full comic</button>
-  </div>
+  </div><button type="button" class="comic-control" id="comic-zoom" aria-pressed="false" hidden><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><span>Zoom in</span></button></div>
 </div>
 <p id="comic-summary" aria-label="Story summary" hidden></p>
 <div id="comic-status" class="comic-status" role="status"></div>
@@ -20663,18 +20828,13 @@ communicated to end users.
   <section id="comic-story" class="comic-story" aria-label="Comic scenes">
     <nav class="comic-pager" aria-label="Comic navigation"><div class="comic-scene-label"><span id="comic-position" role="status"></span><h4 id="comic-scene-title"></h4></div>
       <button type="button" class="comic-control" id="comic-playback" aria-label="Play comic" title="Play comic"><span id="comic-play-icon" class="material-symbols-outlined" aria-hidden="true">play_arrow</span><span id="comic-play-label">Play</span></button>
-      <button type="button" class="comic-control" id="comic-narration" aria-label="Narration" aria-pressed="false" title="Narration"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span><span class="comic-narration-label">Narration</span></button>
+      <button type="button" class="comic-control" id="comic-narration" aria-label="Read aloud" title="Read aloud"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span><span class="comic-narration-label">Read aloud</span></button>
       <button type="button" class="icon-button" id="comic-prev" aria-label="Previous scene" title="Previous scene" onclick="moveComicScene(-1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="comic-next" aria-label="Next scene" title="Next scene" onclick="moveComicScene(1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></nav>
     <progress id="comic-progress" max="1" value="0" aria-label="Scene playback progress" hidden></progress>
     <audio id="comic-audio" preload="none" hidden></audio>
     <p id="comic-play-status" role="status" hidden></p>
     <div class="comic-script" id="comic-script" aria-live="polite" aria-atomic="true"><p id="comic-caption"></p><div id="comic-dialogue"></div></div>
   </section>
-  <div class="comic-full-tools" id="comic-full-tools" hidden>
-    <span id="comic-sheet-count"></span>
-    <details id="comic-sheet-text" hidden><summary>Scene text</summary><ol></ol></details>
-    <button type="button" class="comic-control" id="comic-zoom" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><span>Zoom in</span></button>
-  </div>
 </div>
 </div>
 <div class="media-panel flex" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p>

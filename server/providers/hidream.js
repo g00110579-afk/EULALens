@@ -34,18 +34,20 @@ export async function renderComicWithHiDream({ category, comic, documentTitle, j
   if (!key) throw httpError(503, 'HIDREAM_API_KEY is required.');
   const prompt = String(comic?.imagePrompt || comic?.rawImagePrompt || '').trim();
   if (prompt.length < 20 || prompt.length > 20000) throw httpError(400, 'A validated comic image prompt of 20 to 20,000 characters is required.');
+  const layoutBboxes = layoutBboxesForPanels(Array.isArray(comic?.panels) ? comic.panels.length : 6);
   try {
     const payload = await requestJson(new URL('generate', base.href.replace(/\/?$/, '/')), {
       signal, timeoutMs: positiveInt(process.env.HIDREAM_IMAGE_TIMEOUT_MS, 900000), headers: bearer(key),
       body: { jobId, categoryId: category?.id || comic?.categoryId || 'category',
         title: comic?.title || category?.title || documentTitle || 'EULA comic', prompt,
-        layoutBboxes: layoutBboxesForPanels(Array.isArray(comic?.panels) ? comic.panels.length : 6) }
+        layoutBboxes }
     });
     if (!payload.imageUrl) throw httpError(502, 'HiDream did not return an image URL.');
     const imageUrl = new URL(payload.imageUrl, base).href;
     if (!/^https?:\/\//.test(imageUrl)) throw httpError(502, 'HiDream returned an invalid image URL.');
     return { categoryId: category?.id || payload.categoryId, image: {
       imageUrl, imagePath: payload.imagePath || '', prompt: payload.prompt || prompt,
+      frames: layoutBboxes.map(([left, right, top, bottom]) => [left, top, right, bottom]),
       seed: payload.seed, height: payload.height, width: payload.width, scheduler: payload.scheduler || '', jobId: payload.jobId || jobId
     } };
   } catch (error) {

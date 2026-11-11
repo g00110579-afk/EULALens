@@ -130,7 +130,6 @@ try {
     await publicPage.locator("#tabbtn-comic").click();
     await publicPage.locator("#comic-next").click();
     await publicPage.locator("#comic-narration").click();
-    await publicPage.getByRole("button", { name: "Play comic", exact: true }).click();
     await publicPage.waitForFunction(mirror => {
       const a = document.getElementById("comic-audio");
       return a.currentSrc.startsWith(mirror) && !a.paused && comicReader.index === 2;
@@ -138,6 +137,51 @@ try {
     assert(primaryFailed, "The backup must be exercised after a blocked primary recording");
   } finally {
     await publicPage.close();
+  }
+  const catalogue = await browser.newPage({ reducedMotion: "reduce" });
+  try {
+    await catalogue.goto(base, { waitUntil: "domcontentloaded" });
+    await catalogue.getByRole("button", { name: "Zoom", exact: true }).click();
+    await catalogue.locator(".gallery-choice").first().click();
+    await catalogue.locator("#tabbtn-comic").click();
+    const checked = await catalogue.evaluate(async () => {
+      const books = [...zoomCategories, ...spotifyCategories, ...steamCategories,
+        ...windows11Categories, ...adobeCategories, ...deepfakeCategories];
+      const image = document.getElementById("cat-comic-img");
+      const crop = document.getElementById("comic-crop");
+      // Measure the part of the bitmap actually visible inside the viewport.
+      function visibleEdges() {
+        const view = crop.getBoundingClientRect(), art = image.getBoundingClientRect();
+        return [(view.left - art.left) / art.width, (view.top - art.top) / art.height,
+          (view.right - art.left) / art.width, (view.bottom - art.top) / art.height];
+      }
+      let scenes = 0;
+      for (const book of books) {
+        renderComicForCategory(book);
+        await image.decode();
+        positionComicArtwork();
+        const frames = book.comicFrames;
+        if (frames?.length !== book.comicScenes.length || new Set(frames.map(String)).size !== frames.length)
+          throw Error("Missing or duplicate frames in " + book.comic);
+        for (const [i, frame] of frames.entries()) {
+          selectComicScene(i);
+          const edges = visibleEdges();
+          if (!edges.every((n, j) => Math.abs(n - frame[j]) < .003) ||
+              (frame[2] - frame[0]) * (frame[3] - frame[1]) > .9 ||
+              !crop.querySelector(".comic-bubble, .comic-panel-caption"))
+            throw Error("Incorrect scene viewport or missing lettering in " + book.comic + ", scene " + (i + 1));
+          scenes++;
+        }
+        setComicView("full");
+        if (!visibleEdges().every((n, j) => Math.abs(n - [0, 0, 1, 1][j]) < .003) ||
+            crop.querySelectorAll("button[data-scene]").length !== frames.length)
+          throw Error("Incorrect full sheet in " + book.comic);
+      }
+      return { comics: books.length, scenes };
+    });
+    console.log("Verified sample comic viewports", checked);
+  } finally {
+    await catalogue.close();
   }
   await page.goto(base, { waitUntil: "networkidle" });
   assert.equal(await page.locator(".home-content .sample-button").count(), 6);
@@ -368,8 +412,8 @@ try {
       assert.deepEqual(tabs, [
         "tabbtn-video",
         "tabbtn-comic",
-        "tabbtn-eula",
         "tabbtn-cards",
+        "tabbtn-eula",
       ]);
       const summary = page.locator("#comic-summary");
       assert(await summary.isVisible());
@@ -379,8 +423,8 @@ try {
       );
       // Silent advancement is automatic; speech begins only after opting in.
       assert.equal(
-        await page.locator("#comic-narration").getAttribute("aria-pressed"),
-        "false",
+        await page.locator("#comic-narration").getAttribute("aria-label"),
+        "Read aloud",
       );
       await page.waitForFunction(() => comicReader.index === 1, null, {
         timeout: 45000,
@@ -390,9 +434,22 @@ try {
         await page.locator("#comic-playback").getAttribute("aria-label"),
         "Play comic",
       );
-      await page.locator("#comic-narration").click();
-      assert.match(await page.locator("#comic-play-status").textContent(), /press play/i);
-      await page.getByRole("button", {name: "Play comic", exact: true}).click();
+      // Observe the decoded signal routed to the audio output. A playing media
+      // clock alone also advances for silence.
+      await page.evaluate(() => {
+        const context = new AudioContext();
+        const analyser = context.createAnalyser();
+        context.createMediaElementSource(document.getElementById("comic-audio")).connect(analyser);
+        analyser.connect(context.destination);
+        document.getElementById("comic-narration").addEventListener("click", () => context.resume(), { once: true });
+        window.narrationLevel = () => {
+          const samples = new Float32Array(analyser.fftSize);
+          analyser.getFloatTimeDomainData(samples);
+          return samples.some(value => Math.abs(value) > 0.02);
+        };
+      });
+      await page.getByRole("button", {name: "Read aloud", exact: true}).click();
+      await page.waitForFunction(() => window.narrationLevel());
       const audio = page.locator("#comic-audio");
       await page.waitForFunction(() => {
         const a = document.getElementById("comic-audio");
@@ -445,8 +502,8 @@ try {
       );
       assert.equal(
         await page.locator("#cat-comic-img").getAttribute("crossorigin"),
-        "anonymous",
-        "Relative sample images can redirect to a different host",
+        null,
+        "Sample frames also work on image hosts that disallow canvas pixel access",
       );
       for (const [width, height] of viewports) {
         await page.setViewportSize({ width, height });
@@ -532,24 +589,32 @@ try {
         .locator("#category-select")
         .selectOption({ label: "Prohibited High Risk Use" });
       await page.waitForFunction(() => comicReader.measuredCount === 4);
-      assert.equal(
-        await page.evaluate(() => comicReader.boxes.length),
-        0,
-        "Ambiguous artwork must stay whole",
-      );
-      assert.equal(
-        await page.locator("#cat-comic-img").evaluate((el) => el.style.width),
-        "100%",
-      );
+      const frame = () => page.locator("#cat-comic-img").evaluate(el =>
+        [el.style.left, el.style.top, el.style.width, el.style.height]);
+      const firstFrame = await frame();
+      assert.equal(firstFrame[2], "200%", "The first two scenes share the top row");
+      await page.locator("#comic-next").click();
+      assert.notDeepEqual(await frame(), firstFrame);
       await page.getByRole("button", { name: "Full comic", exact: true }).click();
-      assert.equal(await page.locator("#comic-sheet-text button[data-scene]").count(), 4);
-      await page.locator("#comic-sheet-text summary").click();
-      await page.locator("#comic-sheet-text button[data-scene='0']").click();
-      assert(await page.locator("#comic-crop .comic-panel-overlay.unmapped").isVisible());
+      assert.deepEqual((await frame()).slice(2), ["100%", "100%"]);
+      assert.equal(await page.locator("#comic-letters button[data-scene]").count(), 4);
+      const activePanel = page.locator("#comic-letters button[aria-current='true']");
+      assert.equal(await activePanel.getAttribute("data-scene"), "1");
+      await page.getByRole("button", {name:"Play comic",exact:true}).click();
+      await page.waitForFunction(() => window.narrationLevel() && !document.getElementById("comic-audio").paused);
+      await page.getByRole("button", {name:"Mute narration",exact:true}).click();
+      assert(await audio.evaluate(a => a.paused));
+      await page.locator("#comic-letters button[data-scene='3']").click();
+      assert.equal((await frame())[2], "100%", "The last scene spans the sheet width");
+      assert(parseFloat((await frame())[3]) > 200, "Only the last row should be visible");
+      assert(await page.locator("#comic-crop .comic-panel-caption").isVisible());
+      await page.locator("#comic-prev").click();
+      await page.locator("#comic-prev").click();
+      await page.locator("#comic-prev").click();
       // A failed asset must leave all dialogue and scene controls usable.
       let attempts = 0;
       await page.route("**/*comic*?test-art-retry", (route) =>
-        ++attempts <= 2 ? route.abort() : route.continue(),
+        ++attempts === 1 ? route.abort() : route.continue(),
       );
       await page.evaluate(() => {
         const cat = comicReader.category;
@@ -564,7 +629,7 @@ try {
       );
       await page.getByRole("button", { name: "Reload artwork" }).click();
       await page.locator("#comic-crop").waitFor({ state: "visible" });
-      assert.equal(attempts, 3);
+      assert.equal(attempts, 2);
       await page.evaluate(() => {
         comicReader.category.comic = comicReader.category.comic.split("?")[0];
       });
@@ -594,6 +659,10 @@ try {
         await page.locator("#tabbtn-comic").getAttribute("aria-selected"),
         "true",
       );
+      await page.keyboard.press("ArrowRight");
+      assert.equal(await page.locator("#tabbtn-cards").getAttribute("aria-selected"), "true");
+      await page.keyboard.press("End");
+      assert.equal(await page.locator("#tabbtn-eula").getAttribute("aria-selected"), "true");
       await page.getByRole("button", { name: "Help", exact: true }).click();
       assert(
         await page

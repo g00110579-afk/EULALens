@@ -45,7 +45,11 @@ try {
     analyzeEula: async ({ text }) => { counts.analysis++; assert(text.includes('fictional')); return { analysis: { categories, document: { title: 'Synthetic fixture' } } }; },
     generateCategoryCardsBatch: async ({ onProgress }) => { counts.cards++; const entry = { ok: true, categoryId: 'license', cards: [{ question: '<b>How many devices?</b>', answer: 'One', backTitle: 'Scope', backDetail: 'One device.' }] }; await onProgress(entry, 0); return { results: [entry] }; },
     generateCategoryComic: async () => { counts.comic++; await mediaGate; return { comic: { comics, selectedComicId: 'first' } }; },
-    renderCategoryComicImage: async () => { counts.image++; return { image: { imageUrl: modelBase + '/outputs/image.png' } }; },
+    renderCategoryComicImage: async ({comic}) => {
+      counts.image++;
+      return { image: { imageUrl: modelBase + '/outputs/image.png',
+        frames: comic.id === 'second' ? [[.02, .04, .48, .96], [.52, .04, .98, .96]] : undefined } };
+    },
     generateCategoryVideoScript: async () => { await mediaGate; return { video: { modelPrompt: 'Synthetic video fixture', subtitleLines: [] } }; },
     generateCategoryVideo: async () => { counts.video++; return { status: 'completed', videoUrl: modelBase + '/outputs/video.mp4', embeddedSubtitles: false, raw: { subtitleLines: [{ startSeconds: 0, endSeconds: 0.8, text: 'One device.', speaker: 'User' }], degraded: true } }; },
     cancelCategoryVideo: async () => ({})
@@ -104,19 +108,30 @@ try {
   await page.locator('#comic-crop button[data-scene="0"]').click();
   assert(await page.locator('#comic-crop .comic-panel-caption').isVisible());
   await page.locator('#comic-narration').click();
-  await page.getByRole('button',{name:'Play comic',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('comic-audio').currentTime>0);
   await page.waitForFunction(()=>document.getElementById('comic-position').textContent==='Scene 2 of 2');
   await page.getByRole('button',{name:'Replay comic',exact:true}).waitFor();
   assert.deepEqual(spoken,['The first story begins.','The first story ends.']);
   assert.equal(await page.locator('#comic-caption').textContent(), 'A second scene.');
   assert.equal(await page.locator('#comic-scenarios button').count(), 2);
+  // Some image hosts allow display but deny canvas pixel reads.
+  await page.evaluate(() => {
+    const original = CanvasRenderingContext2D.prototype.getImageData;
+    window.restoreComicPixelAccess = () => { CanvasRenderingContext2D.prototype.getImageData = original; };
+    CanvasRenderingContext2D.prototype.getImageData = () => { throw new DOMException('Cross-origin image', 'SecurityError'); };
+  });
   await page.locator('#comic-scenarios button').nth(1).click();
   await page.waitForFunction(() => document.querySelector('#cat-comic-title')?.textContent === 'second scenario' && document.querySelector('#cat-comic-img')?.naturalWidth > 0);
   assert.equal(await page.locator('#comic-position').textContent(), 'Scene 1 of 2');
   assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the second scenario.');
+  await page.waitForFunction(() => comicReader.boxes[0]?.x === .02 && comicReader.boxes[0].y === .04);
+  const legacyWidths = await page.evaluate(() => {
+    const widths = comicSceneBounds(document.getElementById('cat-comic-img'), {}, 2).map(box => box.width);
+    window.restoreComicPixelAccess();
+    return widths;
+  });
+  assert.deepEqual(legacyWidths, [.5, .5]);
   await page.locator('#comic-narration').click();
-  if (await page.getByRole('button',{name:'Play comic',exact:true}).isVisible()) await page.locator('#comic-playback').click();
   await page.waitForFunction(()=>!document.getElementById('comic-audio').paused && document.getElementById('comic-audio').currentTime>0);
   await page.locator('#tabbtn-video').click();
   assert(await page.locator('#comic-audio').evaluate(a=>a.paused));

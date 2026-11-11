@@ -1,5 +1,4 @@
-// A generated sheet can have different panel boundaries from the story. Crop
-// only when visible gutters divide it into exactly as many panels as scenes.
+// Prefer the actual gutters when a newly generated sheet has a readable grid.
 function findComicPanels(image, sceneCount) {
   if (sceneCount < 2 || image.naturalWidth < 32 || image.naturalHeight < 32)
     return [];
@@ -82,6 +81,34 @@ const comicReader = {
 };
 
 const wholeComic = { x: 0, y: 0, width: 1, height: 1 };
+
+function comicSceneBounds(image, category, count) {
+  if (!count) return [];
+  if (count === 1) return [wholeComic];
+  if (activeDocument === "live") {
+    const detected = findComicPanels(image, count);
+    if (detected.length) return detected;
+  }
+  // Sample frames follow the authored scenes, including split compositions.
+  // New jobs carry the requested image layout if no gutters can be measured.
+  const frames = category.comicFrames;
+  if (Array.isArray(frames) && frames.length === count && frames.every(frame =>
+    Array.isArray(frame) && frame.length === 4 && frame.every(Number.isFinite) &&
+    frame[0] >= 0 && frame[1] >= 0 && frame[2] <= 1 && frame[3] <= 1 &&
+    frame[0] < frame[2] && frame[1] < frame[3] &&
+    (frame[2] - frame[0] < 1 || frame[3] - frame[1] < 1)
+  )) {
+    return frames.map(([left, top, right, bottom]) => ({
+      x: left, y: top, width: right - left, height: bottom - top,
+    }));
+  }
+  // Older jobs predate saved frame coordinates. HiDream places their scenes
+  // in reading order, two per row.
+  const rows = Math.ceil(count / 2);
+  return Array.from({ length: count }, (_, i) => ({
+    x: (i % 2) / 2, y: Math.floor(i / 2) / rows, width: 0.5, height: 1 / rows,
+  }));
+}
 const comicPositions = new Set([
   "top_left", "top_right", "middle_left", "middle_right", "bottom_left", "bottom_right", "center",
 ]);
@@ -115,11 +142,10 @@ function comicCopy(scene = {}) {
 
 // Lettering is HTML over the actual visible bitmap. The same panel coordinates
 // are used for the full sheet and for the cropped scene.
-function makeComicOverlay(scene, index, bounds, selectable, mapped) {
+function makeComicOverlay(scene, index, bounds, selectable) {
   const { title, caption, slots, narration } = comicCopy(scene);
   const panel = document.createElement(selectable ? "button" : "div");
   panel.className = "comic-panel-overlay";
-  if (!mapped) panel.classList.add("unmapped");
   Object.assign(panel.style, {
     left: bounds.x * 100 + "%", top: bounds.y * 100 + "%",
     width: bounds.width * 100 + "%", height: bounds.height * 100 + "%",
@@ -169,38 +195,16 @@ function renderComicLettering(scenes) {
   if (lettering?.scenes === scenes && lettering.mode === mode && lettering.index === index && lettering.boxes === boxes) return;
   comicReader.lettering = { scenes, mode, index, boxes };
   const layer = document.getElementById("comic-letters");
-  const notes = document.getElementById("comic-sheet-text");
-  const focused = layer.contains(document.activeElement) || notes.contains(document.activeElement) ? document.activeElement.dataset.scene : undefined;
-  const mapped = scenes.length === 1 || boxes.length > 0;
-  notes.hidden = mode !== "full" || mapped || !scenes.length;
-  if (notes.hidden) notes.open = false;
   if (mode === "full") {
-    if (mapped) {
-      layer.replaceChildren(...scenes.map((scene, i) => makeComicOverlay(scene, i, boxes[i] || wholeComic, true, true)));
-    } else {
-      // Some sheets have more or fewer illustrations than their authored scenes.
-      // Preserve the original layout and keep all of its script available in reading order.
-      layer.replaceChildren();
-      const list = notes.querySelector("ol");
-      list.replaceChildren(...scenes.map((scene, i) => {
-        const { title, caption, slots, narration } = comicCopy(scene);
-        const row = document.createElement("li");
-        const name = document.createElement("button");
-        name.type = "button";
-        name.dataset.scene = String(i);
-        name.textContent = "Scene " + (i + 1) + (title ? " · " + title : "");
-        const copy = document.createElement("p");
-        copy.textContent = [...new Set([caption, ...slots.map(slot => slot.text)].filter(Boolean))].join(" ") || narration;
-        row.append(name, copy);
-        return row;
-      }));
+    if (lettering?.mode !== mode || lettering.scenes !== scenes || lettering.boxes !== boxes) {
+      const focused = layer.contains(document.activeElement) ? document.activeElement.dataset.scene : undefined;
+      layer.replaceChildren(...scenes.map((scene, i) => makeComicOverlay(scene, i, boxes[i], true)));
+      if (focused !== undefined) layer.children[Number(focused)]?.focus({ preventScroll: true });
     }
+    for (const panel of layer.children)
+      panel.setAttribute("aria-current", String(Number(panel.dataset.scene) === index));
   } else {
-    layer.replaceChildren(...(scenes[index] ? [makeComicOverlay(scenes[index], index, wholeComic, false, mapped)] : []));
-  }
-  if (focused !== undefined && mode === "full") {
-    const target = Array.from((mapped ? layer : notes).querySelectorAll("button[data-scene]")).find(button => button.dataset.scene === focused);
-    target?.focus({ preventScroll: true });
+    layer.replaceChildren(...(scenes[index] ? [makeComicOverlay(scenes[index], index, wholeComic, false)] : []));
   }
 }
 
@@ -218,9 +222,8 @@ function showComicScene() {
   document.getElementById("comic-views").hidden = !comicReader.url || !scenes.length;
   document.getElementById("comic-view-scenes").setAttribute("aria-pressed", String(!full));
   document.getElementById("comic-open-link").setAttribute("aria-pressed", String(full));
-  document.getElementById("comic-story").hidden = full || !scenes.length;
-  document.getElementById("comic-full-tools").hidden = !full || !comicReader.url;
-  document.getElementById("comic-sheet-count").textContent = scenes.length ? scenes.length + (scenes.length === 1 ? " scene" : " scenes") : "";
+  document.getElementById("comic-story").hidden = !scenes.length;
+  document.getElementById("comic-zoom").hidden = !full || !comicReader.url;
   document.getElementById("comic-prev").disabled = i === 0;
   document.getElementById("comic-next").disabled = i + 1 >= scenes.length;
   document.getElementById("comic-scene-title").textContent = title;
@@ -249,11 +252,11 @@ function positionComicArtwork() {
   const scenes = comicReader.category?.comicScenes || [];
   const count = scenes.length;
   if (comicReader.measuredCount !== count) {
-    comicReader.boxes = findComicPanels(image, count);
+    comicReader.boxes = comicSceneBounds(image, comicReader.category, count);
     comicReader.measuredCount = count;
   }
   const sceneView = comicReader.mode === "scenes";
-  const box = (sceneView && comicReader.boxes[comicReader.index]) || wholeComic;
+  const box = sceneView && count ? comicReader.boxes[comicReader.index] : wholeComic;
   const crop = document.getElementById("comic-crop");
   crop.style.setProperty(
     "--ratio",
@@ -265,7 +268,7 @@ function positionComicArtwork() {
     left: (-100 * box.x) / box.width + "%",
     top: (-100 * box.y) / box.height + "%",
   });
-  image.alt = sceneView && (comicReader.boxes.length || count === 1)
+  image.alt = sceneView && count
     ? `${comicReader.category.comicTitle || "Comic"}, scene ${comicReader.index + 1}`
     : `${comicReader.category.comicTitle || "Comic"} — full artwork`;
   crop.hidden = false;
@@ -306,9 +309,12 @@ function setComicZoom(zoomed) {
   }
   art.scrollTo(0, 0);
   const zoom = document.getElementById("comic-zoom");
+  const zoomLabel = zoomed ? "Fit page" : "Zoom in";
   zoom.setAttribute("aria-pressed", String(zoomed));
+  zoom.setAttribute("aria-label", zoomLabel);
+  zoom.title = zoomLabel;
   zoom.firstElementChild.textContent = zoomed ? "fit_screen" : "zoom_in";
-  zoom.lastElementChild.textContent = zoomed ? "Fit page" : "Zoom in";
+  zoom.lastElementChild.textContent = zoomLabel;
 }
 
 function setComicView(mode, index = comicReader.index) {
@@ -348,12 +354,11 @@ function renderComicForCategory(cat) {
   if (changed) {
     comicReader.index = 0;
     setComicZoom(false);
-    document.getElementById("comic-sheet-text").open = false;
     document.getElementById("comic-script").scrollTop = 0;
   }
   comicReader.category = cat;
-  if (!url) comicReader.mode = "scenes";
-  else if (!scenes.length) comicReader.mode = "full";
+  if (url && !scenes.length) comicReader.mode = "full";
+  else if (changed || !url || document.getElementById("comic-story").hidden) comicReader.mode = "scenes";
   comicReader.scenario = cat.selectedComicId;
   comicReader.index = Math.min(
     comicReader.index,
@@ -415,7 +420,6 @@ function renderComicForCategory(cat) {
     comicReader.boxes = [];
     comicReader.lettering = null;
     document.getElementById("comic-letters").replaceChildren();
-    document.getElementById("comic-sheet-text").hidden = true;
     reader.classList.remove("art-failed");
     document.getElementById("comic-zoom").disabled = true;
     document.getElementById("comic-crop").hidden = true;
@@ -425,9 +429,8 @@ function renderComicForCategory(cat) {
       : pending
         ? ""
         : "Artwork unavailable.";
-    // Even a same-origin sample path can redirect to a separate asset host.
-    // Read its pixels when allowed, then fall back to displaying the full sheet.
-    if (url) image.crossOrigin = "anonymous";
+    // The sample coordinates are local; only generated artwork needs pixel access.
+    if (url && activeDocument === "live") image.crossOrigin = "anonymous";
     else image.removeAttribute("crossorigin");
     image.onload = positionComicArtwork;
     image.onerror = () => {

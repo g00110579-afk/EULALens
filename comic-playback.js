@@ -13,6 +13,7 @@ comicPlayback = (() => {
     pendingStart = false,
     preferManual = false;
   let narrated = false,
+    soundOnPlay = true,
     finished = false,
     run = null;
   let timer, deadline, remaining, readingDuration, progressTimer, loadTimer;
@@ -57,10 +58,13 @@ comicPlayback = (() => {
     playButton.setAttribute("aria-label", label + " comic");
     playButton.title = label + " comic";
     playButton.disabled = !category?.comicScenes?.length;
-    voiceButton.setAttribute("aria-pressed", String(narrated));
-    voiceButton.title = narrated ? "Turn narration off" : "Turn narration on";
+    const speaking = Boolean(run && narrated);
+    const voiceLabel = speaking ? "Mute narration" : "Read aloud";
+    voiceButton.querySelector(".comic-narration-label").textContent = voiceLabel;
+    voiceButton.setAttribute("aria-label", voiceLabel);
+    voiceButton.title = voiceLabel;
     voiceButton.querySelector(".material-symbols-outlined").textContent =
-      narrated ? "volume_up" : "volume_off";
+      speaking ? "volume_off" : "volume_up";
     voiceButton.disabled =
       !(
         sample ||
@@ -78,7 +82,6 @@ comicPlayback = (() => {
   function visible() {
     return (
       active &&
-      comicReader.mode !== "full" &&
       !document.hidden &&
       !document.querySelector("dialog[open]") &&
       !document.getElementById("documents-tab").classList.contains("hidden")
@@ -237,14 +240,12 @@ comicPlayback = (() => {
     }
     pause();
     if (error?.name === "NotAllowedError") {
-      message("Narration ready. Press Play.");
+      message("Audio is ready. Select Read aloud to play it.");
     } else {
       releaseAudio();
       narrated = false;
       controls();
-      message(
-        "Audio unavailable. To retry, turn Narration on and press Play.",
-      );
+      message("Audio could not load. Select Read aloud to retry.");
     }
   }
 
@@ -318,17 +319,20 @@ comicPlayback = (() => {
   playButton.onclick = () => {
     preferManual = Boolean(run);
     if (run) pause();
-    else start();
+    else {
+      narrated = soundOnPlay && !voiceButton.disabled;
+      start();
+    }
   };
   voiceButton.onclick = () => {
-    const wasPlaying = Boolean(run);
-    const enable = !narrated;
-    if (finished) selectComicScene(0);
-    seek();
-    narrated = enable;
-    controls();
-    if (wasPlaying) start();
-    else if (enable) message("Narration on. Press Play.");
+    const mute = Boolean(run && narrated);
+    if (run) seek();
+    narrated = !mute;
+    soundOnPlay = narrated;
+    preferManual = false;
+    // Call play in this click handler for a sample, including from a paused
+    // scene. Resume an already loaded cue without rewinding the user's place.
+    start();
   };
   audio.addEventListener("loadedmetadata", () => {
     if (pendingSeek !== undefined) {

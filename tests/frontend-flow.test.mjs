@@ -21,13 +21,17 @@ function environment(api={}) {
     hasAttribute(name){return Boolean(this.attributes[name]||(name==='src'&&this.src));}
     insertAdjacentHTML(_position,html){this.innerHTML+=html;}
     querySelector(){return null;}
+    get firstElementChild(){return this.children[0] || null;}
+    get lastElementChild(){return this.children.at(-1) || null;}
+    scrollTo(){}
     addEventListener(){} removeEventListener(){} scrollIntoView(){} focus(){} pause(){} load(){}
   }
   const get=id=>{if(!elements.has(id)){const node=new Element();node.id=id;node.parentElement=new Element();elements.set(id,node);}return elements.get(id);};
+  get('comic-zoom').append(new Element(),new Element());
   const store=new Map();const storage={getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};
   const ctx={console:{log(){},warn(){},error(){}},setTimeout,clearTimeout,AbortController,DOMException,Promise,WeakSet,URL:class extends URL {static createObjectURL(){return'blob:test';}static revokeObjectURL(){}},crypto:{randomUUID,subtle:{digest:async (_algorithm, data)=>Uint8Array.from(createHash('sha256').update(data).digest()).buffer}},TextEncoder,Uint8Array,Blob,
     location:{href:'https://web.test/'},localStorage:storage,sessionStorage:storage,addEventListener(){},scrollTo(){},requestAnimationFrame(){},
-    document:{getElementById:get,createElement:()=>new Element(),querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){}},
+    document:{getElementById:get,createElement:()=>new Element(),querySelectorAll:()=>[],querySelector:selector=>selector==='#comic-reader .comic-art'?get('comic-crop').parentElement:null,addEventListener(){}},
     EULALensRuntime:{...globalThis.EULALensRuntime,createApi:()=>({json:async()=>({}),poll:async()=>({}),...api})}};
   ctx.window=ctx;vm.createContext(ctx);vm.runInContext(script,ctx);vm.runInContext(comicReader,ctx);
   const run=source=>vm.runInContext(source,ctx);

@@ -5,6 +5,7 @@ comicPlayback = (() => {
   const playButton = document.getElementById("comic-playback");
   const voiceButton = document.getElementById("comic-narration");
   const status = document.getElementById("comic-play-status");
+  const progress = document.getElementById("comic-progress");
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const clips = new Map();
   let category, scenario, sample;
@@ -14,12 +15,35 @@ comicPlayback = (() => {
   let narrated = false,
     finished = false,
     run = null;
-  let timer, deadline, remaining;
-  let loadedSample, loadedIndex, objectURL;
+  let timer, deadline, remaining, readingDuration, progressTimer, loadTimer;
+  let loadedSample, loadedIndex, objectURL, pendingSeek;
 
   function message(text = "") {
-    status.textContent = text;
+    if (status.textContent !== text) status.textContent = text;
     status.hidden = !text;
+  }
+
+  function showProgress() {
+    if (!progress) return;
+    progress.hidden = !active || !category?.comicScenes?.length;
+    if (progress.hidden) return;
+    if (finished) progress.value = 1;
+    else if (!narrated || !audio.hasAttribute("src")) {
+      const left = timer === undefined
+        ? remaining ?? readingDuration
+        : Math.max(0, deadline - performance.now());
+      progress.value = narrated || !readingDuration
+        ? 0
+        : Math.max(0, 1 - left / readingDuration);
+    } else {
+      const index = comicReader.index;
+      const start = sample?.starts[index] || 0;
+      const end = sample?.starts[index + 1] ?? audio.duration;
+      const ready = pendingSeek === undefined && (sample || loadedIndex === index);
+      progress.value = ready && Number.isFinite(end) && end > start
+        ? Math.min(1, Math.max(0, (audio.currentTime - start) / (end - start)))
+        : 0;
+    }
   }
 
   function controls() {
@@ -34,6 +58,9 @@ comicPlayback = (() => {
     playButton.title = label + " comic";
     playButton.disabled = !category?.comicScenes?.length;
     voiceButton.setAttribute("aria-pressed", String(narrated));
+    voiceButton.title = narrated ? "Turn narration off" : "Turn narration on";
+    voiceButton.querySelector(".material-symbols-outlined").textContent =
+      narrated ? "volume_up" : "volume_off";
     voiceButton.disabled =
       !(
         sample ||
@@ -45,11 +72,13 @@ comicPlayback = (() => {
     document
       .getElementById("comic-position")
       .setAttribute("aria-live", run ? "off" : "polite");
+    showProgress();
   }
 
   function visible() {
     return (
       active &&
+      comicReader.mode !== "full" &&
       !document.hidden &&
       !document.querySelector("dialog[open]") &&
       !document.getElementById("documents-tab").classList.contains("hidden")
@@ -57,6 +86,8 @@ comicPlayback = (() => {
   }
 
   function releaseAudio() {
+    clearTimeout(loadTimer);
+    pendingSeek = undefined;
     loadedSample = undefined;
     loadedIndex = undefined;
     if (audio.hasAttribute("src")) {
@@ -72,6 +103,8 @@ comicPlayback = (() => {
     run?.abort();
     run = null;
     clips.clear();
+    clearInterval(progressTimer);
+    clearTimeout(loadTimer);
     if (timer !== undefined) {
       remaining = Math.max(0, deadline - performance.now());
       clearTimeout(timer);
@@ -86,15 +119,16 @@ comicPlayback = (() => {
     pause();
     releaseAudio();
     remaining = undefined;
+    readingDuration = undefined;
     finished = false;
     controls();
   }
 
   function sync() {
     const next = comicReader.category;
-    if (next !== category || (scenario && scenario !== comicReader.scenario)) {
-      // A different story must never inherit a pending request or playing audio.
-      const opening = pendingStart && !category;
+    if (next !== category || scenario !== comicReader.scenario) {
+      // Category navigation also happens while Comic stays selected.
+      const opening = active && (Boolean(run) || pendingStart || (!preferManual && !motion.matches));
       seek();
       pendingStart = opening;
       narrated = false;
@@ -176,33 +210,59 @@ comicPlayback = (() => {
     return promise;
   }
 
-  function failed(error, current) {
-    if (run !== current) return;
+  // The public GitHub preview redirects media to a second host. Use the
+  // identical, commit-pinned recording on jsDelivr if that request fails.
+  function sampleMirror() {
+    if (!sample || !["raw.githack.com", "rawcdn.githack.com"].includes(location.hostname))
+      return "";
+    const path = new URL(sample.src, location.href).pathname;
+    const match = path.match(/^\/([\w.-]+)\/([\w.-]+)\/([a-f0-9]{40})\/(.+)$/i);
+    return match ? "https://cdn.jsdelivr.net/gh/" + match[1] + "/" + match[2] + "@" + match[3] + "/" + match[4] : "";
+  }
+
+  function setTrack(url, time) {
+    // Seeking an unloaded file is unreliable across media engines. Playback
+    // still starts directly from the gesture, and loadedmetadata applies the cue.
+    pendingSeek = time > 0 ? time : undefined;
+    audio.src = url;
+  }
+
+  function failed(error, current, source) {
+    if (!current || run !== current || (source && source !== audio.src)) return;
+    const mirror = sampleMirror();
+    if (error?.name !== "NotAllowedError" && loadedSample && mirror && audio.src !== mirror) {
+      setTrack(mirror, Math.max(audio.currentTime || 0, sample.starts[comicReader.index]));
+      void playScene(current);
+      return;
+    }
     pause();
     if (error?.name === "NotAllowedError") {
-      message("Press Play to start narration.");
+      message("Narration ready. Press Play.");
     } else {
       releaseAudio();
       narrated = false;
       controls();
       message(
-        "Narration couldn’t play. Select Narration to retry or Play to continue without audio.",
+        "Audio unavailable. To retry, turn Narration on and press Play.",
       );
     }
   }
 
   async function playScene(current) {
     if (!narrated) {
-      const delay = remaining ?? readingTime();
+      if (remaining === undefined) readingDuration = readingTime();
+      const delay = remaining ?? readingDuration;
       deadline = performance.now() + delay;
       timer = setTimeout(() => {
         timer = undefined;
         remaining = undefined;
         if (run === current) advance();
       }, delay);
+      showProgress();
       return;
     }
     const index = comicReader.index;
+    let source;
     try {
       if (sample) {
         if (loadedSample !== sample) {
@@ -210,8 +270,7 @@ comicPlayback = (() => {
           const url = EULALensRuntime.safeUrl(sample.src, window.location.href);
           if (!url) throw new Error("Missing sample audio");
           loadedSample = sample;
-          audio.src = url;
-          audio.currentTime = sample.starts[index];
+          setTrack(url, sample.starts[index]);
         }
       } else if (loadedIndex !== index) {
         message("Preparing narration…");
@@ -223,14 +282,23 @@ comicPlayback = (() => {
         loadedIndex = index;
         audio.src = objectURL;
       }
+      source = audio.src;
+      if (audio.readyState < 3) message("Loading narration…");
+      watchAudio(current, source);
       await audio.play();
-      if (run !== current) return;
+      if (run !== current || source !== audio.src) return;
+      clearTimeout(loadTimer);
       message();
       if (!sample && index + 1 < category.comicScenes.length)
         requestClip(index + 1, current.signal);
     } catch (error) {
-      failed(error, current);
+      failed(error, current, source);
     }
+  }
+
+  function watchAudio(current, source) {
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => failed(new Error("Audio load timed out"), current, source), 15000);
   }
 
   function start() {
@@ -242,6 +310,7 @@ comicPlayback = (() => {
     }
     message();
     run = new AbortController();
+    progressTimer = setInterval(showProgress, 200);
     controls();
     void playScene(run);
   }
@@ -258,17 +327,38 @@ comicPlayback = (() => {
     seek();
     narrated = enable;
     controls();
-    if (enable || wasPlaying) start();
+    if (wasPlaying) start();
+    else if (enable) message("Narration on. Press Play.");
   };
+  audio.addEventListener("loadedmetadata", () => {
+    if (pendingSeek !== undefined) {
+      audio.currentTime = pendingSeek;
+      pendingSeek = undefined;
+    }
+    showProgress();
+  });
+  audio.addEventListener("waiting", () => {
+    if (!run || !narrated || !audio.hasAttribute("src")) return;
+    message("Loading narration…");
+    watchAudio(run, audio.src);
+  });
+  audio.addEventListener("playing", () => {
+    if (!run || !narrated) return;
+    clearTimeout(loadTimer);
+    message();
+  });
+  audio.addEventListener("pause", () => {
+    // A device's media controls can pause the element independently of our button.
+    if (run && narrated && audio.paused && !audio.ended && audio.readyState >= 2) pause();
+  });
   audio.addEventListener("timeupdate", () => {
-    if (!run || !narrated || !sample || audio.paused || audio.seeking) return;
+    if (!run || !narrated || !sample || pendingSeek !== undefined || audio.paused || audio.seeking) return;
     if (!visible()) {
       pause();
       return;
     }
-    const index = sample.starts.findLastIndex(
-      (startTime) => startTime <= audio.currentTime,
-    );
+    const next = sample.starts.findIndex(startTime => startTime > audio.currentTime);
+    const index = next < 0 ? sample.starts.length - 1 : next - 1;
     if (index >= 0 && index !== comicReader.index) selectComicScene(index);
   });
   audio.addEventListener("ended", () => {
@@ -279,7 +369,7 @@ comicPlayback = (() => {
     } else advance();
   });
   audio.addEventListener("error", () => {
-    if (run && narrated && audio.error) failed(audio.error, run);
+    if (run && narrated && audio.error) failed(audio.error, run, audio.src);
   });
   document.getElementById("comic-summary-toggle").onclick = () => {
     const summary = document.getElementById("comic-summary");
@@ -289,7 +379,6 @@ comicPlayback = (() => {
       .setAttribute("aria-expanded", String(!summary.hidden));
     if (!summary.hidden) pause();
   };
-  document.getElementById("comic-open-link").addEventListener("click", pause);
   document
     .getElementById("comic-script")
     .addEventListener("pointerdown", () => {
@@ -305,6 +394,10 @@ comicPlayback = (() => {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) pause();
   });
+  // A category can finish rendering while its picker is still closing.
+  document.addEventListener("close", () => {
+    if (pendingStart) sync();
+  }, true);
   window.addEventListener("pagehide", pause);
   motion.addEventListener("change", () => {
     if (motion.matches) pause();
@@ -326,6 +419,7 @@ comicPlayback = (() => {
       pause();
       releaseAudio();
       narrated = false;
+      controls();
     },
   };
 })();

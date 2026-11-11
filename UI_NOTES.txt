@@ -3,12 +3,12 @@ Dark glass UI — dark-glass-ui
 The homepage puts PDF upload first, with six compact sample EULAs below it.
 The samples retain their original 164 categories, summaries and media.
 
-Opening a sample or a newly analyzed PDF opens a full-screen category chooser.
-The agreement’s category names assemble into a globe. Click a name to open its
-review. Drag or use the rotation buttons to bring names around the globe on
-smaller screens. Search and List view also reach every category. Escape closes
-the chooser, and the globe button reopens it at the current category. Reduced
-motion keeps the same controls and skips the animations.
+Opening a sample or a newly analyzed PDF opens a full-screen category gallery.
+Each sample category has a still from its own video. Uploaded categories show
+their original excerpt until their comic artwork is ready. Search matches the
+whole agreement. The arrows page through as many rows as fit the screen.
+Choose a category to open its review. Escape closes the gallery, and Browse
+categories reopens it on the current category. Reduced motion skips transitions.
 
 The format order is Video, Comic, Original EULA and Cue cards. Video opens first. The header identifies the agreement, category
 position and risk. Desktop has a risk-grouped category index; on smaller
@@ -17,14 +17,16 @@ index retain the selected format. The player and navigation fit the viewport.
 Long documents, scene text and lists scroll within their panels. In portrait,
 the category notes sit beneath the video; Details opens them from other formats.
 
-Cue cards flip in place. The comic reader shows the selected scenario's story
-summary and separates its original dialogue and captions from the artwork.
-Thin, bright gutters that match the number of scenes permit individual panel
-framing. Other layouts show the full sheet. Full artwork opens the source image.
+Cue cards flip in place. The comic reader includes the selected scenario’s
+summary. Scenes places the original dialogue, thoughts and captions over the
+artwork. Full comic opens the entire sheet in the reader and supports zoom.
+When the illustrated panels match the script, select a panel to open its scene.
+Other layouts keep the intact drawing and place the words in a scene key.
 
 Comics advance on a reading timer. Pause and scene arrows allow manual reading.
-Reduced motion starts paused. Narration plays the authored scene script and
-advances on audio cues. Leaving the reader or opening a dialog pauses playback.
+Reduced motion starts paused. Narration switches the sound on or off. Press Play
+when paused to hear the current scene and advance on the audio cues. The progress
+bar follows the scene. Full comic, another format or a dialog pauses playback.
 
 All six sample agreements include original scenario metadata and a local MP3
 per comic. The 164 recordings and 969 scene timings work on static hosting.
@@ -34,9 +36,11 @@ an offline batch on a GPU. The builder reuses completed tracks on interrupted
 runs, then writes sample-narration.js. Uploaded comics use the authenticated
 branch API and the existing Kokoro voice on CPU (see model-services/README.txt).
 
-ui.css provides the glass styling, ui.js handles view controls, and
-category-globe.js builds the chooser from the current agreement. The existing
-API and scheduler handle uploads and media generation.
+ui.css provides the glass styling, ui.js handles view controls and
+category-gallery.js builds the chooser from the current agreement. The sample
+stills are in six WebP sheets. Run tools/build_category_posters.py to regenerate
+them and category-posters.js. The existing API and scheduler handle uploads
+and media generation.
 
 Verification (Node >=22.13; ffmpeg for the upload/media fixture test):
   npm ci
@@ -47,8 +51,9 @@ Verification (Node >=22.13; ffmpeg for the upload/media fixture test):
 
 The browser suites use local fixtures or existing static samples and do not
 submit inference jobs to the production model services. test:ui exercises all
-six samples, 164 category options, desktop and phone layouts in both orientations, keyboard upload,
-cue cards and asynchronous refreshes, category navigation, comic/video/PDF,
+six samples, 164 illustrated categories, desktop and phone layouts in both
+orientations, keyboard upload, cue cards, asynchronous refreshes, both comic
+views, audio playback, category navigation, video, PDF,
 retry controls, dialogs, research and reduced motion. test:browser exercises
 PDF extraction, authenticated API jobs, scenario switching, captions, source
 evidence, restoration without duplicate generation and expired-session recovery.

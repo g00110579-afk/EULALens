@@ -115,7 +115,7 @@
             document.getElementById('documents-tab').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'instant' });
             document.getElementById('cat-title').focus({ preventScroll: true });
-            if (animate && typeof openCategoryGlobe === 'function') openCategoryGlobe();
+            if (animate && typeof categoryGallery !== 'undefined') categoryGallery.open();
             if (currentFormat === 'comic') comicPlayback?.enter();
         }
 
@@ -278,8 +278,10 @@
         }
 
         function comicScenesFor(comic) {
-            if (Array.isArray(comic.panels) && comic.panels.length) return comic.panels;
-            return Array.isArray(comic.scenes) ? comic.scenes : [];
+            const scenes = Array.isArray(comic.scenes) ? comic.scenes : [];
+            if (!Array.isArray(comic.panels) || !comic.panels.length) return scenes;
+            // Earlier jobs kept dialogue, narration or positions on the authored scene.
+            return scenes.length ? comic.panels.map((panel, i) => ({ ...scenes[i], ...panel })) : comic.panels;
         }
 
         function displayComicScenario(cat, scenarioId, render = true) {
@@ -292,6 +294,7 @@
             cat.comic = state.imageUrl || '';
             cat.comicStatus = state.status || 'idle';
             cat.comicError = state.error || '';
+            if (typeof categoryGallery !== 'undefined') categoryGallery.updateArtwork(cat);
             if (render && document.getElementById('active-category').dataset.catId === cat.id) renderComicForCategory(cat);
         }
 
@@ -20625,7 +20628,7 @@ communicated to end users.
           <span id="cat-badge" class="risk-badge"></span>
         </div>
         <nav aria-label="Category navigation" class="category-navigation">
-          <button type="button" class="icon-button" id="view-globe" hidden aria-label="View category globe" title="View category globe"><span class="material-symbols-outlined" aria-hidden="true">language</span></button>
+          <button type="button" class="icon-button" id="view-gallery" hidden aria-label="Browse categories" title="Browse categories"><span class="material-symbols-outlined" aria-hidden="true">gallery_thumbnail</span></button>
           <button type="button" class="icon-button" id="previous-category-btn" onclick="previousCategory()" aria-label="Previous category" title="Previous category"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button>
           <button type="button" class="icon-button" id="next-category-btn" onclick="nextCategory()" aria-label="Next category" title="Next category"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
         </nav>
@@ -20648,20 +20651,31 @@ communicated to end users.
 <div class="cue-grid hidden" id="cat-cards" role="tabpanel" aria-labelledby="tabbtn-cards"></div>
 <div class="media-panel hidden" id="right-tab-comic" role="tabpanel" aria-labelledby="tabbtn-comic">
 <div id="comic-scenarios" class="comic-scenarios" aria-label="Comic scenarios"></div>
-<div class="media-heading"><h3><button type="button" id="comic-summary-toggle" aria-controls="comic-summary" aria-expanded="true" title="Show or hide story summary"><span id="cat-comic-title"></span><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></button></h3><a class="quiet-button hidden" id="comic-open-link" title="Open full artwork" target="_blank" rel="noopener noreferrer">Full artwork<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+<div class="media-heading"><h3><button type="button" id="comic-summary-toggle" aria-controls="comic-summary" aria-expanded="true" title="Show or hide story summary"><span id="cat-comic-title"></span><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></button></h3>
+  <div id="comic-views" class="comic-views" role="group" aria-label="Comic view" hidden>
+    <button type="button" id="comic-view-scenes" aria-pressed="true">Scenes</button>
+    <button type="button" id="comic-open-link" aria-pressed="false">Full comic</button>
+  </div>
+</div>
 <p id="comic-summary" aria-label="Story summary" hidden></p>
 <div id="comic-status" class="comic-status" role="status"></div>
 <div id="comic-reader" class="comic-reader" hidden>
-  <div class="comic-art"><div id="comic-crop" class="comic-crop"><img alt="" id="cat-comic-img"/></div><div id="comic-art-status" role="status"></div></div>
+  <div class="comic-art"><div id="comic-crop" class="comic-crop"><img alt="" id="cat-comic-img"/><div id="comic-letters"></div></div><div id="comic-art-status" role="status"></div></div>
   <section id="comic-story" class="comic-story" aria-label="Comic scenes">
-    <nav class="comic-pager" aria-label="Comic navigation"><span id="comic-position" role="status"></span>
+    <nav class="comic-pager" aria-label="Comic navigation"><div class="comic-scene-label"><span id="comic-position" role="status"></span><h4 id="comic-scene-title"></h4></div>
       <button type="button" class="comic-control" id="comic-playback" aria-label="Play comic" title="Play comic"><span id="comic-play-icon" class="material-symbols-outlined" aria-hidden="true">play_arrow</span><span id="comic-play-label">Play</span></button>
       <button type="button" class="comic-control" id="comic-narration" aria-label="Narration" aria-pressed="false" title="Narration"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span><span class="comic-narration-label">Narration</span></button>
       <button type="button" class="icon-button" id="comic-prev" aria-label="Previous scene" title="Previous scene" onclick="moveComicScene(-1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="comic-next" aria-label="Next scene" title="Next scene" onclick="moveComicScene(1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></nav>
+    <progress id="comic-progress" max="1" value="0" aria-label="Scene playback progress" hidden></progress>
     <audio id="comic-audio" preload="none" hidden></audio>
     <p id="comic-play-status" role="status" hidden></p>
-    <div class="comic-script" id="comic-script" aria-live="polite" aria-atomic="true"><h4 id="comic-scene-title"></h4><p id="comic-caption"></p><div id="comic-dialogue"></div></div>
+    <div class="comic-script" id="comic-script" aria-live="polite" aria-atomic="true"><p id="comic-caption"></p><div id="comic-dialogue"></div></div>
   </section>
+  <div class="comic-full-tools" id="comic-full-tools" hidden>
+    <span id="comic-sheet-count"></span>
+    <details id="comic-sheet-text" hidden><summary>Scene text</summary><ol></ol></details>
+    <button type="button" class="comic-control" id="comic-zoom" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><span>Zoom in</span></button>
+  </div>
 </div>
 </div>
 <div class="media-panel flex" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p>
@@ -20685,15 +20699,21 @@ communicated to end users.
 </div>
   </div></div>
 </dialog>
-<dialog id="category-globe" class="glass-dialog globe-dialog" aria-labelledby="globe-heading" aria-describedby="globe-document globe-count">
-  <header class="globe-header">
-    <div class="globe-context"><span class="material-symbols-outlined" aria-hidden="true">description</span><span id="globe-document"></span><span class="globe-divider" aria-hidden="true">/</span><span id="globe-count" role="status"></span></div>
-    <button type="button" class="icon-button" id="close-globe" aria-label="Close category chooser"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
-    <h2 id="globe-heading" tabindex="-1" autofocus>Choose a category</h2>
-    <div class="globe-tools"><label class="globe-search"><span class="material-symbols-outlined" aria-hidden="true">search</span><input id="globe-search" type="search" aria-label="Find a category" placeholder="Find a category" autocomplete="off"/></label><button type="button" id="globe-layout" class="quiet-button" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">list</span>List view</button></div>
+<dialog id="category-gallery" class="glass-dialog gallery-dialog" aria-labelledby="gallery-heading" aria-describedby="gallery-document gallery-count">
+  <header class="gallery-header">
+    <div class="gallery-context"><span class="material-symbols-outlined" aria-hidden="true">description</span><span id="gallery-document"></span><span aria-hidden="true">/</span><span id="gallery-count"></span></div>
+    <button type="button" class="icon-button" id="close-gallery" aria-label="Close category chooser"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    <h2 id="gallery-heading" tabindex="-1" autofocus>Choose a category</h2>
+    <label class="gallery-search"><span class="material-symbols-outlined" aria-hidden="true">search</span><input id="gallery-search" type="search" aria-label="Find a category" placeholder="Find a category" autocomplete="off"/></label>
   </header>
-  <div class="globe-viewport" id="globe-viewport"><div class="globe-surface" id="globe-surface" role="group" aria-label="Categories"></div><p id="globe-empty" hidden>No matching categories.</p></div>
-  <div class="globe-rotation" id="globe-rotation"><button type="button" class="icon-button" id="globe-left" aria-label="Rotate globe left"><span class="material-symbols-outlined" aria-hidden="true">rotate_left</span></button><span id="globe-turn-hint">Rotate</span><button type="button" class="icon-button" id="globe-right" aria-label="Rotate globe right"><span class="material-symbols-outlined" aria-hidden="true">rotate_right</span></button></div>
+  <div class="gallery-body" id="gallery-body">
+    <div class="gallery-grid" id="gallery-choices" role="group" aria-label="Categories"></div>
+    <p id="gallery-empty" hidden>No matching categories.</p>
+  </div>
+  <footer class="gallery-footer">
+    <span id="gallery-position" role="status" aria-live="polite" aria-atomic="true"></span>
+    <div id="gallery-pages"><button type="button" class="icon-button" id="gallery-prev" aria-label="Previous categories"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="gallery-next" aria-label="Next categories"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></div>
+  </footer>
 </dialog>
 <dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title"><div class="dialog-header"><h2 id="sample-dialog-title">Try another EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close sample EULAs"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
@@ -20705,6 +20725,7 @@ communicated to end users.
 <script src="sample-narration.js"></script>
 <script src="comic-reader.js"></script>
 <script src="comic-playback.js"></script>
-<script src="category-globe.js"></script>
+<script src="category-posters.js"></script>
+<script src="category-gallery.js"></script>
 <script src="ui.js"></script>
 </body></html>

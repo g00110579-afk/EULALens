@@ -88,7 +88,12 @@ try {
   assert.equal(await page.locator('#comic-caption').textContent(), 'A source-backed example.');
   await page.waitForFunction(() => comicReader.boxes.length === 2);
   assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the first scenario.');
+  await page.getByRole('button', {name:'Full comic',exact:true}).click();
+  assert.deepEqual(await page.locator('#comic-crop .comic-panel-caption').allTextContents(), ['A source-backed example.','A second scene.']);
+  await page.locator('#comic-crop button[data-scene="0"]').click();
+  assert(await page.locator('#comic-crop .comic-panel-caption').isVisible());
   await page.locator('#comic-narration').click();
+  await page.getByRole('button',{name:'Play comic',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('comic-audio').currentTime>0);
   await page.waitForFunction(()=>document.getElementById('comic-position').textContent==='Scene 2 of 2');
   await page.getByRole('button',{name:'Replay comic',exact:true}).waitFor();
@@ -100,6 +105,7 @@ try {
   assert.equal(await page.locator('#comic-position').textContent(), 'Scene 1 of 2');
   assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the second scenario.');
   await page.locator('#comic-narration').click();
+  if (await page.getByRole('button',{name:'Play comic',exact:true}).isVisible()) await page.locator('#comic-playback').click();
   await page.waitForFunction(()=>!document.getElementById('comic-audio').paused && document.getElementById('comic-audio').currentTime>0);
   await page.locator('#tabbtn-video').click();
   assert(await page.locator('#comic-audio').evaluate(a=>a.paused));

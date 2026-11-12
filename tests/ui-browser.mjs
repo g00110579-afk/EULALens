@@ -58,7 +58,11 @@ try {
   };
   // A fast click can occur before the last script arrives on a cold preview.
   const cold = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  await cold.route("https://fonts.gstatic.com/**", route => route.abort("failed"));
+  const externalFontRequests = [];
+  await cold.route(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\//, route => {
+    externalFontRequests.push(route.request().url());
+    return route.abort("failed");
+  });
   let releaseGallery;
   const delayedGallery = new Promise((resolve) => {
     releaseGallery = resolve;
@@ -71,6 +75,21 @@ try {
   try {
     await cold.goto(base, { waitUntil: "commit" });
     await cold.locator("#upload-dropzone").waitFor();
+    const headingBounds = () => cold.evaluate(() =>
+      [".home-hero h1", "#upload-heading"].map(selector => {
+        const range = document.createRange();
+        range.selectNodeContents(document.querySelector(selector));
+        return range.getBoundingClientRect().toJSON();
+      })
+    );
+    const initialBounds = await headingBounds();
+    const interAvailable = await cold.evaluate(async () => {
+      await document.fonts.ready;
+      return [...document.fonts].some(face => face.family === "Inter" && face.status === "loaded");
+    });
+    assert(interAvailable, "The primary typeface should load without an external font service");
+    assert.deepEqual(externalFontRequests, []);
+    assert.deepEqual(await headingBounds(), initialBounds, "Home headings must stay put as fonts settle");
     for (const width of [390, 1440]) {
       await cold.setViewportSize({ width, height: 844 });
       const firstPaint = await cold.evaluate(() => {

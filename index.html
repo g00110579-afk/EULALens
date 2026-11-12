@@ -5,8 +5,12 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link rel="icon" href="data:,"/>
 <title>EULALens</title>
+<link href="ui.css?v=5b91c3a720f43914" rel="stylesheet"/>
+<script>
+  // Decode the bundled typeface while the rest of the page is loading.
+  document.fonts.load('600 1em Inter').catch(() => {});
+</script>
 <script src="https://cdn.tailwindcss.com?plugins=container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -101,7 +105,6 @@
             }
         }
     </script>
-<link href="ui.css?v=a3ca51f3d6f7c1b8" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
 <script src="live-runtime.js?v=86775bf9aac16da6"></script>
 <script>

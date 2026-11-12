@@ -49,7 +49,7 @@ comicPlayback = (() => {
     document.getElementById("comic-reader").classList.toggle("is-playing", Boolean(run));
     const label = run ? "Pause" : finished ? "Replay" : "Play";
     document.getElementById("comic-play-label").textContent = label;
-    document.getElementById("comic-play-icon").textContent = run
+    document.getElementById("comic-play-icon").dataset.icon = run
       ? "pause"
       : finished
         ? "replay"
@@ -66,7 +66,7 @@ comicPlayback = (() => {
     voiceButton.setAttribute("aria-pressed", String(enabled));
     voiceButton.querySelector(".comic-narration-label").textContent = enabled ? "Read aloud on" : "Read aloud off";
     voiceButton.title = voiceButton.disabled ? "Narration unavailable" : enabled ? "Turn narration off" : "Turn narration on";
-    voiceButton.querySelector(".material-symbols-outlined").textContent = enabled ? "volume_up" : "volume_off";
+    voiceButton.querySelector(".ui-icon").dataset.icon = enabled ? "volume_up" : "volume_off";
     document
       .getElementById("comic-script")
       .setAttribute("aria-live", run ? "off" : "polite");

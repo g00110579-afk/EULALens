@@ -57,7 +57,8 @@ try {
     layouts.push({ screen, ...geometry });
   };
   // A fast click can occur before the last script arrives on a cold preview.
-  const cold = await browser.newPage();
+  const cold = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await cold.route("https://fonts.gstatic.com/**", route => route.abort("failed"));
   let releaseGallery;
   const delayedGallery = new Promise((resolve) => {
     releaseGallery = resolve;
@@ -69,6 +70,24 @@ try {
   await cold.route("**/images/category-objects.webp", route => route.abort("failed"));
   try {
     await cold.goto(base, { waitUntil: "commit" });
+    await cold.locator("#upload-dropzone").waitFor();
+    for (const width of [390, 1440]) {
+      await cold.setViewportSize({ width, height: 844 });
+      const firstPaint = await cold.evaluate(() => {
+        const icons = [...document.querySelectorAll(".site-header .ui-icon, #dashboard-tab .ui-icon")]
+          .filter(icon => icon.getClientRects().length);
+        return {
+          overflow: document.documentElement.scrollWidth > innerWidth,
+          symbols: icons.map(icon => icon.dataset.icon),
+          drawn: icons.every(icon => !icon.textContent.trim() && getComputedStyle(icon, "::before").maskImage.includes("data:image/svg+xml")),
+        };
+      });
+      for (const name of ["document_scanner", "menu_book", "upload_file", "restart_alt", "music_note"]) {
+        assert(firstPaint.symbols.includes(name), `Missing home icon: ${name}`);
+      }
+      assert(firstPaint.drawn, "Home icons must render while web fonts are unavailable");
+      assert.equal(firstPaint.overflow, false, "Cold homepage must fit its viewport");
+    }
     await cold.getByRole("button", { name: "Zoom", exact: true }).click();
     await cold.getByRole("button", { name: "Spotify", exact: true }).click();
     releaseGallery();

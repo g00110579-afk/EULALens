@@ -6,7 +6,6 @@
 <link rel="icon" href="data:,"/>
 <title>EULALens</title>
 <script src="https://cdn.tailwindcss.com?plugins=container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
         tailwind.config = {
@@ -102,7 +101,7 @@
             }
         }
     </script>
-<link href="ui.css?v=8ee3c700c81da7e1" rel="stylesheet"/>
+<link href="ui.css?v=a3ca51f3d6f7c1b8" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
 <script src="live-runtime.js?v=86775bf9aac16da6"></script>
 <script>
@@ -1073,8 +1072,8 @@
             if (!run.row) {
                 const node = document.createElement('li');
                 const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined upload-row-icon';
-                icon.setAttribute('aria-hidden','true'); icon.textContent = 'description';
+                icon.className = 'ui-icon upload-row-icon';
+                icon.setAttribute('aria-hidden','true'); icon.dataset.icon = 'description';
                 const info = document.createElement('div');
                 const name = document.createElement('strong'), detail = document.createElement('small');
                 const phase = document.createElement('span');
@@ -1084,9 +1083,9 @@
                 firstVideo.className = 'upload-video-ready';
                 firstVideo.title = 'Open this category’s video';
                 const playIcon = document.createElement('span');
-                playIcon.className = 'material-symbols-outlined';
+                playIcon.className = 'ui-icon';
                 playIcon.setAttribute('aria-hidden', 'true');
-                playIcon.textContent = 'play_circle';
+                playIcon.dataset.icon = 'play_circle';
                 const videoLabel = document.createElement('span');
                 firstVideo.append(playIcon, videoLabel);
                 info.append(name, phase, firstVideo, detail);
@@ -20822,7 +20821,7 @@
             if (cat.cardsStatus === 'generating' && !cat.cards.length) {
                 cardsContainer.innerHTML = `
                     <div class="col-span-full flex items-center justify-center gap-2 py-10 text-sm text-on-surface-variant">
-                        <span class="material-symbols-outlined text-secondary animate-spin">progress_activity</span>
+                        <span class="ui-icon text-secondary animate-spin" aria-hidden="true" data-icon="progress_activity"></span>
                         Generating cue cards…
                     </div>`;
             }
@@ -20844,14 +20843,14 @@
                     <button type="button" class="cue-card" data-card-index="${index}" aria-pressed="${answer}" aria-label="${escapeHtml(cardData.front)}" aria-describedby="${answer ? 'cue-answer-' + index : 'cue-flip-help'}">
                         <span class="cue-turn">
                             <span class="cue-face cue-front" aria-hidden="${answer}">
-                                <span class="material-symbols-outlined cue-icon" aria-hidden="true">${escapeHtml(cardData.icon || 'style')}</span>
+                                <span class="ui-icon cue-icon" aria-hidden="true" data-icon="${escapeHtml(cardData.icon || 'style')}"></span>
                                 <span class="cue-question">${escapeHtml(cardData.front)}</span>
-                                <span class="cue-hint">Flip<span class="material-symbols-outlined" aria-hidden="true">flip_camera_android</span></span>
+                                <span class="cue-hint">Flip<span class="ui-icon" aria-hidden="true" data-icon="flip_camera_android"></span></span>
                             </span>
                             <span class="cue-face cue-back" id="cue-answer-${index}" aria-hidden="${!answer}">
                                 <span class="cue-answer-title">${escapeHtml(cardData.backTitle)}</span>
                                 <span class="cue-answer-text">${escapeHtml(cardData.backDetail)}</span>
-                                <span class="cue-hint">Flip back<span class="material-symbols-outlined" aria-hidden="true">flip_camera_android</span></span>
+                                <span class="cue-hint">Flip back<span class="ui-icon" aria-hidden="true" data-icon="flip_camera_android"></span></span>
                             </span>
                         </span>
                     </button>`);
@@ -20888,37 +20887,37 @@
 <header class="site-header">
   <div class="header-identity">
     <button type="button" class="brand-link" onclick="backToHome()" aria-label="EULALens home">
-      <span class="material-symbols-outlined" aria-hidden="true">document_scanner</span><span>EULALens</span>
+      <span class="ui-icon" aria-hidden="true" data-icon="document_scanner"></span><span>EULALens</span>
     </button>
     <div class="document-identity"><span aria-hidden="true">/</span><h1 id="doc-analysis-title"></h1></div>
   </div>
-  <button type="button" class="quiet-button home-research-link" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="material-symbols-outlined" aria-hidden="true">info</span></button>
+  <button type="button" class="quiet-button home-research-link" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="ui-icon" aria-hidden="true" data-icon="info"></span></button>
   <div class="document-actions">
-    <button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="quiet-button danger-button hidden" aria-label="Cancel unfinished analysis and generation"><span class="material-symbols-outlined" aria-hidden="true">stop_circle</span><span>Cancel generation</span></button>
-    <button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span><span>Switch EULA</span></button>
-    <button type="button" class="icon-button" id="help-btn" onclick="openHelpDialog()" aria-label="Help"><span class="material-symbols-outlined" aria-hidden="true">help</span></button>
+    <button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="quiet-button danger-button hidden" aria-label="Cancel unfinished analysis and generation"><span class="ui-icon" aria-hidden="true" data-icon="stop_circle"></span><span>Cancel generation</span></button>
+    <button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()" aria-haspopup="dialog"><span class="ui-icon" aria-hidden="true" data-icon="swap_horiz"></span><span>Switch EULA</span></button>
+    <button type="button" class="icon-button" id="help-btn" onclick="openHelpDialog()" aria-label="Help"><span class="ui-icon" aria-hidden="true" data-icon="help"></span></button>
   </div>
 </header>
 <div id="main-content" tabindex="-1">
 <div id="dashboard-tab">
 <main class="home-content">
-<header class="home-hero"><h1>EULALens</h1><div class="format-list"><span><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</span><span><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comics</span><span><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Videos</span></div></header>
+<header class="home-hero"><h1>EULALens</h1><div class="format-list"><span><span class="ui-icon" aria-hidden="true" data-icon="style"></span>Cue cards</span><span><span class="ui-icon" aria-hidden="true" data-icon="menu_book"></span>Comics</span><span><span class="ui-icon" aria-hidden="true" data-icon="play_circle"></span>Videos</span></div></header>
 <section class="upload-section" aria-labelledby="upload-heading">
   <button type="button" class="upload-dropzone glass-panel" id="upload-dropzone" aria-labelledby="upload-heading" aria-describedby="upload-hint">
-    <span class="upload-symbol material-symbols-outlined" aria-hidden="true">upload_file</span>
+    <span class="upload-symbol ui-icon" aria-hidden="true" data-icon="upload_file"></span>
     <span class="upload-copy"><span id="upload-heading">Upload a EULA</span><span id="upload-hint">Drop a PDF here, or click to browse</span></span>
-    <span class="upload-action" aria-hidden="true"><span class="material-symbols-outlined">arrow_upward</span></span>
+    <span class="upload-action" aria-hidden="true"><span class="ui-icon" aria-hidden="true" data-icon="arrow_upward"></span></span>
   </button>
   <input accept="application/pdf,.pdf" class="hidden" id="upload-input" multiple type="file" aria-label="Upload a EULA PDF"/>
   <div id="upload-status" role="status" aria-live="polite"></div>
   <section id="upload-queue" aria-labelledby="upload-queue-title" hidden><h2 id="upload-queue-title">Upload queue</h2><ul id="upload-list" aria-live="polite" aria-relevant="additions text"></ul></section>
 </section>
-<section class="sample-section" aria-labelledby="samples-heading"><div class="sample-tools"><h2 id="samples-heading">Sample EULAs</h2><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>Reset demo</button></div><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="openDocumentView('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="openDocumentView('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="openDocumentView('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="openDocumentView('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></section>
+<section class="sample-section" aria-labelledby="samples-heading"><div class="sample-tools"><h2 id="samples-heading">Sample EULAs</h2><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="ui-icon" aria-hidden="true" data-icon="restart_alt"></span>Reset demo</button></div><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="videocam"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="music_note"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('windows11')" aria-label="Windows"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="window"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('steam')" aria-label="Steam"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="sports_esports"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="description"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="openDocumentView('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="face_retouching_off"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></section>
 <section id="learn-more-panel" class="research-content hidden" aria-label="About EULALens"><div class="glass-panel rounded-xl p-container-padding mb-stack-lg flex justify-center border border-white/5 shadow-lg">
 <div class="aspect-[21/9] w-full bg-surface-container/30 border border-white/10 rounded-lg flex items-center justify-center relative overflow-hidden">
 <img alt="Workflow diagram" class="w-full h-full object-contain" src="images/workflow.png" loading="lazy"/>
@@ -20944,7 +20943,7 @@ communicated to end users.
 <div class="grid grid-cols-1 gap-gutter mb-stack-lg">
 <section class="glass-panel rounded-xl p-container-padding border border-white/5 shadow-lg">
 <h2 class="font-title-lg text-title-lg text-on-surface mb-stack-md border-b border-white/10 pb-4 flex items-center gap-3">
-<span class="material-symbols-outlined text-secondary" aria-hidden="true">group</span> People
+<span class="ui-icon text-secondary" aria-hidden="true" data-icon="group"></span> People
                 </h2>
 <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6">
 <li class="flex items-center gap-4">
@@ -20955,7 +20954,7 @@ communicated to end users.
 </li>
 <li class="flex items-center gap-4">
 <div class="w-14 h-14 rounded-full bg-surface-variant border border-outline flex items-center justify-center shadow-md flex-shrink-0">
-<span class="material-symbols-outlined text-xl text-secondary" aria-hidden="true">person</span>
+<span class="ui-icon text-xl text-secondary" aria-hidden="true" data-icon="person"></span>
 </div>
 <div>
 <p class="font-title-lg text-on-surface"><a class="hover:text-secondary transition-colors" href="https://orcid.org/0009-0009-8186-9595" rel="noopener noreferrer" target="_blank">Hagar Elbatanouny</a></p>
@@ -20989,9 +20988,9 @@ communicated to end users.
 </section>
 <section class="glass-panel rounded-xl p-container-padding border border-white/5 shadow-lg flex flex-col">
 <h2 class="font-title-lg text-title-lg text-on-surface mb-stack-md border-b border-white/10 pb-4 flex items-center justify-between gap-3 flex-wrap">
-<span class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary" aria-hidden="true">description</span> Paper</span>
+<span class="flex items-center gap-3"><span class="ui-icon text-secondary" aria-hidden="true" data-icon="description"></span> Paper</span>
 <a href="EULALens_SEE_What_YOU_Agree.pdf" download class="bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30 px-4 py-1.5 rounded-md font-label-md transition-colors flex items-center gap-2 text-sm">
-<span class="material-symbols-outlined text-sm" aria-hidden="true">download</span> Download
+<span class="ui-icon text-sm" aria-hidden="true" data-icon="download"></span> Download
                     </a>
 </h2>
 <div class="flex-1 bg-surface-container/30 border border-white/10 rounded-lg overflow-hidden" >
@@ -21013,15 +21012,15 @@ communicated to end users.
         <div class="category-meta">
           <div class="category-picker">
             <span id="category-position" role="status" aria-live="polite"></span>
-            <span class="material-symbols-outlined picker-arrow" aria-hidden="true">expand_more</span>
+            <span class="ui-icon picker-arrow" aria-hidden="true" data-icon="expand_more"></span>
             <select id="category-select" aria-label="Choose category" onchange="selectCategory(this.value)"></select>
           </div>
           <span id="cat-badge" class="risk-badge"></span>
         </div>
         <nav aria-label="Category navigation" class="category-navigation">
-          <button type="button" class="icon-button" id="view-gallery" hidden aria-label="Browse categories" title="Browse categories"><span class="material-symbols-outlined" aria-hidden="true">gallery_thumbnail</span></button>
-          <button type="button" class="icon-button" id="previous-category-btn" onclick="previousCategory()" aria-label="Previous category" title="Previous category"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button>
-          <button type="button" class="icon-button" id="next-category-btn" onclick="nextCategory()" aria-label="Next category" title="Next category"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
+          <button type="button" class="icon-button" id="view-gallery" hidden aria-label="Browse categories" title="Browse categories"><span class="ui-icon" aria-hidden="true" data-icon="gallery_thumbnail"></span></button>
+          <button type="button" class="icon-button" id="previous-category-btn" onclick="previousCategory()" aria-label="Previous category" title="Previous category"><span class="ui-icon" aria-hidden="true" data-icon="arrow_back"></span></button>
+          <button type="button" class="icon-button" id="next-category-btn" onclick="nextCategory()" aria-label="Next category" title="Next category"><span class="ui-icon" aria-hidden="true" data-icon="arrow_forward"></span></button>
         </nav>
       </div>
       <h2 id="cat-title" tabindex="-1"></h2>
@@ -21029,12 +21028,12 @@ communicated to end users.
     </header>
     <div class="review-controls">
       <div class="format-tabs" role="tablist" aria-label="Explanation format">
-        <button type="button" class="format-tab" id="tabbtn-video" role="tab" aria-controls="right-tab-video" aria-selected="true" onclick="switchRightTab('video')"><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>Video</button>
-        <button type="button" class="format-tab" id="tabbtn-comic" role="tab" aria-controls="right-tab-comic" aria-selected="false" tabindex="-1" onclick="switchRightTab('comic')"><span class="material-symbols-outlined" aria-hidden="true">menu_book</span>Comic</button>
-        <button type="button" class="format-tab" id="tabbtn-cards" role="tab" aria-controls="cat-cards" aria-selected="false" tabindex="-1" onclick="switchRightTab('cards')"><span class="material-symbols-outlined" aria-hidden="true">style</span>Cue cards</button>
-        <button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" tabindex="-1" onclick="switchRightTab('eula')"><span class="material-symbols-outlined" aria-hidden="true">article</span>Original EULA</button>
+        <button type="button" class="format-tab" id="tabbtn-video" role="tab" aria-controls="right-tab-video" aria-selected="true" onclick="switchRightTab('video')"><span class="ui-icon" aria-hidden="true" data-icon="play_circle"></span>Video</button>
+        <button type="button" class="format-tab" id="tabbtn-comic" role="tab" aria-controls="right-tab-comic" aria-selected="false" tabindex="-1" onclick="switchRightTab('comic')"><span class="ui-icon" aria-hidden="true" data-icon="menu_book"></span>Comic</button>
+        <button type="button" class="format-tab" id="tabbtn-cards" role="tab" aria-controls="cat-cards" aria-selected="false" tabindex="-1" onclick="switchRightTab('cards')"><span class="ui-icon" aria-hidden="true" data-icon="style"></span>Cue cards</button>
+        <button type="button" class="format-tab" id="tabbtn-eula" role="tab" aria-controls="right-tab-eula" aria-selected="false" tabindex="-1" onclick="switchRightTab('eula')"><span class="ui-icon" aria-hidden="true" data-icon="article"></span>Original EULA</button>
       </div>
-      <button type="button" class="quiet-button details-button" onclick="openCategoryDetails()" aria-label="Category details" title="Category details"><span class="material-symbols-outlined" aria-hidden="true">info</span><span>Details</span></button>
+      <button type="button" class="quiet-button details-button" onclick="openCategoryDetails()" aria-label="Category details" title="Category details"><span class="ui-icon" aria-hidden="true" data-icon="info"></span><span>Details</span></button>
     </div>
 <div id="generation-status" class="generation-status hidden" role="status" aria-live="polite"></div>
 <div class="review-stage">
@@ -21042,11 +21041,11 @@ communicated to end users.
 <div class="cue-grid hidden" id="cat-cards" role="tabpanel" aria-labelledby="tabbtn-cards"></div>
 <div class="media-panel hidden" id="right-tab-comic" role="tabpanel" aria-labelledby="tabbtn-comic">
 <div id="comic-scenarios" class="comic-scenarios" aria-label="Comic scenarios"></div>
-<div class="media-heading"><h3><button type="button" id="comic-summary-toggle" aria-controls="comic-summary" aria-expanded="true" title="Show or hide story summary"><span id="cat-comic-title"></span><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></button></h3>
+<div class="media-heading"><h3><button type="button" id="comic-summary-toggle" aria-controls="comic-summary" aria-expanded="true" title="Show or hide story summary"><span id="cat-comic-title"></span><span class="ui-icon" aria-hidden="true" data-icon="expand_more"></span></button></h3>
   <div class="comic-view-tools"><div id="comic-views" class="comic-views" role="group" aria-label="Comic view" hidden>
     <button type="button" id="comic-view-scenes" aria-pressed="true">Scenes</button>
     <button type="button" id="comic-open-link" aria-pressed="false">Full comic</button>
-  </div><button type="button" class="comic-control" id="comic-zoom" aria-pressed="false" hidden><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><span>Zoom in</span></button></div>
+  </div><button type="button" class="comic-control" id="comic-zoom" aria-pressed="false" hidden><span class="ui-icon" aria-hidden="true" data-icon="zoom_in"></span><span>Zoom in</span></button></div>
 </div>
 <p id="comic-summary" aria-label="Story summary" hidden></p>
 <div id="comic-status" class="comic-status" role="status"></div>
@@ -21054,9 +21053,9 @@ communicated to end users.
   <div class="comic-art"><div id="comic-crop" class="comic-crop"><img alt="" id="cat-comic-img"/><div id="comic-letters"></div></div><div id="comic-art-status" role="status"></div></div>
   <section id="comic-story" class="comic-story" aria-label="Comic scenes">
     <nav class="comic-pager" aria-label="Comic navigation"><div class="comic-scene-label"><span id="comic-position" role="status"></span><h4 id="comic-scene-title"></h4></div>
-      <button type="button" class="comic-control" id="comic-playback" aria-label="Play comic" title="Play comic"><span id="comic-play-icon" class="material-symbols-outlined" aria-hidden="true">play_arrow</span><span id="comic-play-label">Play</span></button>
-      <button type="button" class="comic-control" id="comic-narration" aria-label="Read aloud" aria-pressed="true" title="Turn narration off"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span><span class="comic-narration-label">Read aloud on</span></button>
-      <button type="button" class="icon-button" id="comic-prev" aria-label="Previous scene" title="Previous scene" onclick="moveComicScene(-1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="comic-next" aria-label="Next scene" title="Next scene" onclick="moveComicScene(1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></nav>
+      <button type="button" class="comic-control" id="comic-playback" aria-label="Play comic" title="Play comic"><span id="comic-play-icon" class="ui-icon" aria-hidden="true" data-icon="play_arrow"></span><span id="comic-play-label">Play</span></button>
+      <button type="button" class="comic-control" id="comic-narration" aria-label="Read aloud" aria-pressed="true" title="Turn narration off"><span class="ui-icon" aria-hidden="true" data-icon="volume_up"></span><span class="comic-narration-label">Read aloud on</span></button>
+      <button type="button" class="icon-button" id="comic-prev" aria-label="Previous scene" title="Previous scene" onclick="moveComicScene(-1)"><span class="ui-icon" aria-hidden="true" data-icon="arrow_back"></span></button><button type="button" class="icon-button" id="comic-next" aria-label="Next scene" title="Next scene" onclick="moveComicScene(1)"><span class="ui-icon" aria-hidden="true" data-icon="arrow_forward"></span></button></nav>
     <progress id="comic-progress" max="1" value="0" aria-label="Scene playback progress" hidden></progress>
     <audio id="comic-audio" preload="none" hidden></audio>
     <p id="comic-play-status" role="status" hidden></p>
@@ -21066,7 +21065,7 @@ communicated to end users.
 </div>
 <div class="media-panel flex" id="right-tab-video" role="tabpanel" aria-labelledby="tabbtn-video"><div class="video-frame"><video controls playsinline preload="metadata" id="cat-video" aria-label="Video explanation"></video></div><p id="video-degradation" class="hidden" role="status"></p>
 <div id="video-notes" class="video-notes"><h3>Category details</h3></div></div>
-<div class="media-panel hidden" id="right-tab-eula" role="tabpanel" aria-labelledby="tabbtn-eula"><p id="pdf-unavailable" hidden>The original PDF stays on your device. Upload it again to reopen the PDF viewer.</p><iframe id="cat-eula-frame" title="Original EULA PDF"></iframe><a class="quiet-button" id="cat-eula-fallback-link" href="#" target="_blank" rel="noopener noreferrer">PDF not loading? Open it directly<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a></div>
+<div class="media-panel hidden" id="right-tab-eula" role="tabpanel" aria-labelledby="tabbtn-eula"><p id="pdf-unavailable" hidden>The original PDF stays on your device. Upload it again to reopen the PDF viewer.</p><iframe id="cat-eula-frame" title="Original EULA PDF"></iframe><a class="quiet-button" id="cat-eula-fallback-link" href="#" target="_blank" rel="noopener noreferrer">PDF not loading? Open it directly<span class="ui-icon" aria-hidden="true" data-icon="open_in_new"></span></a></div>
 </div>
   </section>
 </main>
@@ -21074,17 +21073,17 @@ communicated to end users.
 </div>
 <dialog id="category-details" class="glass-dialog detail-dialog" aria-labelledby="details-title">
   <div class="dialog-header"><div><p class="dialog-kicker">Category details</p><h2 id="details-title"></h2></div>
-    <button type="button" class="icon-button" onclick="this.closest('dialog').close()" aria-label="Close category details"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    <button type="button" class="icon-button" onclick="this.closest('dialog').close()" aria-label="Close category details"><span class="ui-icon" aria-hidden="true" data-icon="close"></span></button>
   </div>
   <div id="dialog-notes"><div id="category-notes">
   <p id="details-summary"></p>
   <div class="insights">
     <section id="insight-box-impact" aria-labelledby="impact-heading">
-      <h3 id="impact-heading"><span class="material-symbols-outlined" aria-hidden="true">bolt</span>Impact</h3>
+      <h3 id="impact-heading"><span class="ui-icon" aria-hidden="true" data-icon="bolt"></span>Impact</h3>
       <ul id="cat-impact"></ul>
     </section>
     <section id="insight-box-lookouts" aria-labelledby="lookouts-heading">
-      <h3 id="lookouts-heading"><span class="material-symbols-outlined" aria-hidden="true">visibility</span>Lookouts</h3>
+      <h3 id="lookouts-heading"><span class="ui-icon" aria-hidden="true" data-icon="visibility"></span>Lookouts</h3>
       <ul id="cat-lookouts"></ul>
     </section>
   </div>
@@ -21093,10 +21092,10 @@ communicated to end users.
 </dialog>
 <dialog id="category-gallery" class="glass-dialog gallery-dialog" aria-labelledby="gallery-heading" aria-describedby="gallery-document gallery-count">
   <header class="gallery-header">
-    <div class="gallery-context"><span class="material-symbols-outlined" aria-hidden="true">description</span><span id="gallery-document"></span><span aria-hidden="true">/</span><span id="gallery-count" role="status" aria-atomic="true"></span></div>
-    <button type="button" class="icon-button" id="close-gallery" aria-label="Close category chooser"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    <div class="gallery-context"><span class="ui-icon" aria-hidden="true" data-icon="description"></span><span id="gallery-document"></span><span aria-hidden="true">/</span><span id="gallery-count" role="status" aria-atomic="true"></span></div>
+    <button type="button" class="icon-button" id="close-gallery" aria-label="Close category chooser"><span class="ui-icon" aria-hidden="true" data-icon="close"></span></button>
     <h2 id="gallery-heading" tabindex="-1" autofocus>Choose a category</h2>
-    <label class="gallery-search"><span class="material-symbols-outlined" aria-hidden="true">search</span><input id="gallery-search" type="search" aria-label="Find a category" placeholder="Find a category" autocomplete="off"/></label>
+    <label class="gallery-search"><span class="ui-icon" aria-hidden="true" data-icon="search"></span><input id="gallery-search" type="search" aria-label="Find a category" placeholder="Find a category" autocomplete="off"/></label>
   </header>
   <div class="gallery-body" id="gallery-body" tabindex="0" role="region" aria-label="Category list">
     <div class="gallery-grid" id="gallery-choices" role="group" aria-label="Categories"></div>
@@ -21104,23 +21103,23 @@ communicated to end users.
   </div>
 </dialog>
 <dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title">
-  <div class="dialog-header"><h2 id="sample-dialog-title">Switch EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close document switcher"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
+  <div class="dialog-header"><h2 id="sample-dialog-title">Switch EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close document switcher"><span class="ui-icon" aria-hidden="true" data-icon="close"></span></button></div>
   <div class="switch-options">
     <h3>Sample EULAs</h3>
-    <button type="button" id="switch-upload" class="switch-upload"><span class="material-symbols-outlined" aria-hidden="true">upload</span>Upload a PDF</button>
+    <button type="button" id="switch-upload" class="switch-upload"><span class="ui-icon" aria-hidden="true" data-icon="upload"></span>Upload a PDF</button>
   </div>
   <input type="file" id="switch-upload-input" accept="application/pdf,.pdf" aria-label="Upload another EULA PDF" hidden/>
   <p id="switch-upload-status" role="status"></p>
-  <div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div><div class="switch-reset"><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>Reset demo</button></div></dialog>
-<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
+  <div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="videocam"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="music_note"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="window"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="sports_esports"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="description"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="face_retouching_off"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div><div class="switch-reset"><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="ui-icon" aria-hidden="true" data-icon="restart_alt"></span>Reset demo</button></div></dialog>
+<dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="ui-icon" aria-hidden="true" data-icon="close"></span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></button></dialog>
 <script src="sample-narration.js?v=77b39b24a9e1ee8b"></script>
-<script src="comic-reader.js?v=edb6fd51ad59ffbb"></script>
-<script src="comic-playback.js?v=0753787075eff470"></script>
+<script src="comic-reader.js?v=93bd47ecb2827eed"></script>
+<script src="comic-playback.js?v=0f4555a6b1af3547"></script>
 <script src="category-gallery.js?v=da6c11cdfb1370cf"></script>
 <script src="ui.js?v=c81f6d89d700bcc6"></script>
 </body></html>

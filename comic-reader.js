@@ -331,7 +331,7 @@ function setComicZoom(zoomed) {
   zoom.setAttribute("aria-pressed", String(zoomed));
   zoom.setAttribute("aria-label", zoomLabel);
   zoom.title = zoomLabel;
-  zoom.firstElementChild.textContent = zoomed ? "fit_screen" : "zoom_in";
+  zoom.firstElementChild.dataset.icon = zoomed ? "fit_screen" : "zoom_in";
   zoom.lastElementChild.textContent = zoomLabel;
 }
 

@@ -357,40 +357,30 @@ function chunkText(text, maxChars) {
   return chunks;
 }
 
-// Canonical whitespace/Unicode comparison retains exact source offsets for display and citations.
-function canonicalSource(text) {
-  let value = '';
-  const starts = [], ends = [];
-  for (let index = 0; index < text.length;) {
-    const original = String.fromCodePoint(text.codePointAt(index));
-    const next = index + original.length;
-    for (const character of original.normalize('NFKC')) {
-      const normalized = /\s/u.test(character) ? ' ' : character;
-      if (normalized === ' ' && value.endsWith(' ')) { ends[ends.length - 1] = next; continue; }
-      value += normalized;
-      // Array indices follow UTF-16 indices, including astral characters.
-      for (let unit = 0; unit < normalized.length; unit += 1) { starts.push(index); ends.push(next); }
-    }
-    index = next;
+const sentences = new Intl.Segmenter('en', { granularity: 'sentence' });
+
+// Give the model stable choices within each excerpt. PDF line wraps, spacing
+// and repeated wording survive because quotations are sliced from the input.
+function sourcePassages(chunk) {
+  const passages = [];
+  for (const { index, segment } of sentences.segment(chunk)) {
+    const text = segment.trim();
+    if (!text) continue;
+    const start = index + segment.length - segment.trimStart().length;
+    passages.push({ start, end: start + text.length, text });
   }
-  return { value, starts, ends };
+  return passages;
 }
 
-function findEvidence(quote, source, canonical = canonicalSource(source)) {
-  if (typeof quote !== 'string' || !quote.trim()) return null;
-  const needle = canonicalSource(quote).value.trim();
-  const index = canonical.value.indexOf(needle);
-  if (index < 0) return null;
-  return { start: canonical.starts[index], end: canonical.ends[index + needle.length - 1] };
-}
-
-function extractionValidity(value, chunk, canonical) {
+function extractionValidity(value, passageCount) {
   if (!Array.isArray(value?.categories)) return 'categories must be an array.';
   for (const category of value.categories) {
     if (!category || typeof category !== 'object' || (typeof (category.category_id || category.id) !== 'string' || !(category.category_id || category.id).trim())) return 'Every category needs a category_id.';
-    const segments = category.source_segments || category.segments || category.clauses;
-    if (!Array.isArray(segments) || !segments.length) return 'Every category needs at least one exact source quotation.';
-    if (segments.some((quote) => !findEvidence(quote, chunk, canonical))) return 'Every source_segments entry must be a verbatim quotation of the supplied chunk. Do not paraphrase or invent quotations.';
+    const ranges = category.source_ranges;
+    if (!Array.isArray(ranges) || !ranges.length) return 'Every category needs a nonempty source_ranges array of passage-number pairs.';
+    if (!ranges.every(range => Array.isArray(range) && range.length === 2 &&
+        range.every(Number.isSafeInteger) && range[0] >= 1 && range[0] <= range[1] && range[1] <= passageCount))
+      return `Each source_ranges entry must be [first, last], with integer passage numbers from 1 to ${passageCount} in increasing or equal order.`;
   }
   return true;
 }
@@ -426,11 +416,18 @@ function normalizeSourceSegments(segments) {
 
 function mergeCategoryResults(results) {
   const merged = new Map();
+  const citedRanges = new Map();
 
-  for (const result of results) {
+  for (const [chunkIndex, result] of results.entries()) {
     for (const category of result?.categories || []) {
       const rawId = category.category_id || category.id || category.name || category.title;
-      const categoryId = slugify(rawId, 'other').replace(/-/g, '_');
+      let categoryId = slugify(rawId, 'other').replace(/-/g, '_');
+      // Adjacent chunks can give different names to exactly the same clauses
+      // in their overlap. Keep their summaries and lookouts in one category.
+      const citationKey = [...new Set(category.sourceEvidence.map(item => item.id))].sort().join('|');
+      const previous = citedRanges.get(citationKey);
+      if (!previous) citedRanges.set(citationKey, { categoryId, chunkIndex });
+      else if (previous.chunkIndex !== chunkIndex && !merged.has(categoryId)) categoryId = previous.categoryId;
       const fallbackSeverity = severityFor(categoryId);
       const nextSeverity = normalizeSeverity(category.severity, fallbackSeverity);
       const existing = merged.get(categoryId) || {
@@ -1831,7 +1828,7 @@ Identify the meaningful legal/practical categories in the agreement chunk.
 A category is a coherent issue a reader should review as one unit: a right, restriction, obligation, permission, risk, process, or remedy. It is not just a heading or keyword. Use precise snake_case names such as ai_training, content_license, auto_renewal, termination, class_action_waiver, data_retention, liability, prohibited_use, refunds, arbitration, or create a better category if needed.
 
 For each category:
-1. preserve exact supporting clauses in source_segments;
+1. cite the numbered passages supporting the category in source_ranges;
 2. choose a precise category_id;
 3. rate severity as low, medium, or high;
 4. write a concise summary;
@@ -1839,8 +1836,8 @@ For each category:
 6. list 2-3 specific lookouts.
 
 Clause rules:
-1. Quote source_segments exactly; do not paraphrase them.
-2. Extract complete clauses or complete logical statements, not fragments.
+1. Each [first, last] pair cites an inclusive span of numbered passages in this excerpt. Use [n, n] for one passage. The application copies the original text.
+2. Select complete clauses or logical statements. A PDF sentence can continue over several numbered lines. Include all those lines.
 3. Preserve conditions, exceptions, time limits, and party names.
 4. Each source segment should appear in only one category.
 5. If a segment fits multiple categories, choose the most specific useful category.
@@ -1856,7 +1853,7 @@ Metadata rules:
 1. summary says what the extracted language does.
 2. impact explains why it matters in practice.
 3. lookouts should name concrete issues like "AI training language", "automatic renewal window", "sole discretion", "refund limits", or "data retention period".
-4. Do not invent facts beyond source_segments.
+4. Only describe facts supported by the cited passages.
 5. If the chunk has no meaningful category, return {"categories": []}.
 
 OUTPUT FORMAT:
@@ -1871,10 +1868,7 @@ Return ONLY valid JSON in the following structure:
       "summary": "one concise sentence",
       "impact": "one concise user-facing sentence",
       "lookouts": ["short phrase 1", "short phrase 2"],
-      "source_segments": [
-        "full original text segment 1",
-        "full original text segment 2"
-      ]
+      "source_ranges": [[1, 1]]
     }
   ]
 }
@@ -1893,17 +1887,17 @@ IMPORTANT:
   const spans = chunks;
   async function extractChunk({ chunk, start }, depth = 0) {
     throwIfAborted(signal);
-    const canonicalChunk = canonicalSource(chunk);
+    const passages = sourcePassages(chunk);
+    const numbered = passages.map((passage, i) => `[${i + 1}] ${passage.text.replace(/\s+/g, ' ')}`).join('\n');
     try {
       const parsed = await requestQwenJson({
         config, signal, maxTokens, label: `category extraction at source offset ${start}`,
-        validate: (value) => extractionValidity(value, chunk, canonicalChunk),
-        messages: [{ role: 'system', content: categoryPrompt }, { role: 'user', content: `Analyze this agreement excerpt with its overlapping boundary context. Preserve all conditions and exceptions together when they are present. Return JSON only:\n\n${chunk}` }]
+        validate: (value) => extractionValidity(value, passages.length),
+        messages: [{ role: 'system', content: categoryPrompt }, { role: 'user', content: `Analyze these numbered agreement passages. Cite the supporting passage ranges, including conditions and exceptions. Return JSON only:\n\n${numbered}` }]
       });
       return [{ categories: parsed.categories.map((category) => {
-        const sourceEvidence = (category.source_segments || category.segments || category.clauses).map((quote) => {
-          const span = findEvidence(quote, chunk, canonicalChunk);
-          const evidenceStart = start + span.start, evidenceEnd = start + span.end;
+        const sourceEvidence = category.source_ranges.map(([first, last]) => {
+          const evidenceStart = start + passages[first - 1].start, evidenceEnd = start + passages[last - 1].end;
           return { id: `evidence-${documentId}-${evidenceStart}-${evidenceEnd}`, start: evidenceStart, end: evidenceEnd, text: source.slice(evidenceStart, evidenceEnd) };
         });
         return { ...category, source_segments: sourceEvidence.map((item) => item.text), sourceEvidence };

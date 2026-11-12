@@ -21,7 +21,7 @@ test.beforeEach(configure);
 test.afterEach(()=>{globalThis.fetch=originalFetch;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];Object.assign(process.env,originalEnv);});
 
 test('extraction preserves observed low severity and attaches verifiable source spans',async()=>{
- mockCompletion(async()=>success({categories:[{category_id:'termination',severity:'low',source_segments:[source]}]}));
+ mockCompletion(async()=>success({categories:[{category_id:'termination',severity:'low',source_ranges:[[1,1]]}]}));
  const result=await analyzeWithQwen({text:source,fileName:'sample.txt'});
  assert.equal(result.categories[0].severity,'low');
  const evidence=result.categories[0].sourceEvidence[0];
@@ -32,6 +32,40 @@ test('fabricated quotations fail instead of being marked source-backed',async()=
  const bodies=[];mockCompletion(async(_url,options)=>{bodies.push(options.body);return success({categories:[{category_id:'refund',source_segments:['A fabricated refund obligation.']}]});});
  await assert.rejects(analyzeWithQwen({text:source}),/source-grounded JSON/);
  assert.equal(bodies.length,3);assert.notEqual(bodies[0],bodies[1]);
+});
+
+test('numbered passages retain original PDF text, wrapped conditions and the selected occurrence',async()=>{
+ const input='No redistribution.\n😀 Non - commercial   use is allowed\nonly with written permission.\nNo redistribution.';
+ let attempts=0;
+ mockCompletion(async(_url,options)=>{
+  const messages=JSON.parse(options.body).messages;
+  assert.match(messages[1].content,/\[2\] 😀 Non - commercial use is allowed\n\[3\] only with written permission\./);
+  const ranges=++attempts===1 ? [[2,5]] : [[2,3],[4,4]];
+  return success({categories:[{category_id:'permitted_use',source_ranges:ranges}]});
+ });
+ const {categories}=await analyzeWithQwen({text:input});
+ const evidence=categories[0].sourceEvidence;
+ assert.equal(attempts,2);
+ assert.deepEqual(evidence.map(item=>item.text),['😀 Non - commercial   use is allowed\nonly with written permission.','No redistribution.']);
+ assert.equal(evidence[1].start,input.lastIndexOf('No redistribution.'));
+ assert(evidence.every(item=>input.slice(item.start,item.end)===item.text));
+});
+
+test('overlapping chunks can use different category names for the same source range',async()=>{
+ process.env.QWEN_CHUNK_CHARS='120';
+ const text='Background. '.repeat(8)+'Keep a backup.'+' More context.'.repeat(10);
+ let hits=0;
+ mockCompletion(async(_url,options)=>{
+  const prompt=JSON.parse(options.body).messages.find(m=>m.role==='user').content;
+  const match=prompt.match(/^\[(\d+)\] Keep a backup\.$/m);
+  if(!match)return success({categories:[]});
+  const id=Number(match[1]);
+  return success({categories:[{category_id:++hits===1?'backup':'backup_copy',summary:'Observation '+hits,source_ranges:[[id,id]]}]});
+ });
+ const {categories}=await analyzeWithQwen({text});
+ assert.equal(hits,2);assert.equal(categories.length,1);
+ assert.equal(categories[0].sourceEvidence.length,1);
+ assert.match(categories[0].summary,/Observation 1/);assert.match(categories[0].summary,/Observation 2/);
 });
 
 test('all nine evidence segments reach cards and video prompts',async()=>{
@@ -57,7 +91,7 @@ test('empty video and one-scene comic are rejected after attempted repairs',asyn
 });
 
 test('truncation increases output budget instead of resending the same request',async()=>{
- const budgets=[];mockCompletion(async(_url,options)=>{budgets.push(JSON.parse(options.body).max_tokens);return budgets.length===1?success('{"categories":[','length'):success({categories:[{category_id:'notice',source_segments:[source]}]});});
+ const budgets=[];mockCompletion(async(_url,options)=>{budgets.push(JSON.parse(options.body).max_tokens);return budgets.length===1?success('{"categories":[','length'):success({categories:[{category_id:'notice',source_ranges:[[1,1]]}]});});
  await analyzeWithQwen({text:source});assert.deepEqual(budgets,[2400,4800]);
 });
 
@@ -96,10 +130,8 @@ test('fractional or zero concurrency/chunk configuration cannot become a zero-st
 
 test('merging chunks retains later summaries/conditions and exact input offsets',async()=>{
  process.env.QWEN_CHUNK_CHARS='60';let sequence=0;
- mockCompletion(async(_url,options)=>{
-  const prompt=JSON.parse(options.body).messages.find(m=>m.role==='user').content;
-  const chunk=prompt.slice(prompt.indexOf('\n\n')+2);
-  return success({categories:[{category_id:'license',severity:'low',summary:`Condition ${++sequence}.`,impact:`Impact ${sequence}.`,source_segments:[chunk]}]});
+ mockCompletion(async()=>{
+  return success({categories:[{category_id:'license',severity:'low',summary:`Condition ${++sequence}.`,impact:`Impact ${sequence}.`,source_ranges:[[1,1]]}]});
  });
  const input='  Personal use is allowed under the license.\nCommercial use requires written permission from the owner.  ';
  const result=await analyzeWithQwen({text:input});const merged=result.categories[0];
@@ -147,11 +179,13 @@ test('transient tokenizer HTTP and transport failures recover before completion'
 
 test('overlapping boundary context keeps a split qualification with its permission and exact offsets',async()=>{
  process.env.QWEN_CHUNK_CHARS='120';const qualification='Personal use is allowed only with written consent.';
- const text='Context '.repeat(10)+qualification+' Later background.'.repeat(10);const prompts=[];
+ const text='Context. '.repeat(10)+qualification+' Later background.'.repeat(10);const prompts=[];
  mockCompletion(async(_url,options)=>{
   const prompt=JSON.parse(options.body).messages.find(m=>m.role==='user').content;
   const chunk=prompt.slice(prompt.indexOf('\n\n')+2);prompts.push(chunk);
-  return success({categories:[{category_id:'license',severity:'low',source_segments:[chunk.includes(qualification)?qualification:chunk]}]});
+  const line=chunk.split('\n').find(item=>item.endsWith(qualification));
+  const id=line ? Number(line.match(/^\[(\d+)\]/)[1]) : 1;
+  return success({categories:[{category_id:'license',severity:'low',source_ranges:[[id,id]]}]});
  });
  const result=await analyzeWithQwen({text});assert(prompts.some(chunk=>chunk.includes(qualification)));
  const evidence=result.categories[0].sourceEvidence;assert(evidence.some(item=>item.text===qualification));

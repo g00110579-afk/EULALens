@@ -23,11 +23,11 @@
     constructor(limits = { comic: 2, video: 1, cards: 1 }) {
       this.limits = limits; this.jobs = new Map(); this.running = {}; this.sequence = 0;
     }
-    enqueue(key, kind, work, { priority = 0, signal } = {}) {
+    enqueue(key, kind, work, { priority = 0, signal, useReservedSlot = false } = {}) {
       const existing = this.jobs.get(key);
       if (existing) { existing.priority = Math.max(existing.priority, priority); this.pump(); return existing.promise; }
       if (signal?.aborted) return Promise.reject(abortError());
-      const job = { key, kind, work, priority, sequence: this.sequence++, signal, started: false };
+      const job = { key, kind, work, priority, useReservedSlot, sequence: this.sequence++, signal, started: false };
       job.promise = new Promise((resolve, reject) => { job.resolve = resolve; job.reject = reject; });
       job.abort = () => {
         if (!job.started && this.jobs.delete(key)) { job.reject(abortError()); this.pump(); }
@@ -40,7 +40,8 @@
         .sort((a, b) => b.priority - a.priority || a.sequence - b.sequence);
       for (const job of pending) {
         if (job.started || !this.jobs.has(job.key)) continue;
-        if ((this.running[job.kind] || 0) >= (this.limits[job.kind] || 1)) continue;
+        const limit = (this.limits[job.kind] || 1) + Number(job.useReservedSlot);
+        if ((this.running[job.kind] || 0) >= limit) continue;
         if (job.signal?.aborted) { job.abort(); continue; }
         job.started = true; this.running[job.kind] = (this.running[job.kind] || 0) + 1;
         Promise.resolve().then(job.work).then(job.resolve, job.reject).finally(() => {

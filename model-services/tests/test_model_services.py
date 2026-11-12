@@ -194,6 +194,39 @@ class ModelTests(unittest.TestCase):
     def test_stable_speaker_voices(self):
         voices=runtime.speaker_voices([{"speaker":"A"},{"speaker":"A"},{"speaker":"B"},{"speaker":"A"}],['one','two'])
         self.assertEqual(voices,['one','one','two','one'])
+    def test_distilled_streamed_weights_are_reused_and_released_on_failure(self):
+        timed = load("tested_timed", "ltx-2.3/timed_ltx23_experiment.py")
+        events = []
+        @contextmanager
+        def weights():
+            events.append("build")
+            try: yield object()
+            finally: events.append("release")
+
+        def denoise(model, *, width):
+            events.append((id(model), width))
+
+        class Pipeline:
+            stage = SimpleNamespace(model_context=weights, run=denoise)
+            def __call__(self, *, images, fail):
+                self_test.assertEqual(images, [])
+                self_test.assertEqual(self.image_conditioner(None), [])
+                self.stage(width=352)
+                if fail: raise InterruptedError()
+                self.stage(width=704)
+                self_test.assertEqual(events[-1], "release")
+                return "decoded"
+
+        self_test = self
+        pipeline = Pipeline()
+        self.assertEqual(timed.generate_distilled_text_video(pipeline, "cpu", fail=False), "decoded")
+        self.assertEqual(events, ["build", (events[1][0],352), (events[1][0],704), "release"])
+        events.clear()
+        with self.assertRaises(InterruptedError):
+            timed.generate_distilled_text_video(pipeline, "cpu", fail=True)
+        self.assertEqual([events[0], events[-1]], ["build", "release"])
+        self.assertIs(pipeline.stage, Pipeline.stage)
+
     def test_video_worker_uses_the_gpu_selected_by_its_parent(self):
         timed = load("tested_timed", "ltx-2.3/timed_ltx23_experiment.py")
         script = self.root / "request.json"

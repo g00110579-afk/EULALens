@@ -191,3 +191,82 @@ test('reset reports an unreachable video worker and retries its cancellation', a
   assert.equal(job.cancellation.upstream, 'request-acknowledged');
   assert(cancels.every(id => id === jobId));
 });
+
+test('a fresh upload can prepare its first video during a render and take the next GPU turn', { timeout: 5000 }, async t => {
+  process.env.VIDEO_PROVIDER = 'ltx-local';
+  process.env.VIDEO_API_URL = 'http://127.0.0.1:5054/generate';
+  const planned = [], renders = [], releases = new Map();
+  let active = 0, peak = 0;
+  const f = await fixture(t, {
+    generateCategoryVideoScript: async ({ category }) => {
+      planned.push(category.id);
+      return { video: { modelPrompt: 'Synthetic video fixture.' } };
+    },
+    generateCategoryVideo: async ({ category, signal }) => {
+      active++; peak = Math.max(peak, active);
+      renders.push(category.id);
+      try {
+        await new Promise((resolve, reject) => {
+          releases.set(category.id, resolve);
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        });
+        return { status: 'completed', videoUrl: 'http://127.0.0.1:5054/outputs/fixture.mp4' };
+      } finally { active--; }
+    },
+    cancelCategoryVideo: async () => {}
+  });
+  const start = async (id, documentId, session = f.session) => {
+    const r = await f.request('/api/categories/video/start', { category: { id, title: id }, documentId }, session);
+    assert.equal(r.status, 202); return (await r.json()).jobId;
+  };
+  await start('old-1', 'old');
+  await start('old-2', 'old');
+  const third = await start('old-3', 'old');
+  assert.deepEqual(planned, ['old-1', 'old-2']);
+  const other = await f.login();
+  const first = await start('new-1', 'old', other); // IDs are scoped to the upload's owner.
+  assert.equal(await start('new-1', 'old', other), first);
+  const fourth = await start('new-2', 'old', other);
+  await start('another-1', 'another');
+  assert.deepEqual(planned, ['old-1', 'old-2', 'new-1']);
+  assert.deepEqual(renders, ['old-1']);
+  for (const [id, session] of [[third, f.session], [fourth, other]]) {
+    const r = await f.request('/api/categories/video/jobs/' + id + '/cancel', {}, session);
+    assert.equal((await r.json()).status, 'canceled');
+  }
+  releases.get('old-1')(); await tick();
+  assert.deepEqual(renders, ['old-1', 'new-1']);
+  assert.deepEqual(planned, ['old-1', 'old-2', 'new-1', 'another-1']);
+  releases.get('new-1')(); await tick();
+  assert.deepEqual(renders, ['old-1', 'new-1', 'old-2']);
+  releases.get('old-2')(); await tick();
+  releases.get('another-1')(); await tick();
+  assert.deepEqual(renders, ['old-1', 'new-1', 'old-2', 'another-1']);
+  assert.equal(peak, 1);
+});
+
+test('reserved first-video admission keeps the script worker limit and cancels queued work', async t => {
+  let active = 0, peak = 0;
+  const planned = [];
+  const f = await fixture(t, {
+    generateCategoryVideoScript: async ({ category, signal }) => {
+      planned.push(category.id); active++; peak = Math.max(peak, active);
+      try {
+        await new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+      } finally { active--; }
+    }
+  });
+  const ids = [];
+  for (const [category, doc] of [['a', 'old'], ['b', 'old'], ['c', 'fresh'], ['d', 'later']]) {
+    const r = await f.request('/api/categories/video/start', { documentId: doc, category: {id: category, title: category} });
+    ids.push((await r.json()).jobId);
+  }
+  assert.deepEqual(planned, ['a', 'b']);
+  const cancel = id => f.request('/api/categories/video/jobs/' + id + '/cancel', {});
+  await cancel(ids[2]); // Already admitted, still waiting for a script worker.
+  await cancel(ids[0]); await tick();
+  assert.deepEqual(planned, ['a', 'b', 'd']);
+  assert.equal(peak, 2);
+  await f.request('/api/jobs/cancel', { documentIds: ['old', 'fresh', 'later'] });
+  assert.equal(active, 0);
+});

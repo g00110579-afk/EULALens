@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import threading
 import time
+from contextlib import ExitStack
+from copy import copy
 from datetime import datetime
 from uuid import uuid4
 from pathlib import Path
@@ -92,6 +94,36 @@ def monitor_gpu(gpu: str, stop: threading.Event, samples: list[dict[str, Any]], 
                 sample["process_memory_used_mib"] = process_used
             samples.append(sample)
         time.sleep(1)
+
+
+def generate_distilled_text_video(pipeline, offload, **options):
+    """Run the pinned two-stage text-to-video pipeline with request-local weights."""
+    pipeline = copy(pipeline)
+    # Both stages request image conditioning even for an empty image list.
+    # The upstream conditioning function returns [] without using its encoder.
+    pipeline.image_conditioner = lambda build_conditionings: []
+    if offload != "cpu":
+        return pipeline(images=[], **options)
+
+    stage = pipeline.stage
+    with ExitStack() as weights:
+        transformer = None
+
+        def denoise(**stage_args):
+            nonlocal transformer
+            if transformer is None:
+                # Build after Gemma releases its GPU memory. The same streamed
+                # transformer serves both passes of the distilled checkpoint.
+                transformer = weights.enter_context(stage.model_context())
+                return stage.run(transformer, **stage_args)
+            try:
+                return stage.run(transformer, **stage_args)
+            finally:
+                weights.close()
+                transformer = None
+
+        pipeline.stage = denoise
+        return pipeline(images=[], **options)
 
 
 def run_in_child(args: argparse.Namespace) -> int:
@@ -243,14 +275,14 @@ def run_in_child(args: argparse.Namespace) -> int:
             pipeline.audio_decoder = lambda latent: None
         timings["pipeline_init_seconds"] = round(time.perf_counter() - pipeline_started, 3)
         call_started = time.perf_counter()
-        generated_video, generated_audio = pipeline(
+        generated_video, generated_audio = generate_distilled_text_video(
+            pipeline, args.offload,
             prompt=video["model_prompt"],
             seed=seed,
             height=height,
             width=width,
             num_frames=num_frames,
             frame_rate=frame_rate,
-            images=[],
             tiling_config=tiling_config,
             enhance_prompt=args.enhance_prompt,
         )

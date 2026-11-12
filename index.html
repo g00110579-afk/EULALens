@@ -104,7 +104,7 @@
     </script>
 <link href="ui.css?v=8ee3c700c81da7e1" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
-<script src="live-runtime.js?v=ca22a63f6854d278"></script>
+<script src="live-runtime.js?v=86775bf9aac16da6"></script>
 <script>
         const LIVE_API_BASE = (window.EULALENS_API_BASE || 'https://api.eulalens.stream').replace(/\/+$/, '');
         let comicPlayback;
@@ -435,7 +435,10 @@
             const state = scenario ? ((cat.scenarioRenders ||= Object.create(null))[scenarioId] ||= {}) : cat;
             if (scenario ? state.status === 'ready' : cat[`${kind}Status`] === 'ready') return Promise.resolve();
             const key = `${run.documentId}:${kind}:${cat.id}:${scenarioId || 'primary'}`;
-            return mediaScheduler.enqueue(key, kind, () => generateMedia(run, cat, kind, scenarioId), { priority, signal: run.controller.signal }).catch(error => {
+            // A new upload can submit its first script while older categories
+            // are polling. The server still admits just one video to the GPU.
+            const useReservedSlot = kind === 'video' && cat === run.firstVideoCategory;
+            return mediaScheduler.enqueue(key, kind, () => generateMedia(run, cat, kind, scenarioId), { priority, signal: run.controller.signal, useReservedSlot }).catch(error => {
                 if (error.name !== 'AbortError' && isRunCurrent(run)) console.error('Media scheduling failed:', error);
             });
         }
@@ -778,6 +781,7 @@
             void loadLiveCards(run);
             for (const cat of run.categories) if (cat.cardsJobId) void loadLiveCards(run, cat);
             const ordered = [...run.categories].sort((a, b) => RISK_ORDER[a.risk] - RISK_ORDER[b.risk]);
+            run.firstVideoCategory = ordered[0];
             for (const [index, cat] of ordered.entries()) {
                 const priority = index === 0 ? 3 : 0;
                 void ensureLiveComic(cat, { priority });

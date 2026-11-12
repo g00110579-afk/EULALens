@@ -947,14 +947,15 @@ class ResidentLTXRunner:
     started = time.perf_counter()
 
     if self.model_kind == "distilled":
-      generated_video, generated_audio = self.pipeline(
+      from timed_ltx23_experiment import generate_distilled_text_video
+      generated_video, generated_audio = generate_distilled_text_video(
+        self.pipeline, self.offload,
         prompt=payload["prompt"],
         seed=int_env("LTX_SEED", 42),
         height=int_env("LTX_HEIGHT", 512),
         width=int_env("LTX_WIDTH", 768),
         num_frames=payload["num_frames"],
         frame_rate=payload["frame_rate"],
-        images=[],
         tiling_config=tiling_config,
         enhance_prompt=bool_env("LTX_ENHANCE_PROMPT", False),
       )

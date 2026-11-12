@@ -95,3 +95,23 @@ test('WebVTT uses actual returned speech timings and rejects invalid cues',()=>{
   assert.match(vtt,/00:00:01\.234 --> 00:00:04\.987/);
   assert.doesNotMatch(vtt,/invalid|<script>/);assert.match(vtt,/&lt;script> not HTML/);
 });
+
+test('first videos can use one reserved slot while background videos retain the normal bound', async () => {
+  const scheduler = new Scheduler({ video: 2 });
+  const running = new Map();
+  const submit = (key, first = false) => scheduler.enqueue(key, 'video', () => {
+    const gate = Promise.withResolvers();
+    running.set(key, gate);
+    return gate.promise;
+  }, { useReservedSlot: first, priority: first ? 3 : 0 });
+  const jobs = [submit('a1', true), submit('a2'), submit('a3'), submit('b1', true), submit('c1', true)];
+  await tick();
+  assert.deepEqual([...running.keys()], ['a1', 'a2', 'b1']);
+  running.get('b1').resolve();
+  await tick();
+  assert.deepEqual([...running.keys()], ['a1', 'a2', 'b1', 'c1']);
+  running.get('a1').resolve(); running.get('a2').resolve(); running.get('c1').resolve();
+  await tick();
+  running.get('a3').resolve();
+  await Promise.all(jobs);
+});

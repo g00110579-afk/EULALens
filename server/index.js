@@ -36,7 +36,6 @@ export function createApp(options = {}) {
   const cancelImage = options.cancelImage || cancelHiDreamJob;
   const media = new Gate(positiveInt(process.env.MEDIA_CONCURRENCY, 2, 8), 64);
   const modelGates = { image: new Gate(1, 64), video: new Gate(1, 64) };
-  const render = (kind, work, signal) => modelGates[kind].run(() => media.run(work, signal), signal);
   const cancelUpstream = async job => {
     if (!job.upstreamStarted) return;
     if (job.kind === 'comic' || job.kind === 'render') await cancelImage(job.jobId);
@@ -46,6 +45,9 @@ export function createApp(options = {}) {
     maxPending: positiveInt(process.env.JOB_MAX_PENDING, 64, 1000), maxPerOwner: positiveInt(process.env.JOB_MAX_PER_SESSION, 32, 200),
     maxRecords: positiveInt(process.env.JOB_MAX_RECORDS, 1000, 10000), ttlMs: positiveInt(process.env.JOB_RETENTION_MS, 86400000),
     deadlineMs: positiveInt(process.env.JOB_DEADLINE_MS, 3600000), limits: { analysis: 2, cards: 2, comic: 2, video: 2 }, onRecover: cancelUpstream, ...options.store });
+  const videoScripts = new Gate(store.limits.video || 2, store.maxPending);
+  const render = (kind, work, signal, job) => modelGates[kind].run(() => media.run(work, signal), signal,
+    kind === 'video' ? () => store.isFirstVideo(job, true) : undefined);
   app.locals.jobs = store; app.locals.security = security;
   const narration = createComicNarration({ synthesize: api.synthesizeComicNarration });
   app.locals.close = () => Promise.all([narration.close(), store.close()]);
@@ -121,18 +123,21 @@ export function createApp(options = {}) {
       const { imagePath, ...image } = result.image;
       return { render: { ...result, image: { ...image, imageUrl } } };
     }
-    update({ status: 'generating-script' });
-    const scriptResult = kind === 'clip' ? { video: payload.category.video } : await api.generateCategoryVideoScript({ ...payload, signal });
+    const scriptResult = kind === 'clip' ? { video: payload.category.video } : await videoScripts.run(() => {
+      update({ status: 'generating-script' });
+      return api.generateCategoryVideoScript({ ...payload, signal });
+    }, signal, () => store.isFirstVideo(job));
     signal.throwIfAborted();
-    if (!scriptResult.video?.modelPrompt) throw httpError(502, 'No validated video script was returned.');
-    update({ videoScript: scriptResult.video, status: 'queued-video' });
-    const result = await render('video', () => { update({ status: 'generating-video', upstreamStarted: true }); return api.generateCategoryVideo({ ...payload, category: { ...payload.category, video: scriptResult.video }, jobId: job.jobId, signal,
-      onProviderJobId: id => update({ providerJobId: id }) }); }, signal);
+    const script = scriptResult.video;
+    if (!script?.modelPrompt) throw httpError(502, 'No validated video script was returned.');
+    update({ videoScript: script, status: 'queued-video' });
+    const result = await render('video', () => { update({ status: 'generating-video', upstreamStarted: true }); return api.generateCategoryVideo({ ...payload, category: { ...payload.category, video: script }, jobId: job.jobId, signal,
+      onProviderJobId: id => update({ providerJobId: id }) }); }, signal, job);
     signal.throwIfAborted();
     if (!result.videoUrl || !['ready', 'completed', 'succeeded', 'success'].includes(result.status)) throw httpError(502, 'Video provider has not completed a playable video.');
     const videoUrl = attachArtifact(job, result.videoUrl, 'video', security, update);
     const { raw, ...video } = result;
-    return { video: { ...video, videoUrl, degradation: raw?.degraded || raw?.postprocess?.degraded || raw?.postprocess?.degradation || raw?.postprocess?.audio?.degradation || null, subtitleLines: raw?.subtitleLines || scriptResult.video.subtitleLines } };
+    return { video: { ...video, videoUrl, degradation: raw?.degraded || raw?.postprocess?.degraded || raw?.postprocess?.degradation || raw?.postprocess?.audio?.degradation || null, subtitleLines: raw?.subtitleLines || script.subtitleLines } };
   };
   function start(req, res, kind, override) {
     const body = validate(kind, override || req.body);
@@ -197,13 +202,13 @@ export function createApp(options = {}) {
   app.post('/api/categories/cards', synchronous('card', api.generateCategoryCards));
   app.post('/api/categories/cards/batch', synchronous('cards', api.generateCategoryCardsBatch));
   app.post('/api/categories/comic', synchronous('comic', api.generateCategoryComic));
-  app.post('/api/categories/video/script', synchronous('script', api.generateCategoryVideoScript));
+  app.post('/api/categories/video/script', synchronous('script', body => videoScripts.run(() => api.generateCategoryVideoScript(body), body.signal)));
   const directMedia = (kind, fn) => asyncRoute(async (req, res) => {
     validate(kind, req.body);
     if (kind === 'render' && !req.body.comic?.imagePrompt) throw httpError(400, 'Comic scenario is required.');
     const job = store.start({ kind, namespace: 'synchronous', owner: req.owner, payload: req.body, idempotencyKey: req.get('idempotency-key') || req.body.idempotencyKey,
       onCancel: cancelUpstream, runner: async ({ job, signal, update }) => {
-        const result = await render(kind === 'render' ? 'image' : 'video', () => { update({ upstreamStarted: true }); return fn({ ...req.body, jobId: job.jobId, signal }); }, signal);
+        const result = await render(kind === 'render' ? 'image' : 'video', () => { update({ upstreamStarted: true }); return fn({ ...req.body, jobId: job.jobId, signal }); }, signal, job);
         signal.throwIfAborted();
         if (kind === 'render') {
           const imageUrl = attachArtifact(job, result.image.imageUrl, 'image', security, update);

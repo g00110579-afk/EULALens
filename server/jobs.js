@@ -72,6 +72,21 @@ export class JobStore {
   documentWasReset(owner, documentId) {
     return [...this.jobs.values()].some(job => job.demoReset && job.owner === owner && job.payload.documentId === documentId);
   }
+  isFirstVideo(job, forRender = false) {
+    const documentId = job.payload.documentId;
+    if (typeof documentId !== 'string' || !documentId) return false;
+    let beforeJob = true;
+    for (const other of this.jobs.values()) {
+      if (other === job) { beforeJob = false; continue; }
+      if (other.owner !== job.owner || other.payload.documentId !== documentId) continue;
+      if (!['video', 'clip'].includes(other.kind)) continue;
+      if (other.status === 'ready') return false;
+      if (terminal.has(other.status) || other.status === 'canceling') continue;
+      // At render time, a later category's finished script can serve as the first video.
+      if (other.upstreamStarted || (!forRender && beforeJob)) return false;
+    }
+    return true;
+  }
   start({ kind, owner, payload, idempotencyKey, namespace = 'durable', runner, onCancel = async () => {}, deadlineMs = this.deadlineMs }) {
     this.prune();
     if (payload.documentId && this.documentWasReset(owner, payload.documentId)) {
@@ -94,13 +109,15 @@ export class JobStore {
     const state = { controller, onCancel, finished: false, cancelFinished: false, cancelPromise: null, timer: setTimeout(() => void this.cancel(job.jobId, owner, 'deadline'), deadlineMs) };
     state.timer.unref(); this.runtime.set(job.jobId, state);
     const queueKind = kind === 'render' ? 'comic' : kind === 'clip' ? 'video' : kind;
-    if (!this.gates.has(queueKind)) this.gates.set(queueKind, new Gate(this.limits[queueKind] || 2, this.maxPending));
+    if (!this.gates.has(queueKind)) this.gates.set(queueKind, new Gate(this.limits[queueKind] || 2, this.maxPending, queueKind === 'video' ? 1 : 0));
+    const context = { job, payload, signal: controller.signal, update: fields => this.update(job, fields) };
+    const prefer = queueKind === 'video' ? () => this.isFirstVideo(job) : undefined;
     state.promise = this.ready.then(() => this.gates.get(queueKind).run(async () => {
       this.update(job, { status: 'processing', startedAt: Date.now() });
-      const result = await runner({ job, payload, signal: controller.signal, update: fields => this.update(job, fields) });
-      controller.signal.throwIfAborted();
+      const result = await runner(context);
+      context.signal.throwIfAborted();
       const completed = { ...job, ...result, status: 'ready', completedAt: Date.now() }; this.persist(completed); Object.assign(job, completed);
-    }, controller.signal)).catch(error => {
+    }, context.signal, prefer)).catch(error => {
       if (!terminal.has(job.status) && !state.cancelPromise) {
         job.status = controller.signal.aborted ? (job.cancelReason === 'deadline' ? 'expired' : 'canceled') : 'error';
         job.error = controller.signal.aborted ? (job.status === 'expired' ? 'Job deadline exceeded.' : undefined) : error.message;

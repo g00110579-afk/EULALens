@@ -2357,3 +2357,143 @@ button.comic-panel-overlay[aria-current="true"] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Opt-in homepage comparisons share the production upload queue and sample buttons. */
+html[data-home-layout] {
+  --home-width: 1190px;
+  --upload-width: 1000px;
+  --title-size: clamp(48px, min(15vw, 20svh), 216px);
+  --title-gap: clamp(70px, 15svh, 160px);
+  --upload-height: 82px;
+  --cover-height: clamp(66px, 10.6vw, 134px);
+}
+html[data-home-layout="compact-shelf"] {
+  --upload-width: 550px;
+  --title-size: clamp(54px, min(19vw, 29svh), 275px);
+  --title-gap: clamp(88px, 18svh, 195px);
+  --upload-height: 60px;
+}
+html[data-home-layout] body:has(#dashboard-tab:not(.hidden) #learn-more-panel.hidden) {
+  & .glass-background {
+    background: #0d0e11 url("images/home-glass-mesh.webp") center top / cover no-repeat;
+  }
+  & .shard-c, & .shard-d, & .shard-e, & .brand-link { display: none; }
+  & .glass-shard { opacity: .39; }
+}
+html[data-home-layout] .home-content:has(#learn-more-panel.hidden) {
+  max-width: var(--home-width);
+  padding: 0 clamp(16px, 3vw, 40px) 12px;
+  & .home-hero {
+    display: block;
+    padding: clamp(12px, 5svh, 58px) 0 var(--title-gap);
+  }
+  & .home-hero h1 {
+    position: relative;
+    left: 50%;
+    width: max-content;
+    max-width: none;
+    margin: 0;
+    transform: translateX(-50%);
+    font: 700 var(--title-size)/.94 Arial, sans-serif;
+    letter-spacing: -.055em;
+    color: transparent;
+    background: #a0a2a8 url("images/home-title-facets.webp") center / 100% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+  & .format-list, & .sample-description, & .sample-icons > :first-child { display: none; }
+  & .upload-section {
+    width: min(100%, var(--upload-width));
+    margin: 0 auto clamp(22px, 4svh, 45px);
+  }
+  & .upload-dropzone {
+    min-height: var(--upload-height);
+    padding: 12px clamp(15px, 2vw, 26px);
+    gap: 15px;
+    border-radius: 15px;
+    background: linear-gradient(115deg, #323438, #191a1e 70%, #24252a);
+  }
+  & .upload-dropzone::before { display: none; }
+  & .upload-symbol {
+    width: 28px; height: 30px; font-size: 26px;
+    border: 0; background: transparent; box-shadow: none;
+  }
+  & #upload-heading { font-size: 23px; }
+  & .upload-action { width: 37px; height: 37px; }
+  & .sample-section { display: grid; grid-template-columns: minmax(0, 1fr); }
+  & .sample-tools { display: contents; }
+  & #samples-heading { grid-row: 1; margin-bottom: 10px; font-size: 15px; font-weight: 550; }
+  & .sample-grid { grid-row: 2; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  & .demo-reset { grid-row: 3; justify-self: end; margin-top: 12px; }
+  & [data-cover="zoom"] { --art: url("images/home-cover-zoom.webp"); --tint: #38414e; }
+  & [data-cover="spotify"] { --art: url("images/home-cover-spotify.webp"); --tint: #374139; }
+  & [data-cover="windows11"] { --art: url("images/home-cover-windows.webp"); --tint: #38454b; }
+  & [data-cover="steam"] { --art: url("images/home-cover-steam.webp"); --tint: #443e37; }
+  & [data-cover="adobe"] { --art: url("images/home-cover-adobe.webp"); --tint: #4b3e3e; }
+  & [data-cover="deepfake"] { --art: url("images/home-cover-deepfake-challenge.webp"); --tint: #403b4c; }
+  & .sample-button {
+    display: grid; grid-template-rows: var(--cover-height) 1fr; align-items: stretch;
+    min-width: 0; min-height: 0; padding: 0; gap: 0; overflow: hidden;
+    background: linear-gradient(135deg, #242529, #1b1c20);
+  }
+  & .sample-button::before {
+    content: ""; grid-row: 1; grid-column: 1;
+    background: var(--art) center / contain no-repeat, linear-gradient(135deg,var(--tint),#1c1d21 85%);
+    border-bottom: 1px solid #ffffff18;
+  }
+  & .sample-icons > :last-child { display: block; top: auto; bottom: 14px; }
+  & .sample-label { padding: 11px 22px 11px 12px; font-size: 15px; }
+  & .sample-button:hover { border-color: #ffffff65; }
+}
+html[data-home-layout="compact-shelf"] .home-content:has(#learn-more-panel.hidden) {
+  & .upload-dropzone { padding: 9px 16px; }
+  & #upload-heading { font-size: 17px; }
+  & #upload-hint { font-size: 12px; }
+  & .upload-copy { gap: 1px; }
+  & .upload-action { width: 30px; height: 30px; }
+  & .sample-section { max-width: 640px; margin-inline: auto; }
+  & #samples-heading { text-align: center; font-size: 13px; color: #c2c3cb; }
+  & .sample-button {
+    grid-template-rows: 48px 1fr;
+    border: 1px solid transparent; text-align: center;
+    background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  & .sample-button:hover, & .sample-button:focus-visible { background: #ffffff09; }
+  & .sample-button::before { background: var(--art) center / contain no-repeat; border: 0; }
+  & .sample-label { padding: 2px 2px 7px; font-size: 13px; }
+  & .sample-icons { display: none; }
+}
+@media (max-width: 700px) {
+  html[data-home-layout] {
+    --cover-height: 56px;
+    --title-gap: clamp(48px, 9svh, 84px);
+    --upload-height: 64px;
+  }
+  html[data-home-layout] .home-content:has(#learn-more-panel.hidden) {
+    & .sample-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    & .home-hero { padding-top: clamp(18px, calc(27svh - 150px), 90px); }
+    & .sample-icons > :last-child { display: none; }
+    & .sample-label { padding: 7px; font-size: 13px; }
+    & .upload-section { margin-bottom: 20px; }
+    & #upload-heading { font-size: 18px; }
+    & .demo-reset { margin-top: 4px; }
+  }
+  html[data-home-layout="compact-shelf"] .sample-section { width: min(100%, 340px); }
+}
+@media (max-width: 420px) {
+  html[data-home-layout="cover-gallery"] .home-content:has(#learn-more-panel.hidden) .sample-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html[data-home-layout] { --cover-height: clamp(37px, 6.5svh, 52px); }
+}
+@media (max-height: 550px) and (min-width: 600px) {
+  html[data-home-layout] { --title-size: 58px; --title-gap: 32px; --upload-height: 48px; --cover-height: 43px; }
+  html[data-home-layout] .home-content:has(#learn-more-panel.hidden) {
+    & .home-hero { padding-top: 4px; }
+    & .upload-section { margin-bottom: 10px; }
+    & .sample-label { padding: 4px; font-size: 12px; }
+  }
+}
+@media (forced-colors: active) {
+  html[data-home-layout] .home-content:has(#learn-more-panel.hidden) .home-hero h1 { color: CanvasText; }
+}

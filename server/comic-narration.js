@@ -110,7 +110,7 @@ export function createComicNarration({ synthesize } = {}) {
       if (owned.length >= 4) throw httpError(429, 'Too many narration requests. Wait for a scene to finish.');
       const controller = new AbortController();
       const deadline = AbortSignal.any([controller.signal, AbortSignal.timeout(90000)]);
-      const work = { owner: job.owner, background, controller, waiters: 0 };
+      const work = { owner: job.owner, documentId: job.payload?.documentId, background, controller, waiters: 0 };
       work.promise = gate.run(async () => {
         const bytes = await speak({ text, signal: deadline });
         deadline.throwIfAborted();
@@ -133,6 +133,14 @@ export function createComicNarration({ synthesize } = {}) {
       if (--entry.waiters === 0 && pending.get(key) === entry) entry.controller.abort();
     }
   }
+  async function cancelDocuments(owner, documents) {
+    for (const [id, story] of stories) {
+      if (story.job.owner === owner && documents.has(story.job.payload?.documentId)) stories.delete(id);
+    }
+    const work = [...pending.values()].filter(entry => entry.owner === owner && documents.has(entry.documentId));
+    for (const entry of work) entry.controller.abort();
+    await Promise.allSettled(work.map(entry => entry.promise));
+  }
   async function close() {
     closed = true;
     stories.clear();
@@ -143,5 +151,5 @@ export function createComicNarration({ synthesize } = {}) {
     cache.clear();
     cachedBytes = 0;
   }
-  return { prepare, audio, close };
+  return { prepare, audio, cancelDocuments, close };
 }

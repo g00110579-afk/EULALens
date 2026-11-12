@@ -69,8 +69,14 @@ export class JobStore {
     if (terminal.has(job.status) || this.runtime.get(job.jobId)?.controller.signal.aborted) return;
     const next = { ...job, ...fields, updatedAt: Date.now() }; this.persist(next); Object.assign(job, next);
   }
+  documentWasReset(owner, documentId) {
+    return [...this.jobs.values()].some(job => job.demoReset && job.owner === owner && job.payload.documentId === documentId);
+  }
   start({ kind, owner, payload, idempotencyKey, namespace = 'durable', runner, onCancel = async () => {}, deadlineMs = this.deadlineMs }) {
     this.prune();
+    if (payload.documentId && this.documentWasReset(owner, payload.documentId)) {
+      throw httpError(410, 'This upload was reset. Upload the PDF again.');
+    }
     const fingerprint = digest({ namespace, kind, payload });
     const key = digest({ owner, namespace, kind, idempotencyKey: idempotencyKey || fingerprint });
     const previous = this.jobs.get(this.keys.get(key));
@@ -127,6 +133,31 @@ export class JobStore {
     });
     if (runtime) runtime.cancelPromise = operation;
     return operation;
+  }
+  async resetDocuments(owner, documentIds, retryUpstream) {
+    const jobs = [...this.jobs.values()].filter(job => job.owner === owner && documentIds.has(job.payload.documentId));
+    // Fence late submissions from a restored tab, including requests arriving
+    // after the analysis completed. Keep the fence for the job retention window.
+    for (const job of jobs) {
+      if (job.kind === 'analysis' && !job.demoReset) {
+        job.demoReset = true;
+        this.persist(job);
+      }
+    }
+    const cleanup = jobs.map(async job => {
+      const runtime = this.runtime.get(job.jobId);
+      if (runtime || !terminal.has(job.status)) {
+        await this.cancel(job.jobId, owner);
+        await runtime?.promise;
+      }
+      if (job.cancellation?.upstream === 'unconfirmed') {
+        await retryUpstream(job);
+        job.cancellation.upstream = 'request-acknowledged';
+        this.persist(job);
+      }
+    });
+    const results = await Promise.allSettled(cleanup);
+    if (results.some(result => result.status === 'rejected')) throw httpError(503, 'A model service could not confirm cancellation. Retry reset.');
   }
   async close() {
     clearInterval(this.timer);

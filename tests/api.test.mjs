@@ -141,3 +141,53 @@ test('comic narration is owner-scoped, available as soon as the script exists, a
     finishImage({ image: { imageUrl: 'http://127.0.0.1:5052/outputs/fixture.png' } });
   }
 });
+
+test('demo reset drains queued and running jobs, fences stale tabs, and permits a fresh upload', async t => {
+  const stops = [];
+  const f = await fixture(t, { analyzeEula: ({ documentId, signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => { stops.push(documentId); reject(signal.reason); }, { once: true });
+  }) });
+  const other = await f.login();
+  const upload = (id, session) => f.request('/api/analyze/start', { text: 'Identical synthetic license agreement.', documentId: id }, session);
+  const input = { documentIds: ['demo-a', 'demo-b', 'demo-c'] };
+  for (const id of input.documentIds) assert.equal((await upload(id)).status, 202);
+  const foreign = await (await upload('demo-a', other)).json();
+  const reset = () => f.request('/api/jobs/cancel', input);
+  assert.equal((await reset()).status, 200);
+  assert.deepEqual(stops.sort(), ['demo-a', 'demo-b']);
+  const own = await (await f.request('/api/jobs')).json();
+  assert(own.jobs.every(job => job.status === 'canceled'));
+  assert.equal((await f.request('/api/categories/comic/start', { category: { id: 'late', title: 'Late' }, documentId: 'demo-a' })).status, 410);
+  assert.equal((await f.request('/api/analyze/jobs/' + foreign.jobId, undefined, other)).status, 200);
+  assert.equal((await upload('next-demo')).status, 202);
+  assert.equal((await reset()).status, 200);
+  assert.equal((await (await f.request('/api/jobs')).json()).jobs.find(job => job.documentId === 'next-demo').status, 'processing');
+});
+
+test('reset reports an unreachable video worker and retries its cancellation', async t => {
+  let reachable = false;
+  const started = Promise.withResolvers();
+  const cancels = [];
+  const f = await fixture(t, {
+    generateCategoryVideoScript: async () => ({ video: { modelPrompt: 'Synthetic test scene.' } }),
+    generateCategoryVideo: ({signal}) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), {once:true});
+      started.resolve();
+    }),
+    cancelCategoryVideo: async id => {
+      cancels.push(id);
+      if (!reachable) throw new Error('Offline');
+    }
+  });
+  const doc = { documentId: 'reset-retry', category: { id: 'scene', title: 'Scene' } };
+  const {jobId} = await (await f.request('/api/categories/video/start', doc)).json();
+  await started.promise;
+  const reset = () => f.request('/api/jobs/cancel', { documentIds: [doc.documentId] });
+  assert.equal((await reset()).status, 503);
+  reachable = true;
+  assert.equal((await reset()).status, 200);
+  const job = await (await f.request('/api/categories/video/jobs/' + jobId)).json();
+  assert.equal(job.status, 'canceled');
+  assert.equal(job.cancellation.upstream, 'request-acknowledged');
+  assert(cancels.every(id => id === jobId));
+});

@@ -64,7 +64,19 @@ export function createApp(options = {}) {
   }, express.static(presentationPrecomputedRoot, { dotfiles: 'deny', index: false }));
   app.use('/api', security.authenticate);
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
-  app.get('/api/jobs', (req, res) => res.json({ jobs: [...store.jobs.values()].filter(j => j.owner === req.owner).map(j => ({ jobId: j.jobId, kind: j.kind, status: j.status, createdAt: j.createdAt })) }));
+  app.get('/api/jobs', (req, res) => res.json({ jobs: [...store.jobs.values()].filter(j => j.owner === req.owner).map(j => ({ jobId: j.jobId, kind: j.kind, status: j.status, createdAt: j.createdAt, documentId: j.payload.documentId })) }));
+  app.post('/api/jobs/cancel', asyncRoute(async (req, res) => {
+    const ids = req.body?.documentIds;
+    if (!Array.isArray(ids) || ids.length > 100 || ids.some(id => typeof id !== 'string' || !id || id.length > 200)) {
+      throw httpError(400, 'Provide up to 100 upload IDs.');
+    }
+    const documents = new Set(ids);
+    await Promise.all([
+      narration.cancelDocuments(req.owner, documents),
+      store.resetDocuments(req.owner, documents, cancelUpstream)
+    ]);
+    res.json({ status: 'reset' });
+  }));
   app.get('/api/readiness', asyncRoute(async (_req, res) => {
     const targets = { qwen: new URL('/health', process.env.QWEN_BASE_URL || 'http://127.0.0.1:8000').href,
       image: new URL('/health', process.env.HIDREAM_IMAGE_API_URL || 'http://127.0.0.1:5052').href,
@@ -134,6 +146,7 @@ export function createApp(options = {}) {
     app.post(`${route}/start`, asyncRoute((req, res) => start(req, res, kind)));
     app.get(`${route}/jobs/:jobId`, asyncRoute((req, res) => {
       const job = store.get(req.params.jobId, req.owner);
+      if (job.demoReset) throw httpError(410, 'This upload was reset. Upload the PDF again.');
       if (job.kind !== kind && !(kind === 'comic' && job.kind === 'render') && !(kind === 'video' && job.kind === 'clip')) throw httpError(404, 'Job not found.');
       res.json(store.public(job));
     }));
@@ -153,6 +166,7 @@ export function createApp(options = {}) {
   }));
   app.post('/api/categories/comic/jobs/:jobId/scenarios/:scenarioId/narration/:sceneIndex', asyncRoute(async (req, res) => {
     const job = store.get(req.params.jobId, req.owner);
+    if (job.payload.documentId && store.documentWasReset(req.owner, job.payload.documentId)) throw httpError(410, 'This upload was reset.');
     if (!/^(0|[1-9]\d*)$/.test(req.params.sceneIndex)) throw httpError(400, 'Invalid scene index.');
     if (req.body && Object.keys(req.body).length) throw httpError(400, 'Narration uses the stored comic scenario.');
     const controller = new AbortController();

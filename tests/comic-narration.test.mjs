@@ -87,3 +87,25 @@ test('early preparation shares the current clip, gives waiting readers the next 
     assert.equal(calls.length, 2);
   } finally { await narrator.close(); }
 });
+
+test('demo reset stops narration that outlives its image job and preserves another owner’s queue', async () => {
+  const calls = [];
+  const narrator = createComicNarration({ synthesize: ({ text, signal }) => new Promise((resolve, reject) => {
+    calls.push({ text, signal, finish: () => resolve(Buffer.from(text)) });
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  }) });
+  const live = new AbortController().signal;
+  const first = { ...job, owner: 'first', payload: { documentId: 'demo' } };
+  try {
+    narrator.prepare(first, live);
+    const next = narrator.audio({ ...first, jobId: 'another', owner: 'second' }, 'example', 1, live);
+    await tick();
+    await narrator.cancelDocuments('first', new Set(['demo']));
+    await tick();
+    assert(calls[0].signal.aborted);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].signal.aborted, false);
+    calls[1].finish(); await next; await tick();
+    assert.equal(calls.length, 2);
+  } finally { await narrator.close(); }
+});

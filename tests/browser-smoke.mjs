@@ -261,8 +261,24 @@ try {
   assert.match(await expired.textContent(), /Upload the PDF again/);
   assert.equal(await page.locator('#upload-list li').count(),1);
   assert.deepEqual(counts, beforeReload, 'An inaccessible saved run must not regenerate automatically');
+  await page.getByRole('button', {name:'Reset demo'}).click();
+  await page.getByText('Demo reset. Ready for a new PDF.').waitFor();
+  assert.equal(await page.locator('#upload-list li').count(), 0);
+  const uploadAgain = () => page.locator('#upload-input').setInputFiles({name:'Second.pdf', mimeType:'application/pdf', buffer:pdf('Another fictional license agreement.')});
+  await uploadAgain();
+  await openRow(secondRow);
+  await page.locator('.gallery-choice').first().click();
+  await page.getByRole('button', {name:'Switch EULA'}).click();
+  await switcher.getByRole('button', {name:'Reset demo'}).click();
+  await page.getByText('Demo reset. Ready for a new PDF.').waitFor();
+  await page.reload({waitUntil:'domcontentloaded'});
+  assert.equal(await page.locator('#upload-list li').count(), 0);
+  await uploadAgain();
+  await secondRow.getByRole('button', {name:'Open', exact:true}).waitFor();
+  await page.getByRole('button', {name:'Reset demo'}).click();
+  await page.getByText('Demo reset. Ready for a new PDF.').waitFor();
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['PDF picker cancel, invalid file and second PDF admission while busy', 'explicit opening from the upload queue', 'independent category/media progress for two PDFs', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'narration and highlighted panels in a generated comic', 'scenario selection', 'speech captions and degradation', 'visible Impact, Lookouts and supporting clauses', 'reconnect both uploads without duplicate generation', 'cancel one provider job after reload without losing the other PDF', 'expired-session restore recovery'], requests: counts }, null, 2));
+  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['PDF picker cancel, invalid file and second PDF admission while busy', 'explicit opening from the upload queue', 'independent category/media progress for two PDFs', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'narration and highlighted panels in a generated comic', 'scenario selection', 'speech captions and degradation', 'visible Impact, Lookouts and supporting clauses', 'reconnect both uploads without duplicate generation', 'cancel one provider job after reload without losing the other PDF', 'expired-session restore recovery', 'reset from home and reader, reload, and identical reupload'], requests: counts }, null, 2));
 } finally {
   firstAnalysis.resolve(); secondAnalysis.resolve();
   releaseMedia?.();

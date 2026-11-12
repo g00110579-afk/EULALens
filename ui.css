@@ -400,6 +400,11 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   place-items: center;
   border-radius: 50%;
 }
+.sample-tools, .switch-reset { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.sample-tools { justify-content: space-between; }
+.demo-reset { min-height: 32px; padding: 4px 8px; flex: none; font-size: 12px; color: var(--muted); }
+.demo-reset .material-symbols-outlined { font-size: 16px; }
+.switch-reset { margin-top: 12px; }
 #upload-queue {
   margin-top: 14px;
   padding: 14px 16px 6px;
@@ -425,11 +430,12 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   #upload-list button { padding-inline: 7px; }
   .upload-row-icon { display: none; }
 }
-.sample-section > h2 {
+.sample-tools {
   font-size: 15px;
   font-weight: 500;
   margin-bottom: 10px;
 }
+.sample-tools h2 { font: inherit; }
 .sample-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2127,7 +2133,7 @@ button.comic-panel-overlay[aria-current="true"] {
     font-size: 12px;
   }
   .upload-section,
-  .sample-section > h2 {
+  .sample-tools {
     margin-bottom: 6px;
   }
   .sample-grid {

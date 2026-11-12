@@ -102,7 +102,7 @@
             }
         }
     </script>
-<link href="ui.css?v=f85f1810205f144d" rel="stylesheet"/>
+<link href="ui.css?v=1d74855259ec3fb5" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
 <script src="live-runtime.js?v=ca22a63f6854d278"></script>
 <script>
@@ -167,6 +167,8 @@
         let currentFormat = 'video';
         const uploads = new Map();
         const categoryRuns = new WeakMap();
+        const startingJobs = new Set();
+        let demoResetting = false;
         const pdfAdmissions = new EULALensRuntime.Scheduler({ pdf: 2 });
         let switchPdfRead;
         let livePdfUrl = '';
@@ -266,7 +268,9 @@
                 while (!started) {
                     if (!isRunCurrent(run)) throw EULALensRuntime.abortError();
                     try {
-                        started = await liveApi.json(endpoint, { method: 'POST', body: { ...body, documentId: run.documentId, idempotencyKey: requestKey }, idempotencyKey: requestKey });
+                        const request = liveApi.json(endpoint, { method: 'POST', body: { ...body, documentId: run.documentId, idempotencyKey: requestKey }, idempotencyKey: requestKey });
+                        startingJobs.add(request);
+                        try { started = await request; } finally { startingJobs.delete(request); }
                     } catch (error) {
                         if (!(error.status === 429 || (error.status === 503 && /generation queue is full/i.test(error.message)))) throw error;
                         await EULALensRuntime.sleep(10000, run.controller.signal);
@@ -624,6 +628,7 @@
             });
             const zone = document.getElementById('upload-dropzone');
             if (staticPreview) {
+                document.querySelectorAll('.demo-reset').forEach(button => { button.hidden = true; });
                 document.getElementById('upload-hint').textContent = 'Open the live PDF uploader';
                 zone.addEventListener('dragover', event => event.preventDefault());
                 zone.addEventListener('drop', event => {
@@ -882,7 +887,7 @@
         }
 
         async function handleUploadedFile(file) {
-            if (!file) return;
+            if (!file || demoResetting) return;
             const switcher = document.getElementById('try-another-modal');
             const status = document.getElementById('switch-upload-status');
             if (switcher.open) switchPdfRead?.abort();
@@ -988,6 +993,66 @@
             run.monitoring = monitorAnalysis(run, run.file).finally(() => { run.monitoring = null; });
             return run.monitoring;
         }
+
+        function discardDemoUpload(id) {
+            const run = uploads.get(id);
+            if (!run) return;
+            run.controller.abort();
+            cancelledLiveDocuments.add(run.categories);
+            uploads.delete(id);
+            run.row?.node.remove();
+            run.file = undefined;
+            if (currentRun === run) {
+                currentRun = null;
+                releaseLivePdf();
+                updateCancelButton();
+                for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
+                backToHome();
+                switchDocument('zoom');
+            }
+            document.getElementById('upload-queue').hidden = !uploads.size;
+        }
+
+        async function resetDemo() {
+            if (demoResetting) return;
+            demoResetting = true;
+            switchPdfRead?.abort();
+            closeTryAnotherDialog();
+            backToHome();
+            const ids = new Set([...uploads.keys(), ...runStore.list().map(run => run.documentId)]);
+            for (const id of ids) discardDemoUpload(id);
+            const controls = document.querySelectorAll('.demo-reset, #upload-dropzone, #switch-upload');
+            controls.forEach(button => { button.disabled = true; });
+            setUploadStatus('Resetting demo…');
+            try {
+                // An accepted POST can outlive its browser scheduler. Include it
+                // and any generation surviving a reload in the server snapshot.
+                await Promise.allSettled([...startingJobs]);
+                const { jobs } = await liveApi.json('/api/jobs');
+                for (const job of jobs) {
+                    if (typeof job.documentId === 'string' && job.documentId) ids.add(job.documentId);
+                }
+                const documents = [...ids];
+                for (let i = 0; i < documents.length; i += 100) {
+                    const documentIds = documents.slice(i, i + 100);
+                    await liveApi.json('/api/jobs/cancel', { method: 'POST', body: { documentIds }, idempotencyKey: crypto.randomUUID() });
+                    for (const id of documentIds) runStore.clear(id);
+                }
+                setUploadStatus('Demo reset. Ready for a new PDF.');
+            } catch {
+                setUploadStatus('Reset incomplete. Click Reset demo to retry.', true);
+            } finally {
+                demoResetting = false;
+                controls.forEach(button => { button.disabled = false; });
+                document.getElementById('upload-dropzone').focus({ preventScroll: true });
+            }
+        }
+
+        // A second tab can still have this upload in its browser scheduler.
+        window.addEventListener('storage', event => {
+            const prefix = 'eulalens:active-run:v1:';
+            if (event.key?.startsWith(prefix) && event.newValue === null) discardDemoUpload(event.key.slice(prefix.length));
+        });
 
         function removeUpload(run) {
             void cancelLiveJobs(run.categories, run);
@@ -20820,7 +20885,7 @@
   <div id="upload-status" role="status" aria-live="polite"></div>
   <section id="upload-queue" aria-labelledby="upload-queue-title" hidden><h2 id="upload-queue-title">Upload queue</h2><ul id="upload-list" aria-live="polite" aria-relevant="additions text"></ul></section>
 </section>
-<section class="sample-section" aria-labelledby="samples-heading"><h2 id="samples-heading">Sample EULAs</h2><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<section class="sample-section" aria-labelledby="samples-heading"><div class="sample-tools"><h2 id="samples-heading">Sample EULAs</h2><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>Reset demo</button></div><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
@@ -21023,7 +21088,7 @@ communicated to end users.
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
-<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></dialog>
+<button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div><div class="switch-reset"><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>Reset demo</button></div></dialog>
 <dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
 <script src="sample-narration.js?v=77b39b24a9e1ee8b"></script>
 <script src="comic-reader.js?v=edb6fd51ad59ffbb"></script>

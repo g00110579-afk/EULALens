@@ -13,6 +13,7 @@ import { Gate, positiveInt } from './concurrency.js';
 import { createSecurity } from './security.js';
 import { createComicNarration } from './comic-narration.js';
 import { attachArtifact, serveArtifact } from './assets.js';
+import { mountReviewSite } from './review-site.js';
 
 const asyncRoute = handler => (req, res, next) => Promise.resolve().then(() => handler(req, res)).catch(next);
 const routes = { analysis: '/api/analyze', cards: '/api/categories/cards/batch', comic: '/api/categories/comic', video: '/api/categories/video' };
@@ -51,6 +52,7 @@ export function createApp(options = {}) {
   app.disable('x-powered-by'); app.set('trust proxy', 'loopback');
   app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); res.set('Referrer-Policy', 'no-referrer'); next(); });
   app.use((req, res, next) => { try { security.checkOrigin(req); next(); } catch (e) { next(e); } });
+  mountReviewSite(app);
   app.use(cors({ origin: true, credentials: true, allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Idempotency-Key', 'X-Access-Token', 'Range'], exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length'], maxAge: 600 }));
   app.use(express.json({ limit: `${Math.min(maxAnalyzePayloadMb, 4)}mb` }));
   app.get('/api/health', (_req, res) => res.json({ ...api.health(), dependenciesChecked: false }));

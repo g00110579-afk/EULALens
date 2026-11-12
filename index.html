@@ -599,11 +599,30 @@
             if (document.getElementById('learn-more-panel').classList.contains('hidden')) toggleLearnMore();
         }
 
-        // --- "Try it yourself" PDF upload (demo UI) ---
         function initUploadDropzone() {
             const zone = document.getElementById('upload-dropzone');
             const input = document.getElementById('upload-input');
             if (!zone || !input) return;
+
+            if (['raw.githack.com', 'rawcdn.githack.com'].includes(window.location.hostname)) {
+                const link = document.createElement('a');
+                link.href = new URL('/review/', LIVE_API_BASE).href;
+                link.id = zone.id;
+                link.className = zone.className;
+                link.setAttribute('aria-labelledby', 'upload-heading');
+                link.setAttribute('aria-describedby', 'upload-hint');
+                link.append(...zone.childNodes);
+                zone.replaceWith(link);
+                input.remove();
+                document.getElementById('upload-hint').textContent = 'Open the live PDF uploader';
+                const preventDrop = event => event.preventDefault();
+                link.addEventListener('dragover', preventDrop);
+                link.addEventListener('drop', event => {
+                    event.preventDefault();
+                    setUploadStatus('Open the live uploader to choose your PDF.');
+                });
+                return;
+            }
 
             zone.addEventListener('click', () => input.click());
             input.addEventListener('change', () => {
@@ -632,9 +651,10 @@
         let pdfReaderPromise;
         async function getPdfReader() {
             if (!pdfReaderPromise) {
-                pdfReaderPromise = import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.min.mjs')
+                const build = window.EULALENS_PDFJS_BASE || 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/';
+                pdfReaderPromise = import(build + 'pdf.min.mjs')
                     .then(reader => {
-                        reader.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.worker.min.mjs';
+                        reader.GlobalWorkerOptions.workerSrc = build + 'pdf.worker.min.mjs';
                         return reader;
                     }).catch(error => { pdfReaderPromise = null; throw new Error('PDF reader could not load. Please reconnect and retry.', { cause: error }); });
             }
@@ -875,7 +895,8 @@
                 showLiveAnalysis(run, job.result, file);
             } catch (error) {
                 if (uploadId !== latestUploadId || !isRunCurrent(run)) return;
-                setUploadStatus(error.message || 'Could not analyze this PDF.', true);
+                const networkError = error.name === 'TypeError' && /fetch|network|load failed/i.test(error.message);
+                setUploadStatus(networkError ? 'Could not reach the analysis service. Check your connection and try again.' : error.message || 'Could not analyze this PDF.', true);
                 updateResumeButton();
             } finally {
                 const input = document.getElementById('upload-input');
@@ -20860,19 +20881,15 @@ communicated to end users.
 </dialog>
 <dialog id="category-gallery" class="glass-dialog gallery-dialog" aria-labelledby="gallery-heading" aria-describedby="gallery-document gallery-count">
   <header class="gallery-header">
-    <div class="gallery-context"><span class="material-symbols-outlined" aria-hidden="true">description</span><span id="gallery-document"></span><span aria-hidden="true">/</span><span id="gallery-count"></span></div>
+    <div class="gallery-context"><span class="material-symbols-outlined" aria-hidden="true">description</span><span id="gallery-document"></span><span aria-hidden="true">/</span><span id="gallery-count" role="status" aria-atomic="true"></span></div>
     <button type="button" class="icon-button" id="close-gallery" aria-label="Close category chooser"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
     <h2 id="gallery-heading" tabindex="-1" autofocus>Choose a category</h2>
     <label class="gallery-search"><span class="material-symbols-outlined" aria-hidden="true">search</span><input id="gallery-search" type="search" aria-label="Find a category" placeholder="Find a category" autocomplete="off"/></label>
   </header>
-  <div class="gallery-body" id="gallery-body">
+  <div class="gallery-body" id="gallery-body" tabindex="0" role="region" aria-label="Category list">
     <div class="gallery-grid" id="gallery-choices" role="group" aria-label="Categories"></div>
     <p id="gallery-empty" hidden>No matching categories.</p>
   </div>
-  <footer class="gallery-footer">
-    <span id="gallery-position" role="status" aria-live="polite" aria-atomic="true"></span>
-    <div id="gallery-pages"><button type="button" class="icon-button" id="gallery-prev" aria-label="Previous categories"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="gallery-next" aria-label="Next categories"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></div>
-  </footer>
 </dialog>
 <dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title"><div class="dialog-header"><h2 id="sample-dialog-title">Try another EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close sample EULAs"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>

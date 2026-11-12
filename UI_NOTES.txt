@@ -9,10 +9,14 @@ browser selects up to two from the extracted title as soon as analysis finishes.
 Related titles can share a subject and show different accompanying objects.
 Unfamiliar titles use their own initials on etched glass. Initials also keep
 every tile usable while the shared image loads. The artwork stays stable as
-videos and comics finish. Search matches the whole agreement. The arrows page
-through as many rows as fit the screen.
+videos and comics finish. The category grid scrolls beneath a fixed heading
+and search box. Search matches the whole agreement and shows the number of matches.
 Choose a category to open its review. Escape closes the gallery, and Browse
 categories reopens it on the current category. Reduced motion skips transitions.
+
+The upload-capable public review is at https://api.eulalens.stream/review/.
+It serves the PDF reader locally and sends analysis requests to its own origin.
+The shared GitHub file preview links to that workspace for uploads.
 
 The format order is Video, Comic, Cue cards and Original EULA. Video opens first. The header identifies the agreement, category
 position and risk. Desktop has a risk-grouped category index; on smaller

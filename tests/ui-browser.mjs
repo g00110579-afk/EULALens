@@ -124,6 +124,8 @@ try {
     });
     await publicPage.route(backup + "sample-audio/**", route => streamLocal(route, backup));
     await publicPage.goto(preview + "index.html", { waitUntil: "domcontentloaded" });
+    assert.equal(await publicPage.getByRole("link", { name: "Upload a EULA" }).getAttribute("href"),
+      "https://api.eulalens.stream/review/", "The shared static preview opens the first-party uploader");
     await publicPage.getByRole("button", { name: "Zoom", exact: true }).click();
     await publicPage.getByRole("dialog", { name: "Choose a category" })
       .getByRole("button", { name: "Authority Warranty", exact: true }).click();
@@ -253,42 +255,58 @@ try {
       const bounds = await gallery.boundingBox();
       assert.equal(bounds.width, 1440);
       assert.equal(bounds.height, 900);
+      assert(await choices.evaluateAll(nodes => {
+        const view = document.getElementById("gallery-body").getBoundingClientRect();
+        return nodes.filter(node => {
+          const box = node.getBoundingClientRect();
+          return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+        }).length > 8;
+      }), "More than eight complete choices fit on a desktop screen");
       await page.setViewportSize({ width: 390, height: 844 });
       await page.waitForFunction(() => getComputedStyle(document.getElementById("gallery-choices")).getPropertyValue("--gallery-columns").trim() === "2");
       await screenshot("category-gallery-mobile");
     }
-    const seen = [];
+    const seen = await choices.locator(".gallery-caption").allTextContents();
     const designs = new Set();
-    for (let i = 0; i < count; i++) {
-      await page.waitForFunction(() => {
-        const body = document.getElementById("gallery-body");
-        return body.scrollHeight <= body.clientHeight + 1;
-      }, null, { timeout: 2000 }).catch(async () => {
-        const bounds = await page.locator("#gallery-body").evaluate(el => ({
-          width: el.clientWidth, height: el.clientHeight, scroll: el.scrollHeight,
-          range: document.getElementById("gallery-position").textContent,
-        }));
-        assert.fail(name + " gallery overflows: " + JSON.stringify(bounds));
-      });
-      const art = await choices.locator(".gallery-art").evaluateAll(nodes => nodes.map(el => ({
-        topics: el.dataset.topics, mark: el.dataset.mark, shared: el.classList.contains("shared-art"),
-        visible: el.children.length ? getComputedStyle(el.firstElementChild).display !== "none"
-          : getComputedStyle(el, "::before").display !== "none",
-      })));
-      for (const item of art) {
-        assert(item.mark && item.visible);
-        designs.add(item.topics + (item.shared || !item.topics ? "-" + item.mark : ""));
-      }
-      seen.push(...await choices.locator(".gallery-caption").allTextContents());
-      if (await page.locator("#gallery-next").isDisabled()) break;
-      await page.locator("#gallery-next").click();
+    const art = await choices.locator(".gallery-art").evaluateAll(nodes => nodes.map(el => ({
+      topics: el.dataset.topics, mark: el.dataset.mark, shared: el.classList.contains("shared-art"),
+      visible: el.children.length ? getComputedStyle(el.firstElementChild).display !== "none"
+        : getComputedStyle(el, "::before").display !== "none",
+    })));
+    for (const item of art) {
+      assert(item.mark && item.visible);
+      designs.add(item.topics + (item.shared || !item.topics ? "-" + item.mark : ""));
     }
     assert.deepEqual(seen, expected, "Every category is reachable in the same order as the workspace");
     assert(designs.size >= count * 0.9, name + " should have visually distinguishable category choices");
     if (name === "Zoom") {
+      const heading = page.locator("#gallery-heading");
+      const headerTop = (await heading.boundingBox()).y;
+      const scroller = page.getByRole("region", { name: "Category list" });
+      await scroller.hover();
+      await page.mouse.wheel(0, 850);
+      await page.waitForFunction(() => document.getElementById("gallery-body").scrollTop > 0);
+      assert.equal((await heading.boundingBox()).y, headerTop);
+      await scroller.focus();
+      await page.keyboard.press("End");
+      await page.waitForFunction(() => {
+        const region = document.getElementById("gallery-body");
+        return region.scrollTop + region.clientHeight >= region.scrollHeight - 2;
+      });
       await choices.last().click();
       await page.locator("#view-gallery").click();
       assert.equal(await gallery.locator("[aria-current] .gallery-caption").textContent(), expected.at(-1));
+      assert(await gallery.locator("[aria-current]").evaluate(node => {
+        const view = document.getElementById("gallery-body").getBoundingClientRect();
+        const box = node.getBoundingClientRect();
+        return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+      }));
+      await gallery.getByRole("searchbox").fill("no matching clause 00000");
+      assert(await page.locator("#gallery-empty").isVisible());
+      assert.equal(await page.locator("#gallery-count").textContent(), "0 of 35 categories");
+      await gallery.getByRole("searchbox").fill("");
+      assert.equal(await choices.count(), count);
+      assert.equal(await scroller.evaluate(node => node.scrollTop), 0);
       await page.setViewportSize({ width: 1440, height: 900 });
     }
     const pick = name === "Zoom" ? 0 : count - 1;
@@ -851,7 +869,7 @@ try {
         layouts,
         coverage: [
           "upload priority and compact samples",
-          "topic illustrations, title marks when artwork is unavailable, pagination, search and reduced motion",
+          "topic illustrations, title marks, scrolling, selected category restoration, search and reduced motion",
           "video-first category context and sidebar",
           "primary controls fit the desktop and phone viewport",
           "unchanged sample content",

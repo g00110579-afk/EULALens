@@ -3,12 +3,9 @@ const categoryGallery = (() => {
   const body = document.getElementById("gallery-body");
   const grid = document.getElementById("gallery-choices");
   const search = document.getElementById("gallery-search");
-  const prev = document.getElementById("gallery-prev");
-  const next = document.getElementById("gallery-next");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   let ordered = [], matches = [];
-  let first = 0, capacity = 1;
-  let layoutSize = "", selected = "";
+  let selected = "";
 
   // Tile indices address the shared 6 × 4 illustration sheet. Specific topics
   // come first so a qualifier such as "account" can accompany "termination".
@@ -119,52 +116,17 @@ const categoryGallery = (() => {
     return button;
   }
 
-  function render({ anchor, animate = false } = {}) {
+  function render() {
     const query = search.value.trim().toLocaleLowerCase();
     matches = ordered.filter(category => category.name.toLocaleLowerCase().includes(query));
-    const focused = grid.contains(document.activeElement) ? document.activeElement.dataset.categoryId : null;
-    const style = getComputedStyle(grid);
-    const columns = Number(style.getPropertyValue("--gallery-columns"));
-    const gap = parseFloat(style.rowGap);
-    const width = (body.clientWidth - gap * (columns - 1)) / columns;
-    const height = width * 9 / 16 + parseFloat(style.getPropertyValue("--gallery-caption-height"));
-    const rows = Math.max(1, Math.floor((body.clientHeight + gap) / (height + gap)));
-    capacity = columns * rows;
-    const wanted = anchor === undefined ? first : matches.findIndex(category => category.id === anchor);
-    const index = Math.min(Math.max(0, wanted), Math.max(0, matches.length - 1));
-    first = Math.floor(index / capacity) * capacity;
-    const choices = matches.slice(first, first + capacity).map(makeChoice);
-    grid.replaceChildren(...choices);
-    grid.hidden = !choices.length;
-    document.getElementById("gallery-empty").hidden = Boolean(choices.length);
-    prev.disabled = first === 0;
-    next.disabled = first + capacity >= matches.length;
-    document.getElementById("gallery-pages").hidden = matches.length <= capacity;
-    dialog.querySelector(".gallery-footer").classList.toggle("all-visible", !query && matches.length <= capacity);
-    const range = matches.length > capacity ? (first + 1) + "–" + (first + choices.length) + " of " : "";
-    document.getElementById("gallery-position").textContent = range + matches.length + (matches.length === 1 ? " category" : " categories");
+    grid.replaceChildren(...matches.map(makeChoice));
+    grid.hidden = !matches.length;
+    document.getElementById("gallery-empty").hidden = matches.length > 0;
+    const total = ordered.length + (ordered.length === 1 ? " category" : " categories");
+    document.getElementById("gallery-count").textContent = query ? matches.length + " of " + total : total;
     body.scrollTop = 0;
-    if (focused) choices.find(button => button.dataset.categoryId === focused)?.focus({ preventScroll: true });
-    if (animate && !reducedMotion.matches) {
-      choices.forEach((button, i) => button.animate(
-        [{ opacity: 0.4, transform: "scale(.975)" }, { opacity: 1, transform: "none" }],
-        { duration: 230, delay: Math.min(i * 15, 90), easing: "ease-out", fill: "backwards" },
-      ));
-    }
   }
-
-  function turn(direction) {
-    const offset = first + direction * capacity;
-    if (offset < 0 || offset >= matches.length) return;
-    first = offset;
-    render({ animate: true });
-    if ((direction > 0 && next.disabled) || (direction < 0 && prev.disabled)) {
-      grid.firstElementChild?.focus({ preventScroll: true });
-    }
-  }
-  prev.onclick = () => turn(-1);
-  next.onclick = () => turn(1);
-  search.addEventListener("input", () => { first = 0; render(); });
+  search.addEventListener("input", render);
   search.addEventListener("keydown", event => {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -182,13 +144,6 @@ const categoryGallery = (() => {
     if (!reducedMotion.matches) title.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 200 });
   });
 
-  new ResizeObserver(() => {
-    const size = body.clientWidth + "/" + body.clientHeight;
-    if (!dialog.open || size === layoutSize) return;
-    layoutSize = size;
-    render({ anchor: document.activeElement?.dataset.categoryId || matches[first]?.id });
-  }).observe(body);
-
   function open() {
     if (dialog.open) return;
     ordered = getSortedCategories();
@@ -198,13 +153,13 @@ const categoryGallery = (() => {
     if (sheet.complete && !sheet.naturalWidth) sheet.src = "images/category-objects.webp";
     selected = document.getElementById("active-category").dataset.catId;
     document.getElementById("gallery-document").textContent = document.getElementById("doc-analysis-title").textContent;
-    document.getElementById("gallery-count").textContent = ordered.length + (ordered.length === 1 ? " category" : " categories");
     document.getElementById("cat-video").pause();
     comicPlayback?.pause();
     search.value = "";
     dialog.showModal();
-    layoutSize = body.clientWidth + "/" + body.clientHeight;
-    render({ anchor: selected, animate: true });
+    render();
+    grid.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest", behavior: "instant" });
+    if (!reducedMotion.matches) grid.animate([{ opacity: .5 }, { opacity: 1 }], { duration: 180 });
   }
 
   document.getElementById("close-gallery").onclick = () => dialog.close();

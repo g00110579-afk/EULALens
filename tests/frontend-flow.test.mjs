@@ -159,8 +159,10 @@ test('PDF text extraction disables eval and releases page/document resources',as
   assert.equal(options.isEvalSupported,false);assert.match(text,/First line\nSecond line/);
   assert.equal(cleaned,1);assert.equal(destroyed,1);
   assert.doesNotMatch(html,/pdf\.js\/3\.11\.174/);
-  assert.match(html,/pdfjs-dist@6\.5\.438\/build\/pdf\.min\.mjs/);
-  assert.match(html,/pdfjs-dist@6\.5\.438\/build\/pdf\.worker\.min\.mjs/);
+  const version=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8')).dependencies['pdfjs-dist'];
+  assert(html.includes('https://cdn.jsdelivr.net/npm/pdfjs-dist@'+version+'/build/'));
+  assert.match(html,/import\(build \+ 'pdf\.min\.mjs'\)/);
+  assert.match(html,/workerSrc = build \+ 'pdf\.worker\.min\.mjs'/);
 });
 
 test('restoring a selected secondary scenario resumes its saved job without any new submission',async()=>{

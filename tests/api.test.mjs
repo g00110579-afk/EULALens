@@ -5,6 +5,24 @@ import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../server/index.js';
 import { closeProviderConnections } from '../server/providers/http-client.js';
+
+test('the public review serves its application and PDF reader alongside the authenticated upload API', async t => {
+  const { base } = await fixture(t);
+  const redirect = await fetch(base + '/review', { redirect: 'manual' });
+  assert.equal(redirect.headers.get('location'), '/review/');
+  const page = await fetch(base + '/review/');
+  assert.match(await page.text(), /id="upload-input"/);
+  const config = await (await fetch(base + '/review/runtime-config.js')).text();
+  assert.match(config, /EULALENS_API_BASE = location\.origin/);
+  for (const file of ['pdfjs/pdf.min.mjs', 'pdfjs/pdf.worker.min.mjs', 'category-gallery.js', 'images/category-objects.webp']) {
+    assert.equal((await fetch(base + '/review/' + file, { method: 'HEAD' })).status, 200, file);
+  }
+  for (const resource of ['.env', '.runtime/session.key', 'server/config.js']) {
+    assert.equal((await fetch(base + '/review/' + resource, { method: 'HEAD' })).status, 404);
+  }
+  assert.equal((await fetch(base + '/api/session', { headers: { Origin: base } })).status, 200);
+  assert.equal((await fetch(base + '/api/session', { headers: { Origin: 'https://raw.githack.com' } })).status, 403);
+});
 const tick = () => new Promise(resolve => setImmediate(resolve));
 async function fixture(t, handlers = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'eula-api-'));

@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 
-<html class="dark" lang="en"><head>
+<html class="dark" data-home-layout="cover-gallery" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link rel="icon" href="data:,"/>
 <title>EULALens</title>
-<link href="ui.css?v=82c2e876c73d2124" rel="stylesheet"/>
+<link href="ui.css?v=5800f7f82a3385a7" rel="stylesheet"/>
 <script>
-  const homeLayout = new URLSearchParams(location.search).get('home');
-  if (homeLayout === 'cover-gallery' || homeLayout === 'compact-shelf') {
-    document.documentElement.dataset.homeLayout = homeLayout;
+  if (new URLSearchParams(location.search).get('home') === 'compact-shelf') {
+    document.documentElement.dataset.homeLayout = 'compact-shelf';
   }
   // Decode the bundled typeface while the rest of the page is loading.
   document.fonts.load('600 1em Inter').catch(() => {});
@@ -20951,7 +20950,7 @@
   <input accept="application/pdf,.pdf" class="hidden" id="upload-input" multiple type="file" aria-label="Upload a EULA PDF"/>
   <div id="upload-status" role="status" aria-live="polite"></div>
 </section>
-<section class="sample-section" aria-labelledby="samples-heading"><div class="sample-tools"><h2 id="samples-heading">Sample EULAs</h2><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="ui-icon" aria-hidden="true" data-icon="restart_alt"></span>Reset demo</button></div><div class="sample-grid"><button type="button" data-cover="zoom" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="videocam"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<section class="sample-section" aria-labelledby="samples-heading"><div class="sample-tools"><h2 id="samples-heading">Sample EULAs</h2></div><div class="sample-grid"><button type="button" data-cover="zoom" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="videocam"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" data-cover="spotify" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="music_note"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
 <button type="button" data-cover="windows11" class="sample-button glass-panel" onclick="openDocumentView('windows11')" aria-label="Windows"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="window"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
 <button type="button" data-cover="steam" class="sample-button glass-panel" onclick="openDocumentView('steam')" aria-label="Steam"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="sports_esports"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
@@ -21038,6 +21037,7 @@ communicated to end users.
 </section>
 </div></section>
 </main>
+<footer class="home-footer"><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="ui-icon" aria-hidden="true" data-icon="restart_alt"></span>Reset demo</button></footer>
 </div>
 <div class="hidden" id="documents-tab">
 <main class="document-content">

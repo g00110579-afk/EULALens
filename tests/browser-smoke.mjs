@@ -91,7 +91,7 @@ try {
     const file = path.basename(new URL(route.request().url()).pathname);
     return route.fulfill({ path: path.join(pdfjsBuild, file), contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' } });
   });
-  await page.goto(siteBase + '/?home=cover-gallery', { waitUntil: 'domcontentloaded' });
+  await page.goto(siteBase, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => document.fonts.ready);
   const shelf = page.locator('.sample-section .sample-grid');
   const emptyShelf = await shelf.boundingBox();

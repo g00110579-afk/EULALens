@@ -101,7 +101,7 @@ try {
           drawn: icons.every(icon => !icon.textContent.trim() && getComputedStyle(icon, "::before").maskImage.includes("data:image/svg+xml")),
         };
       });
-      for (const name of ["document_scanner", "menu_book", "upload_file", "restart_alt", "music_note"]) {
+      for (const name of ["upload_file", "arrow_upward", "restart_alt"]) {
         assert(firstPaint.symbols.includes(name), `Missing home icon: ${name}`);
       }
       assert(firstPaint.drawn, "Home icons must render while web fonts are unavailable");
@@ -255,7 +255,9 @@ try {
     await catalogue.close();
   }
   await page.goto(base, { waitUntil: "networkidle" });
+  assert.equal(await page.locator("html").getAttribute("data-home-layout"), "cover-gallery");
   assert.equal(await page.locator(".home-content .sample-button").count(), 6);
+  assert(await page.locator(".home-footer").getByRole("button", { name: "Reset demo" }).isVisible());
   assert.equal(
     await page.locator("#help-dialog").isVisible(),
     false,

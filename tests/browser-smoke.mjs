@@ -157,7 +157,8 @@ try {
     return widths;
   });
   assert.deepEqual(legacyWidths, [.5, .5]);
-  await page.locator('#comic-narration').click();
+  assert.equal(await page.locator('#comic-narration').getAttribute('aria-pressed'), 'true');
+  await page.locator('#comic-playback').click();
   await page.waitForFunction(()=>!document.getElementById('comic-audio').paused && document.getElementById('comic-audio').currentTime>0);
   await page.locator('#tabbtn-video').click();
   assert(await page.locator('#comic-audio').evaluate(a=>a.paused));

@@ -62,7 +62,7 @@ try {
   const delayedGallery = new Promise((resolve) => {
     releaseGallery = resolve;
   });
-  await cold.route("**/category-gallery.js", async (route) => {
+  await cold.route("**/category-gallery.js*", async (route) => {
     await delayedGallery;
     await route.continue();
   });
@@ -135,7 +135,8 @@ try {
     await publicPage.keyboard.press("Escape");
     await publicPage.locator("#tabbtn-comic").click();
     await publicPage.locator("#comic-next").click();
-    await publicPage.locator("#comic-narration").click();
+    assert.equal(await publicPage.locator("#comic-narration").getAttribute("aria-pressed"), "true");
+    await publicPage.locator("#comic-playback").click();
     await publicPage.waitForFunction(mirror => {
       const a = document.getElementById("comic-audio");
       return a.currentSrc.startsWith(mirror) && !a.paused && comicReader.index === 2;
@@ -483,7 +484,7 @@ try {
         };
       });
       await page.waitForFunction(() => window.narrationLevel());
-      assert.equal(await page.locator("#comic-narration").getAttribute("aria-label"), "Mute narration");
+      assert.equal(await page.locator("#comic-narration").getAttribute("aria-pressed"), "true");
       const audio = page.locator("#comic-audio");
       await page.waitForFunction(() => {
         const a = document.getElementById("comic-audio");
@@ -649,7 +650,8 @@ try {
       assert.equal(await activePanel.getAttribute("data-scene"), "1");
       await page.getByRole("button", {name:"Play comic",exact:true}).click();
       await page.waitForFunction(() => window.narrationLevel() && !document.getElementById("comic-audio").paused);
-      await page.getByRole("button", {name:"Mute narration",exact:true}).click();
+      await page.getByRole("button", {name:"Read aloud",pressed:true,exact:true}).click();
+      assert.equal(await page.locator("#comic-narration").getAttribute("aria-pressed"), "false");
       assert(await audio.evaluate(a => a.paused));
       await page.locator("#comic-letters button[data-scene='3']").click();
       assert.equal((await frame())[2], "100%", "The last scene spans the sheet width");

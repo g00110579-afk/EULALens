@@ -847,24 +847,21 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
 }
 .insights {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr));
-  gap: 12px;
-  margin-top: 18px;
+  gap: 24px;
+  margin: 24px 0 6px;
 }
 .insights section {
   min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: linear-gradient(145deg, #ffffff09, #ffffff03);
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
 }
 .insights h3 {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
+  gap: 10px;
+  margin: 0 0 12px;
   color: var(--text);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
 }
 .insights h3 .material-symbols-outlined {
@@ -876,16 +873,18 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
   padding-inline-start: 1.1em;
   margin: 0;
   color: #dddde5;
-  font-size: 15px;
-  line-height: 1.55;
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 .insights li::marker {
   color: #9696a3;
 }
 .insights li + li {
-  margin-top: 8px;
+  margin-top: 10px;
 }
+#cat-impact:has(> :only-child) { list-style: none; padding-left: 0; }
 .generation-status {
   display: flex;
   gap: 8px 18px;
@@ -1443,25 +1442,32 @@ button.comic-panel-overlay[aria-current="true"] {
   font-weight: 500;
   letter-spacing: -0.5px;
 }
-.switch-upload {
+.switch-options {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 62px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border-color: #ffffff40;
-  background: linear-gradient(110deg, #ffffff12, #ffffff05);
-  color: var(--text);
-  font-size: 17px;
-  font-weight: 550;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.switch-options h3 { color: var(--muted); font-size: 15px; font-weight: 500; }
+.switch-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 15px;
+  border: 1px solid #ffffff96;
+  border-radius: 24px;
+  background: linear-gradient(150deg, #fbfbfd, #d8d8e1);
+  color: #202026;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
   text-decoration: none;
 }
-.switch-upload:hover { border-color: #ffffff80; }
-.switch-upload > :last-child { margin-left: auto; font-size: 20px; }
-#switch-upload-status:not(:empty) { margin: 8px 0 0; font-size: 14px; }
-.switch-samples-heading { margin: 20px 0 9px; font-size: 15px; font-weight: 500; }
+.switch-upload:hover { background: #fff; }
+.switch-upload .material-symbols-outlined { font-size: 18px; }
+#switch-upload-status:not(:empty) { margin: 0 0 12px; font-size: 14px; }
 
 .help-dialog {
   max-width: 540px;
@@ -1589,6 +1595,10 @@ button.comic-panel-overlay[aria-current="true"] {
 }
 .gallery-search input::placeholder {color: var(--muted)}
 #gallery-search:focus { outline: none; border: 0; box-shadow: none; }
+#gallery-search { appearance: none; -webkit-appearance: none; border-radius: 0; }
+@media (forced-colors: active) {
+  .gallery-search:focus-within { outline: 2px solid Highlight; }
+}
 .gallery-body:focus-visible, .comic-art.is-zoomed:focus-visible {
   outline: 2px solid #d8d8e2;
   outline-offset: -2px;

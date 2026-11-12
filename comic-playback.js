@@ -59,18 +59,16 @@ comicPlayback = (() => {
     playButton.setAttribute("aria-label", label + " comic");
     playButton.title = label + " comic";
     playButton.disabled = !category?.comicScenes?.length;
-    const speaking = Boolean(run && narrated);
-    const voiceLabel = speaking ? "Mute narration" : "Read aloud";
-    voiceButton.querySelector(".comic-narration-label").textContent = voiceLabel;
-    voiceButton.setAttribute("aria-label", voiceLabel);
-    voiceButton.title = voiceLabel;
-    voiceButton.querySelector(".material-symbols-outlined").textContent =
-      speaking ? "volume_off" : "volume_up";
     voiceButton.disabled =
       !(
         sample ||
         (activeDocument === "live" && category?.comicJobId && scenario)
       ) || playButton.disabled;
+    const enabled = soundOnPlay && !voiceButton.disabled;
+    voiceButton.setAttribute("aria-pressed", String(enabled));
+    voiceButton.querySelector(".comic-narration-label").textContent = enabled ? "Read aloud on" : "Read aloud off";
+    voiceButton.title = voiceButton.disabled ? "Narration unavailable" : enabled ? "Turn narration off" : "Turn narration on";
+    voiceButton.querySelector(".material-symbols-outlined").textContent = enabled ? "volume_up" : "volume_off";
     document
       .getElementById("comic-script")
       .setAttribute("aria-live", run ? "off" : "polite");
@@ -246,7 +244,7 @@ comicPlayback = (() => {
       releaseAudio();
       narrated = false;
       controls();
-      message("Audio could not load. Select Read aloud to retry.");
+      message("Audio could not load. Select Play to retry.");
     }
   }
 
@@ -325,13 +323,12 @@ comicPlayback = (() => {
     else start();
   };
   voiceButton.onclick = () => {
-    const mute = Boolean(run && narrated);
-    if (run) seek();
-    soundOnPlay = !mute;
-    preferManual = false;
-    // Call play in this click handler for a sample, including from a paused
-    // scene. Resume an already loaded cue without rewinding the user's place.
-    start();
+    const playing = Boolean(run);
+    soundOnPlay = !soundOnPlay;
+    if (playing) {
+      seek();
+      start();
+    } else controls();
   };
   audio.addEventListener("loadedmetadata", () => {
     if (pendingSeek !== undefined) {

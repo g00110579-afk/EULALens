@@ -5,7 +5,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link rel="icon" href="data:,"/>
 <title>EULALens</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.tailwindcss.com?plugins=container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -102,9 +102,9 @@
             }
         }
     </script>
-<link href="ui.css" rel="stylesheet"/>
+<link href="ui.css?v=f6cddbff15f72237" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
-<script src="live-runtime.js"></script>
+<script src="live-runtime.js?v=291465a3476a3a83"></script>
 <script>
         const LIVE_API_BASE = (window.EULALENS_API_BASE || 'https://api.eulalens.stream').replace(/\/+$/, '');
         let comicPlayback;
@@ -20876,7 +20876,7 @@ communicated to end users.
   <section id="comic-story" class="comic-story" aria-label="Comic scenes">
     <nav class="comic-pager" aria-label="Comic navigation"><div class="comic-scene-label"><span id="comic-position" role="status"></span><h4 id="comic-scene-title"></h4></div>
       <button type="button" class="comic-control" id="comic-playback" aria-label="Play comic" title="Play comic"><span id="comic-play-icon" class="material-symbols-outlined" aria-hidden="true">play_arrow</span><span id="comic-play-label">Play</span></button>
-      <button type="button" class="comic-control" id="comic-narration" aria-label="Read aloud" title="Read aloud"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span><span class="comic-narration-label">Read aloud</span></button>
+      <button type="button" class="comic-control" id="comic-narration" aria-label="Read aloud" aria-pressed="true" title="Turn narration off"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span><span class="comic-narration-label">Read aloud on</span></button>
       <button type="button" class="icon-button" id="comic-prev" aria-label="Previous scene" title="Previous scene" onclick="moveComicScene(-1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button type="button" class="icon-button" id="comic-next" aria-label="Next scene" title="Next scene" onclick="moveComicScene(1)"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button></nav>
     <progress id="comic-progress" max="1" value="0" aria-label="Scene playback progress" hidden></progress>
     <audio id="comic-audio" preload="none" hidden></audio>
@@ -20926,14 +20926,12 @@ communicated to end users.
 </dialog>
 <dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title">
   <div class="dialog-header"><h2 id="sample-dialog-title">Switch EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close document switcher"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
-  <button type="button" id="switch-upload" class="switch-upload glass-panel">
-    <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
-    Upload a PDF
-    <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
-  </button>
+  <div class="switch-options">
+    <h3>Sample EULAs</h3>
+    <button type="button" id="switch-upload" class="switch-upload"><span class="material-symbols-outlined" aria-hidden="true">upload</span>Upload a PDF</button>
+  </div>
   <input type="file" id="switch-upload-input" accept="application/pdf,.pdf" aria-label="Upload another EULA PDF" hidden/>
   <p id="switch-upload-status" role="status"></p>
-  <h3 class="switch-samples-heading">Sample EULAs</h3>
   <div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
@@ -20941,9 +20939,9 @@ communicated to end users.
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('adobe')" aria-label="Adobe"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">description</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Adobe</span><span class="sample-description">Adobe Reader EULA</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></dialog>
 <dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
-<script src="sample-narration.js"></script>
-<script src="comic-reader.js"></script>
-<script src="comic-playback.js"></script>
-<script src="category-gallery.js"></script>
-<script src="ui.js"></script>
+<script src="sample-narration.js?v=77b39b24a9e1ee8b"></script>
+<script src="comic-reader.js?v=9946678aab5dec69"></script>
+<script src="comic-playback.js?v=f2395abd893c466c"></script>
+<script src="category-gallery.js?v=da6c11cdfb1370cf"></script>
+<script src="ui.js?v=c81f6d89d700bcc6"></script>
 </body></html>

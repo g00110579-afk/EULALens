@@ -36,8 +36,9 @@ Select any panel on the sheet to open that scene. Demo agreements include
 frame coordinates for every scene. Uploaded comics use the image gutters
 when they match the script, then the layout requested from HiDream.
 
-Comics start with narration. Reduced motion starts paused. Play includes sound
-unless the reader chose Mute narration. Muted comics advance on a reading timer.
+Read aloud starts on. Its switch shows the sound preference during playback
+and while paused. Play uses that preference. Reduced motion starts paused.
+Muted comics advance on a reading timer.
 Full comic highlights the current panel and follows it while zoomed. Switching
 between Scenes and Full comic keeps the same playback position. Choosing a
 different scene, opening a dialog or leaving Comic pauses playback.
@@ -55,6 +56,10 @@ category-gallery.js builds the chooser from the current agreement. The shared
 WebP at images/category-objects.webp contains six columns and four rows.
 tools/category-art-prompt.txt records the prompt for the built-in ImageGen asset.
 The existing API and scheduler handle uploads and media generation.
+
+After editing a local browser script or ui.css, run node tools/version-ui.mjs.
+It updates the asset URLs in index.html so returning browsers receive matching
+scripts and styles. npm test checks those URLs against the file contents.
 
 Verification (Node >=22.13; ffmpeg for the upload/media fixture test):
   npm ci

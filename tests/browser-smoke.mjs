@@ -91,7 +91,13 @@ try {
     const file = path.basename(new URL(route.request().url()).pathname);
     return route.fulfill({ path: path.join(pdfjsBuild, file), contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' } });
   });
-  await page.goto(siteBase, { waitUntil: 'domcontentloaded' });
+  await page.goto(siteBase + '/?home=cover-gallery', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => document.fonts.ready);
+  const shelf = page.locator('.sample-section .sample-grid');
+  const emptyShelf = await shelf.boundingBox();
+  const uploadBox = await page.locator('#upload-dropzone').boundingBox();
+  assert.equal(emptyShelf.x, uploadBox.x);
+  assert.equal(emptyShelf.width, uploadBox.width);
   await page.getByRole('button', { name: 'Zoom', exact: true }).click();
   await page.locator('.gallery-choice').first().click();
   await page.getByRole('button', { name: 'Switch EULA' }).click();
@@ -112,15 +118,29 @@ try {
   const filename = 'fixture<img src=x onerror=window.auditSentinel=2>.pdf';
   const uploadRow = name => page.locator('#upload-list li').filter({has:page.getByText(name,{exact:true})});
   const firstRow = uploadRow(filename), secondRow = uploadRow('Second.pdf');
-  const openRow = row => row.getByRole('button',{name:'Open',exact:true}).click();
+  async function showQueue() {
+    if (!await page.locator('#upload-queue').isVisible()) await page.locator('#queue-toggle').click();
+    await page.locator('#upload-queue').waitFor();
+  }
+  async function openRow(row) {
+    await showQueue();
+    await row.getByRole('button',{name:'Open',exact:true}).click();
+  }
   await chooseFile({ name: filename, mimeType: 'application/pdf', buffer: pdf('You may use the fictional app on one device. Do not redistribute it.') });
+  await page.locator('#queue-toggle').waitFor();
+  assert(!await page.locator('#upload-queue').isVisible());
+  assert.deepEqual(await shelf.boundingBox(), emptyShelf);
+  await showQueue();
   await firstRow.waitFor();
   assert.match(await firstRow.innerText(), /Queued|Analyzing|Reading PDF/i);
   assert(await page.locator('#upload-dropzone').isEnabled());
   const another = page.waitForEvent('filechooser');
   await page.locator('#upload-dropzone').click();
   await (await another).setFiles({name:'Second.pdf',mimeType:'application/pdf',buffer:pdf('This second fictional agreement also permits one device.')});
+  await showQueue();
   await secondRow.waitFor();
+  assert.deepEqual(await shelf.boundingBox(), emptyShelf);
+  assert.equal(await page.locator('#queue-count').textContent(), '2');
   assert.equal(await page.locator('#upload-list li').count(),2);
   firstAnalysis.resolve();
   await firstRow.getByText('Waiting for first video', {exact:true}).waitFor();
@@ -233,6 +253,7 @@ try {
   await page.getByRole('dialog',{name:'Choose a category'}).getByRole('button',{name:'Second agreement scope'}).click();
   assert.equal(await page.locator('#doc-analysis-title').innerText(),'Second.pdf');
   await page.getByRole('button',{name:'EULALens home',exact:true}).click();
+  await showQueue();
   assert.match(await firstRow.innerText(), /Comics 1\/1/);
   assert.match(await secondRow.innerText(), /Comics 0\/1/);
   await page.waitForFunction(() => [...uploads.values()].every(run => run.categories[0]?.videoStatus === 'ready' && run.categories[0]?.comicJobId));
@@ -243,6 +264,7 @@ try {
   assert(!savedReferences.includes('You may use the fictional app'));
   const beforeReload = { ...counts };
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await showQueue();
   await secondRow.getByRole('button',{name:'Open',exact:true}).waitFor();
   await secondRow.getByRole('button',{name:'Cancel',exact:true}).click();
   await Promise.race([
@@ -250,6 +272,9 @@ try {
     new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cancel did not reach the second comic provider')),10000).unref()),
   ]);
   assert.equal(await secondRow.count(),0);
+  await page.keyboard.press('Escape');
+  assert.match(await page.locator('#queue-toggle').innerText(), /First video ready/);
+  await showQueue();
   await firstRow.getByRole('button', {name:'First video ready · License scope'}).click();
   assert.equal(await page.getByRole('dialog', {name:'Choose a category'}).count(), 0);
   assert.equal(await page.locator('#cat-title').innerText(), 'License scope');
@@ -261,6 +286,7 @@ try {
   // Retained opaque run IDs must fail safely with an actionable explanation.
   await page.context().clearCookies(); await page.evaluate(() => sessionStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await showQueue();
   const expired = page.locator('#upload-list li').filter({hasText:/no longer available.*browser session/});
   await expired.waitFor();
   assert.match(await expired.textContent(), /Upload the PDF again/);
@@ -279,6 +305,7 @@ try {
   await page.reload({waitUntil:'domcontentloaded'});
   assert.equal(await page.locator('#upload-list li').count(), 0);
   await uploadAgain();
+  await showQueue();
   await secondRow.getByRole('button', {name:'Open', exact:true}).waitFor();
   await page.getByRole('button', {name:'Reset demo'}).click();
   await page.getByText('Demo reset. Ready for a new PDF.').waitFor();

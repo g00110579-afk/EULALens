@@ -5,7 +5,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link rel="icon" href="data:,"/>
 <title>EULALens</title>
-<link href="ui.css?v=c020aa2fce432af6" rel="stylesheet"/>
+<link href="ui.css?v=82c2e876c73d2124" rel="stylesheet"/>
 <script>
   const homeLayout = new URLSearchParams(location.search).get('home');
   if (homeLayout === 'cover-gallery' || homeLayout === 'compact-shelf') {
@@ -119,6 +119,7 @@
         function showDocumentWorkspace(chooseCategory = false) {
             const dashboard = document.getElementById('dashboard-tab');
             const opener = document.activeElement;
+            document.getElementById('upload-queue').hidePopover?.();
             dashboard.classList.add('hidden');
             document.getElementById('documents-tab').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1021,7 +1022,7 @@
                 backToHome();
                 switchDocument('zoom');
             }
-            document.getElementById('upload-queue').hidden = !uploads.size;
+            updateQueueControl();
         }
 
         async function resetDemo() {
@@ -1071,7 +1072,30 @@
             run.row?.node.remove();
             run.file = undefined;
             if (currentRun === run) { currentRun = null; releaseLivePdf(); }
-            document.getElementById('upload-queue').hidden = !uploads.size;
+            updateQueueControl();
+        }
+
+        function updateQueueControl() {
+            const control = document.getElementById('queue-control');
+            const count = document.getElementById('queue-count');
+            const summary = document.getElementById('queue-summary');
+            if (!uploads.size) {
+                document.getElementById('upload-queue').hidePopover?.();
+                if (document.activeElement === document.getElementById('queue-toggle')) {
+                    document.getElementById('upload-dropzone').focus({ preventScroll: true });
+                }
+            }
+            control.hidden = !uploads.size;
+            const runs = [...uploads.values()];
+            const ready = runs.filter(run => run.row?.firstVideo.hidden === false).length;
+            const failed = runs.filter(run => run.uploadError).length;
+            let status = runs.length === 1 ? runs[0].row?.phase.textContent || '' : '';
+            if (ready) status = ready === 1 ? 'First video ready' : ready + ' first videos ready';
+            else if (failed) status = failed === 1 ? 'Upload failed' : failed + ' uploads failed';
+            const countText = String(runs.length);
+            if (count.textContent !== countText) count.textContent = countText;
+            if (summary.textContent !== status) summary.textContent = status;
+            summary.classList.toggle('video-ready', Boolean(ready));
         }
 
         function updateUploadRow(run) {
@@ -1141,7 +1165,7 @@
             const removeLabel = run.uploadError || generationFinished(run) ? 'Remove' : 'Cancel';
             if (remove.textContent !== removeLabel) remove.textContent = removeLabel;
             if (currentRun === run) updateCancelButton();
-            document.getElementById('upload-queue').hidden = false;
+            updateQueueControl();
         }
 
         const zoomCategories = [
@@ -20898,6 +20922,15 @@
     </button>
     <div class="document-identity"><span aria-hidden="true">/</span><h1 id="doc-analysis-title"></h1></div>
   </div>
+  <div id="queue-control" hidden>
+    <button type="button" id="queue-toggle" popovertarget="upload-queue" aria-controls="upload-queue">
+      <span>Upload queue</span><span id="queue-count"></span><span id="queue-summary" role="status"></span>
+    </button>
+    <section id="upload-queue" popover="auto" aria-labelledby="upload-queue-title">
+      <div class="queue-heading"><h2 id="upload-queue-title">Upload queue</h2><button type="button" class="icon-button" popovertarget="upload-queue" popovertargetaction="hide" aria-label="Close upload queue"><span class="ui-icon" aria-hidden="true" data-icon="close"></span></button></div>
+      <ul id="upload-list" aria-live="polite" aria-relevant="additions text"></ul>
+    </section>
+  </div>
   <button type="button" class="quiet-button home-research-link" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="ui-icon" aria-hidden="true" data-icon="info"></span></button>
   <div class="document-actions">
     <button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="quiet-button danger-button hidden" aria-label="Cancel unfinished analysis and generation"><span class="ui-icon" aria-hidden="true" data-icon="stop_circle"></span><span>Cancel generation</span></button>
@@ -20917,7 +20950,6 @@
   </button>
   <input accept="application/pdf,.pdf" class="hidden" id="upload-input" multiple type="file" aria-label="Upload a EULA PDF"/>
   <div id="upload-status" role="status" aria-live="polite"></div>
-  <section id="upload-queue" aria-labelledby="upload-queue-title" hidden><h2 id="upload-queue-title">Upload queue</h2><ul id="upload-list" aria-live="polite" aria-relevant="additions text"></ul></section>
 </section>
 <section class="sample-section" aria-labelledby="samples-heading"><div class="sample-tools"><h2 id="samples-heading">Sample EULAs</h2><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="ui-icon" aria-hidden="true" data-icon="restart_alt"></span>Reset demo</button></div><div class="sample-grid"><button type="button" data-cover="zoom" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="videocam"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" data-cover="spotify" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="music_note"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>

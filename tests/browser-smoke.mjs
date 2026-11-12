@@ -15,6 +15,8 @@ const root = path.resolve('.');
 const pdfjsBuild = process.env.EULALENS_PDFJS_BUILD_DIR || path.resolve('node_modules/pdfjs-dist/build');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'eula-browser-'));
 const servers = []; let browser; let app; let releaseMedia;
+const firstAnalysis = Promise.withResolvers(), secondAnalysis = Promise.withResolvers();
+const canceledStory = Promise.withResolvers();
 async function listen(application) { const server = application.listen(0, '127.0.0.1'); servers.push(server); await new Promise(resolve => server.once('listening', resolve)); return `http://127.0.0.1:${server.address().port}`; }
 function pdf(text) {
   const stream = `BT /F1 12 Tf 40 750 Td (${text.replace(/[()\\]/g, '\\$&')}) Tj ET`;
@@ -42,9 +44,26 @@ try {
   const comics = ['first', 'second'].map(id => ({ id, title: `${id} scenario`, storySummary:`A summary of the ${id} scenario.`, scenes:[{narration:`The ${id} story begins.`},{narration:`The ${id} story ends.`}], imagePrompt: 'Synthetic image fixture for ' + id, panels: [{ title: 'First', body: 'A source-backed example.' }, { title: 'Second', caption: 'A second scene.' }] }));
   app = createApp({ directory: path.join(temporary, 'jobs'), origins: [siteBase], cancelImage: async () => {}, handlers: {
     synthesizeComicNarration: async ({text})=>{spoken.push(text);return fs.readFileSync(path.join(temporary,'voice.mp3'));},
-    analyzeEula: async ({ text }) => { counts.analysis++; assert(text.includes('fictional')); return { analysis: { categories, document: { title: 'Synthetic fixture' } } }; },
+    analyzeEula: async ({ text, fileName }) => {
+      counts.analysis++;
+      assert(text.includes('fictional'));
+      const second = fileName === 'Second.pdf';
+      await (second ? secondAnalysis : firstAnalysis).promise;
+      return { analysis: { fileName, categories: second ? [{...categories[0], title:'Second agreement scope'}] : categories } };
+    },
     generateCategoryCardsBatch: async ({ onProgress }) => { counts.cards++; const entry = { ok: true, categoryId: 'license', cards: [{ question: '<b>How many devices?</b>', answer: 'One', backTitle: 'Scope', backDetail: 'One device.' }] }; await onProgress(entry, 0); return { results: [entry] }; },
-    generateCategoryComic: async () => { counts.comic++; await mediaGate; return { comic: { comics, selectedComicId: 'first' } }; },
+    generateCategoryComic: async ({category, signal}) => {
+      counts.comic++;
+      if (category.title === 'Second agreement scope') {
+        await new Promise((resolve, reject) => {
+          function abort() { canceledStory.resolve(); reject(signal.reason); }
+          if (signal.aborted) abort();
+          else signal.addEventListener('abort', abort, {once:true});
+        });
+      }
+      await mediaGate;
+      return { comic: { comics, selectedComicId: 'first' } };
+    },
     renderCategoryComicImage: async ({comic}) => {
       counts.image++;
       return { image: { imageUrl: modelBase + '/outputs/image.png',
@@ -90,8 +109,21 @@ try {
   await page.waitForFunction(() => /invalid|could not/i.test(document.getElementById('switch-upload-status').textContent));
   assert(await switcher.isVisible());
   assert.equal(counts.analysis, 0);
-  await chooseFile({ name: 'fixture<img src=x onerror=window.auditSentinel=2>.pdf', mimeType: 'application/pdf', buffer: pdf('You may use the fictional app on one device. Do not redistribute it.') });
-  try { await page.waitForFunction(() => document.querySelector('#cat-title')?.textContent === 'License scope', undefined, { timeout: 30000 }); } catch(error) { console.error('UPLOAD STATUS:', await page.locator('#upload-status').textContent()); throw error; }
+  const filename = 'fixture<img src=x onerror=window.auditSentinel=2>.pdf';
+  const uploadRow = name => page.locator('#upload-list li').filter({has:page.getByText(name,{exact:true})});
+  const firstRow = uploadRow(filename), secondRow = uploadRow('Second.pdf');
+  const openRow = row => row.getByRole('button',{name:'Open',exact:true}).click();
+  await chooseFile({ name: filename, mimeType: 'application/pdf', buffer: pdf('You may use the fictional app on one device. Do not redistribute it.') });
+  await firstRow.waitFor();
+  assert.match(await firstRow.innerText(), /Queued|Analyzing|Reading PDF/i);
+  assert(await page.locator('#upload-dropzone').isEnabled());
+  const another = page.waitForEvent('filechooser');
+  await page.locator('#upload-dropzone').click();
+  await (await another).setFiles({name:'Second.pdf',mimeType:'application/pdf',buffer:pdf('This second fictional agreement also permits one device.')});
+  await secondRow.waitFor();
+  assert.equal(await page.locator('#upload-list li').count(),2);
+  firstAnalysis.resolve();
+  await openRow(firstRow);
   const galleryChoice = page.getByRole('dialog', { name: 'Choose a category' }).getByRole('button', {name:'License scope', exact:true});
   await galleryChoice.waitFor();
   await page.locator('#category-gallery.art-ready').waitFor();
@@ -103,10 +135,10 @@ try {
   const initialArtwork = await art.innerHTML();
   await page.locator('#close-gallery').click();
   assert(await page.locator('#dashboard-tab').isVisible());
-  await page.locator('#resume-analysis-btn').click();
+  await openRow(firstRow);
   assert(await page.locator('#category-gallery').isVisible());
   await galleryChoice.click();
-  assert.equal(counts.analysis, 1);
+  secondAnalysis.resolve();
   releaseMedia();
   await page.waitForFunction(() => document.querySelector('#cat-cards')?.textContent.includes('How many devices?'), undefined, { timeout: 30000 });
   assert.equal(await page.evaluate(() => window.auditSentinel), undefined);
@@ -127,6 +159,7 @@ try {
   assert.equal(await page.locator('#comic-caption').textContent(), 'A source-backed example.');
   await page.waitForFunction(() => comicReader.boxes.length === 2);
   assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the first scenario.');
+  assert(await page.locator('#comic-audio').evaluate(audio => audio.paused && !audio.hasAttribute('src')));
   await page.getByRole('button', {name:'Full comic',exact:true}).click();
   assert.deepEqual(await page.locator('#comic-crop .comic-panel-caption').allTextContents(), ['A source-backed example.','A second scene.']);
   await page.locator('#comic-crop button[data-scene="0"]').click();
@@ -137,7 +170,7 @@ try {
   await page.waitForFunction(()=>document.getElementById('comic-position').textContent==='Scene 2 of 2');
   assert.equal(await page.locator('#comic-reader.is-playing button[aria-current=true]').getAttribute('data-scene'), '1');
   await page.getByRole('button',{name:'Replay comic',exact:true}).waitFor();
-  assert.deepEqual(spoken,['The first story begins.','The first story ends.']);
+  assert.deepEqual(spoken,['The first story begins.','The first story ends.','The second story begins.','The second story ends.']);
   assert.equal(await page.locator('#comic-caption').textContent(), 'A second scene.');
   assert.equal(await page.locator('#comic-scenarios button').count(), 2);
   // Some image hosts allow display but deny canvas pixel reads.
@@ -150,6 +183,8 @@ try {
   await page.waitForFunction(() => document.querySelector('#cat-comic-title')?.textContent === 'second scenario' && document.querySelector('#cat-comic-img')?.naturalWidth > 0);
   assert.equal(await page.locator('#comic-position').textContent(), 'Scene 1 of 2');
   assert.equal(await page.locator('#comic-summary').textContent(), 'A summary of the second scenario.');
+  assert(await page.getByRole('button', {name:'Play comic',exact:true}).isVisible());
+  assert(await page.locator('#comic-audio').evaluate(audio => audio.paused && !audio.hasAttribute('src')));
   await page.waitForFunction(() => comicReader.boxes[0]?.x === .02 && comicReader.boxes[0].y === .04);
   const legacyWidths = await page.evaluate(() => {
     const widths = comicSceneBounds(document.getElementById('cat-comic-img'), {}, 2).map(box => box.width);
@@ -188,24 +223,48 @@ try {
   await page.evaluate(() => window.completePendingRead());
   assert.equal(await page.locator('#cat-eula-frame').getAttribute('src'), originalPdf);
   assert.equal(await page.locator('#tabbtn-eula').getAttribute('aria-selected'), 'true');
-  assert.equal(counts.analysis, 1);
+  assert.equal(counts.analysis, 2);
+  // Both PDFs finish analysis without stealing the current reader. The second
+  // comic is deliberately held in its provider while the first reader is used.
+  await page.getByRole('button',{name:'EULALens home',exact:true}).click();
+  await openRow(secondRow);
+  await page.getByRole('dialog',{name:'Choose a category'}).getByRole('button',{name:'Second agreement scope'}).click();
+  assert.equal(await page.locator('#doc-analysis-title').innerText(),'Second.pdf');
+  await page.getByRole('button',{name:'EULALens home',exact:true}).click();
+  assert.match(await firstRow.innerText(), /Comics 1\/1/);
+  assert.match(await secondRow.innerText(), /Comics 0\/1/);
+  await page.waitForFunction(() => [...uploads.values()].every(run => run.categories[0]?.videoStatus === 'ready' && run.categories[0]?.comicJobId));
+  const savedReferences = await page.evaluate(() => Object.keys(localStorage)
+    .filter(key => key.startsWith('eulalens:active-run:')).map(key => localStorage.getItem(key)).join('\n'));
+  assert(!savedReferences.includes(filename));
+  assert(!savedReferences.includes('Second.pdf'));
+  assert(!savedReferences.includes('You may use the fictional app'));
   const beforeReload = { ...counts };
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('#resume-analysis-btn').click();
-  await page.waitForFunction(() => document.querySelector('#cat-title')?.textContent === 'License scope');
+  await secondRow.getByRole('button',{name:'Open',exact:true}).waitFor();
+  await secondRow.getByRole('button',{name:'Cancel',exact:true}).click();
+  await Promise.race([
+    canceledStory.promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cancel did not reach the second comic provider')),10000).unref()),
+  ]);
+  assert.equal(await secondRow.count(),0);
+  await openRow(firstRow);
+  await galleryChoice.click();
   await page.waitForFunction(() => mediaScheduler.jobs.size === 0 && categories[0].cardsStatus === 'ready' && categories[0].videoStatus === 'ready' && categories[0].selectedComicId === 'second' && categories[0].comicStatus === 'ready');
   assert.deepEqual(counts, beforeReload, 'Reload must reconnect, not regenerate');
   // Simulate a reopened browser whose anonymous session credential is gone.
   // Retained opaque run IDs must fail safely with an actionable explanation.
   await page.context().clearCookies(); await page.evaluate(() => sessionStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('#resume-analysis-btn').click();
-  await page.waitForFunction(() => document.querySelector('#upload-status')?.textContent.includes('no longer available in your browser session'));
-  assert.match(await page.locator('#upload-status').textContent(), /Upload the PDF again/);
+  const expired = page.locator('#upload-list li').filter({hasText:/no longer available.*browser session/});
+  await expired.waitFor();
+  assert.match(await expired.textContent(), /Upload the PDF again/);
+  assert.equal(await page.locator('#upload-list li').count(),1);
   assert.deepEqual(counts, beforeReload, 'An inaccessible saved run must not regenerate automatically');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['PDF picker cancel, invalid file and document replacement', 'dismiss and resume the first category chooser', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'narration and highlighted panels in a generated comic', 'scenario selection', 'speech captions and degradation', 'visible Impact, Lookouts and supporting clauses', 'reload without duplicate generation', 'expired-session restore recovery'], requests: counts }, null, 2));
+  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['PDF picker cancel, invalid file and second PDF admission while busy', 'explicit opening from the upload queue', 'independent category/media progress for two PDFs', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'narration and highlighted panels in a generated comic', 'scenario selection', 'speech captions and degradation', 'visible Impact, Lookouts and supporting clauses', 'reconnect both uploads without duplicate generation', 'cancel one provider job after reload without losing the other PDF', 'expired-session restore recovery'], requests: counts }, null, 2));
 } finally {
+  firstAnalysis.resolve(); secondAnalysis.resolve();
   releaseMedia?.();
   await browser?.close(); await app?.locals.close();
   await Promise.all(servers.map(server => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); })));

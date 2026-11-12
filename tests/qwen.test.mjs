@@ -39,8 +39,8 @@ test('numbered passages retain original PDF text, wrapped conditions and the sel
  let attempts=0;
  mockCompletion(async(_url,options)=>{
   const messages=JSON.parse(options.body).messages;
-  assert.match(messages[1].content,/\[2\] 😀 Non - commercial use is allowed\n\[3\] only with written permission\./);
-  const ranges=++attempts===1 ? [[2,5]] : [[2,3],[4,4]];
+  assert.match(messages[1].content,/\[2\] 😀 Non - commercial use is allowed only with written permission\./);
+  const ranges=++attempts===1 ? [[2,4]] : [[2,2],[3,3]];
   return success({categories:[{category_id:'permitted_use',source_ranges:ranges}]});
  });
  const {categories}=await analyzeWithQwen({text:input});
@@ -49,6 +49,30 @@ test('numbered passages retain original PDF text, wrapped conditions and the sel
  assert.deepEqual(evidence.map(item=>item.text),['😀 Non - commercial   use is allowed\nonly with written permission.','No redistribution.']);
  assert.equal(evidence[1].start,input.lastIndexOf('No redistribution.'));
  assert(evidence.every(item=>input.slice(item.start,item.end)===item.text));
+});
+
+test('rechecks an empty extraction of a short license with a wrapped device limit', async () => {
+  const text = 'The user may install this fictional software on one device only. A separate\r\nlicense is required to install the software on an additional device.';
+  let attempts = 0;
+  mockCompletion(async (_url, options) => {
+    const prompt = JSON.parse(options.body).messages[1].content;
+    assert.match(prompt, /\[2\] A separate license is required/);
+    if (++attempts === 1) return success({ categories: [] });
+    assert.match(prompt, /explicit rule/);
+    return success({ categories: [{ category_id: 'device_limit', source_ranges: [[1, 2]] }] });
+  });
+  const { categories } = await analyzeWithQwen({ text });
+  assert.equal(attempts, 2);
+  assert.equal(categories[0].sourceEvidence[0].text, text);
+});
+
+test('a normative keyword alone cannot turn empty model results into a license rule', async () => {
+  let attempts = 0;
+  mockCompletion(async () => { attempts++; return success({ categories: [] }); });
+  await assert.rejects(analyzeWithQwen({ text: 'The heading is “Required notices”.' }), { code: 'NO_SUPPORTED_CATEGORIES' });
+  assert.equal(attempts, 2);
+  await assert.rejects(analyzeWithQwen({ text: 'Copyright information. Table of contents.' }), { code: 'NO_SUPPORTED_CATEGORIES' });
+  assert.equal(attempts, 3);
 });
 
 test('overlapping chunks can use different category names for the same source range',async()=>{
@@ -195,9 +219,10 @@ test('overlapping boundary context keeps a split qualification with its permissi
 test('comic overlay wording and late legal qualifiers are preserved verbatim',async()=>{
  const wording='The term "public property" does not mean you sign away my rights.';
  const longLegal='A full explanation '.repeat(15)+'except when the author gives written permission.';
- const plan={comics:[{id:'story',protagonist_goal:'Understand the permission.',visual_read_through:'The user keeps a personal file.',scenes:Array.from({length:4},()=>({narration:longLegal,legal_point:longLegal,dialogue:wording,visual_description:'A user holds a folder in a plain room.',overlay_slots:[{kind:'speech',text:wording}]}))}]};
+ const plan={comics:[{id:'story',protagonist_goal:'Understand the permission.',visual_read_through:'The user keeps a personal file.',scenes:Array.from({length:4},()=>({narration:longLegal,legal_point:longLegal,visual_description:'A user holds a folder in a plain room.',overlay_slots:[{kind:'speech',text:wording}]}))}]};
  mockCompletion(async()=>success(plan));const result=await generateComicWithQwen({category});const scene=result.comic.scenes[0];
  assert.equal(scene.overlaySlots[0].text,wording);assert.equal(scene.legalPoint,longLegal);assert.equal(scene.narration,longLegal);
+ assert.equal(scene.dialogue,wording);assert.match(result.comic.imagePrompt,/holds a folder/);
 });
 test('comic summaries retain qualifiers and stay attached to their scenarios', async () => {
   const scene = { narration: 'A user opens a folder.', visual_description: 'A user holds a folder.' };

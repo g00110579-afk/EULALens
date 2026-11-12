@@ -117,6 +117,9 @@ test('comic narration is owner-scoped, available as soon as the script exists, a
   try {
     const { jobId } = await (await f.request('/api/categories/comic/start', { category: { id: 'c', title: 'Review' } })).json();
     await rendering;
+    await tick();
+    assert.deepEqual(spoken, ['Original narration.', 'A caption.\nSpoken words.'],
+      'Both scenarios must be prepared while artwork is pending, before any reader requests audio');
     const root = '/api/categories/comic/jobs/' + jobId + '/scenarios/';
     const primary = root + 'primary/narration/0';
     assert.equal((await f.request(primary, {}, await f.login())).status, 404);

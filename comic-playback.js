@@ -9,9 +9,7 @@ comicPlayback = (() => {
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const clips = new Map();
   let category, scenario, sample;
-  let active = false,
-    pendingStart = false,
-    preferManual = false;
+  let active = false;
   let narrated = false,
     soundOnPlay = true,
     finished = false,
@@ -101,7 +99,6 @@ comicPlayback = (() => {
   }
 
   function pause() {
-    pendingStart = false;
     run?.abort();
     run = null;
     clips.clear();
@@ -130,9 +127,7 @@ comicPlayback = (() => {
     const next = comicReader.category;
     if (next !== category || scenario !== comicReader.scenario) {
       // Category navigation also happens while Comic stays selected.
-      const opening = active && (Boolean(run) || pendingStart || (!preferManual && !motion.matches));
       seek();
-      pendingStart = opening;
       narrated = false;
     }
     category = next;
@@ -150,14 +145,6 @@ comicPlayback = (() => {
     )
       sample = null;
     controls();
-    if (
-      pendingStart &&
-      visible() &&
-      category?.comicScenes?.length > 0 &&
-      (activeDocument !== "live" || category.comicStatus === "ready") &&
-      (!comicReader.url || !document.getElementById("comic-crop").hidden)
-    )
-      start();
   }
 
   function readingTime() {
@@ -273,7 +260,7 @@ comicPlayback = (() => {
           setTrack(url, sample.starts[index]);
         }
       } else if (loadedIndex !== index) {
-        message("Preparing narration…");
+        message("Loading narration…");
         const blob = await requestClip(index, current.signal);
         if (run !== current) return;
         clips.delete(index);
@@ -303,7 +290,6 @@ comicPlayback = (() => {
 
   function start() {
     if (!visible() || !category?.comicScenes?.length || run) return;
-    pendingStart = false;
     if (finished) {
       seek();
       selectComicScene(0);
@@ -318,7 +304,6 @@ comicPlayback = (() => {
   }
 
   playButton.onclick = () => {
-    preferManual = Boolean(run);
     if (run) pause();
     else start();
   };
@@ -394,10 +379,6 @@ comicPlayback = (() => {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) pause();
   });
-  // A category can finish rendering while its picker is still closing.
-  document.addEventListener("close", () => {
-    if (pendingStart) sync();
-  }, true);
   window.addEventListener("pagehide", pause);
   motion.addEventListener("change", () => {
     if (motion.matches) pause();
@@ -410,7 +391,6 @@ comicPlayback = (() => {
     enter() {
       if (active) return;
       active = true;
-      pendingStart = !motion.matches && !preferManual;
       sync();
     },
     leave() {

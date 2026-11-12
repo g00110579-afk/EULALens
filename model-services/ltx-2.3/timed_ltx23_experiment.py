@@ -346,6 +346,8 @@ def run_parent(args: argparse.Namespace) -> int:
             str(python),
             str(Path(__file__).resolve()),
             "--child",
+            "--gpu",
+            str(args.gpu),
             "--script-json",
             str(output_dir / "video_scripts.json"),
             "--index",

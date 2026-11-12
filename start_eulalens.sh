@@ -86,11 +86,11 @@ wait_for_port hidream 5052 "${EULALENS_IMAGE_START_TIMEOUT_SECONDS:-600}"
 
 
 # ---------------------------------------------------------
-# 3. LTX - GPU 1
-#    LTX_OFFLOAD=cpu is read from its existing .env
+# 3. CPU-offloaded LTX shares GPU 0 with Qwen. HiDream has GPU 1 to itself.
 # ---------------------------------------------------------
 
 start_service ltx 5054 \
+    env GPU="${EULALENS_VIDEO_GPU:-0}" \
     "$LTX/serve_ltx23_video.sh"
 
 wait_for_port ltx 5054 60

@@ -102,9 +102,9 @@
             }
         }
     </script>
-<link href="ui.css?v=f6cddbff15f72237" rel="stylesheet"/>
+<link href="ui.css?v=f85f1810205f144d" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
-<script src="live-runtime.js?v=291465a3476a3a83"></script>
+<script src="live-runtime.js?v=ca22a63f6854d278"></script>
 <script>
         const LIVE_API_BASE = (window.EULALENS_API_BASE || 'https://api.eulalens.stream').replace(/\/+$/, '');
         let comicPlayback;
@@ -136,22 +136,6 @@
             showDocumentWorkspace(true);
         }
 
-        function updateResumeButton() {
-            const button = document.getElementById('resume-analysis-btn');
-            if (!button) return;
-            const current = activeDocument === 'live' && currentRun && isRunCurrent(currentRun);
-            button.classList.toggle('hidden', !current && !runStore.load());
-            button.textContent = current ? 'Resume Analysis' : 'Restore Previous Analysis';
-        }
-
-        function resumeLiveAnalysis() {
-            if (activeDocument !== 'live' || !currentRun || !isRunCurrent(currentRun)) {
-                void restoreLiveRun(); return;
-            }
-            updateCancelButton();
-            showDocumentWorkspace(currentRun.awaitingCategory);
-        }
-
         function backToHome() {
             comicPlayback?.leave();
             pendingSample = null;
@@ -159,11 +143,8 @@
             document.getElementById('documents-tab').classList.add('hidden');
             document.getElementById('dashboard-tab').classList.remove('hidden');
             if (!document.getElementById('learn-more-panel').classList.contains('hidden')) toggleLearnMore();
-            updateResumeButton();
             window.scrollTo({ top: 0, behavior: 'instant' });
-            const resume = document.getElementById('resume-analysis-btn');
-            const action = resume.classList.contains('hidden') ? document.getElementById('upload-dropzone') : resume;
-            action.focus({ preventScroll: true });
+            document.getElementById('upload-dropzone').focus({ preventScroll: true });
         }
 
         function openTryAnotherDialog() {
@@ -184,24 +165,23 @@
         const cancelledLiveDocuments = new WeakSet();
         let currentRun = null;
         let currentFormat = 'video';
-        let latestUploadId = 0;
+        const uploads = new Map();
+        const categoryRuns = new WeakMap();
+        const pdfAdmissions = new EULALensRuntime.Scheduler({ pdf: 2 });
         let switchPdfRead;
         let livePdfUrl = '';
-        const mediaScheduler = new EULALensRuntime.Scheduler({ comic: 2, video: 1, cards: 1 });
+        const mediaScheduler = new EULALensRuntime.Scheduler({ comic: 2, video: 2, cards: 1 });
         const liveApi = EULALensRuntime.createApi(LIVE_API_BASE);
         const runStore = EULALensRuntime.createRunStore({
+            get length() { return window.localStorage.length; },
+            key: i => window.localStorage.key(i),
             getItem: key => window.localStorage.getItem(key),
             setItem: (key, value) => window.localStorage.setItem(key, value),
             removeItem: key => window.localStorage.removeItem(key)
         });
 
         function isRunCurrent(run) {
-            return currentRun === run && !run.controller.signal.aborted;
-        }
-
-        function isLiveGenerationCurrent(source) {
-            return activeDocument === 'live' && categories === source &&
-                currentRun?.categories === source && isRunCurrent(currentRun);
+            return Boolean(run && !run.controller.signal.aborted && (uploads.get(run.documentId) === run || currentRun === run));
         }
 
         function persistRun(run = currentRun) {
@@ -210,7 +190,13 @@
 
         function updateCancelButton() {
             const button = document.getElementById('cancel-generation-btn');
-            if (button) button.classList.toggle('hidden', !currentRun || !isRunCurrent(currentRun));
+            if (button) button.classList.toggle('hidden', !isRunCurrent(currentRun) || generationFinished(currentRun));
+        }
+
+        function generationFinished(run) {
+            return run.analysisFinished && run.cardsJobFinished && run.categories.every(cat =>
+                cat.comicFinished && cat.videoFinished && Object.values(cat.scenarioRenders || {}).every(
+                    scene => !scene.status || ['ready', 'error', 'canceled'].includes(scene.status)));
         }
 
         function jobPath(kind, id) {
@@ -232,7 +218,8 @@
             if (!run || run.controller.signal.aborted) return;
             run.controller.abort();
             if (source) cancelledLiveDocuments.add(source);
-            if (currentRun === run) { runStore.clear(); updateCancelButton(); updateResumeButton(); }
+            runStore.clear(run.documentId);
+            updateCancelButton();
             const pending = new Map();
             const add = (kind, id) => { if (id) pending.set(`${kind}:${id}`, { kind, id }); };
             if (!run.analysisFinished) add('analysis', run.analysisJobId);
@@ -257,8 +244,7 @@
         }
 
         function cancelCurrentGeneration() {
-            ++latestUploadId;
-            void cancelLiveJobs(currentRun?.categories);
+            if (currentRun) removeUpload(currentRun);
             setUploadStatus('Generation canceled.');
             backToHome();
         }
@@ -276,8 +262,16 @@
                 // so its returned ID can be canceled rather than orphaned.
                 const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
                 const requestKey = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-                if (!isRunCurrent(run)) throw EULALensRuntime.abortError();
-                const started = await liveApi.json(endpoint, { method: 'POST', body: { ...body, documentId: run.documentId, idempotencyKey: requestKey }, idempotencyKey: requestKey });
+                let started;
+                while (!started) {
+                    if (!isRunCurrent(run)) throw EULALensRuntime.abortError();
+                    try {
+                        started = await liveApi.json(endpoint, { method: 'POST', body: { ...body, documentId: run.documentId, idempotencyKey: requestKey }, idempotencyKey: requestKey });
+                    } catch (error) {
+                        if (!(error.status === 429 || (error.status === 503 && /generation queue is full/i.test(error.message)))) throw error;
+                        await EULALensRuntime.sleep(10000, run.controller.signal);
+                    }
+                }
                 if (!started.jobId) throw new Error('The server did not return a job ID.');
                 owner[field] = started.jobId;
                 persistRun(run);
@@ -330,6 +324,8 @@
         }
 
         function refreshMedia(cat, kind) {
+            updateUploadRow(categoryRuns.get(cat));
+            if (!categories.includes(cat) || activeDocument !== 'live') return;
             updateCategoryGenerationIndicators();
             if (document.getElementById('active-category')?.dataset.catId !== cat.id) return;
             if (kind === 'comic') renderComicForCategory(cat);
@@ -359,10 +355,14 @@
                 const id = await acceptedJob(run, kind, owner, field, endpoint,
                     { documentTitle: run.documentTitle, category: cat.liveSourceCategory },
                     `${run.documentId}:${kind}:${cat.id}:${scenarioId || 'primary'}:${revision}`);
+                let previousUpdate;
                 const job = await liveApi.poll(jobPath(kind, id), {
                     signal: run.controller.signal,
                     onUpdate: update => {
                         if (!isRunCurrent(run)) return;
+                        const revision = update.updatedAt && update.status + ':' + update.updatedAt;
+                        if (revision && revision === previousUpdate) return;
+                        previousUpdate = revision;
                         if (kind === 'comic') {
                             if (Array.isArray(update.comics)) cat.comics = update.comics;
                             else if (update.comic && !cat.comics?.length) cat.comics = [update.comic];
@@ -421,8 +421,8 @@
         }
 
         function queueMedia(cat, kind, { priority = 10, scenarioId = '' } = {}) {
-            const run = currentRun;
-            if (!run || !isLiveGenerationCurrent(run.categories) || !cat) return Promise.resolve();
+            const run = categoryRuns.get(cat) || currentRun;
+            if (!isRunCurrent(run) || !run.categories.includes(cat)) return Promise.resolve();
             if (kind === 'comic' && !scenarioId) scenarioId = cat.selectedComicId || '';
             if (scenarioId && !(cat.comics || []).some(item => item.id === scenarioId)) scenarioId = '';
             if (scenarioId && cat.scenarioRenders?.[scenarioId]?.jobId === cat.comicJobId) scenarioId = '';
@@ -497,7 +497,7 @@
             status.replaceChildren(); status.classList.remove('hidden');
             const message = document.createElement('p');
             message.className = 'text-sm text-white';
-            const labels = { queued: 'Video queued…', running: 'Preparing video…', processing: 'Preparing video…', canceling: 'Canceling video…', 'generating-script': 'Preparing video script…', 'generating-video': 'Rendering video…', reconnecting: 'Reconnecting to the existing video job…', canceled: 'Video generation canceled.', error: cat.videoError || 'Video generation failed.' };
+            const labels = { queued: 'Video queued…', running: 'Preparing video…', processing: 'Preparing video…', canceling: 'Canceling video…', 'queued-video': 'Video queued for rendering…', 'generating-script': 'Preparing video script…', 'generating-video': 'Rendering video…', reconnecting: 'Reconnecting to the existing video job…', canceled: 'Video generation canceled.', error: cat.videoError || 'Video generation failed.' };
             message.textContent = labels[cat.videoStatus] || 'Video queued…';
             status.appendChild(message);
             if (['error', 'canceled'].includes(cat.videoStatus)) {
@@ -565,7 +565,6 @@
         function selectCategory(id) {
             const cat = categories.find(item => item.id === id);
             if (!cat) return;
-            if (activeDocument === 'live' && currentRun) currentRun.awaitingCategory = false;
             updateCategoryDetails(cat);
             switchRightTab(currentFormat);
         }
@@ -613,9 +612,9 @@
                 } else {
                     button.addEventListener('click', () => input.click());
                     input.addEventListener('change', () => {
-                        const file = input.files[0];
+                        const files = Array.from(input.files);
                         input.value = '';
-                        if (file) void handleUploadedFile(file);
+                        for (const file of files) void handleUploadedFile(file);
                     });
                 }
             }
@@ -647,8 +646,7 @@
                 });
             });
             zone.addEventListener('drop', (e) => {
-                const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-                if (file) handleUploadedFile(file);
+                for (const file of e.dataTransfer?.files || []) void handleUploadedFile(file);
             });
         }
 
@@ -731,14 +729,10 @@
             const status = document.getElementById('upload-status');
             if (!status) return;
             status.replaceChildren();
+            if (!message) return;
             const text = document.createElement('p');
             text.className = isError ? 'text-sm text-[#D9705E]' : 'text-sm text-on-surface-variant';
             text.textContent = message; status.appendChild(text);
-            if (!isError && activeDocument === 'uploading' && currentRun && isRunCurrent(currentRun)) {
-                const cancel = document.createElement('button'); cancel.textContent = 'Cancel';
-                cancel.className = 'mt-2 text-sm text-secondary underline'; cancel.onclick = cancelCurrentGeneration;
-                status.appendChild(cancel);
-            }
         }
 
         function newLiveRun(saved = {}) {
@@ -746,7 +740,8 @@
                 documentId: saved.documentId || crypto.randomUUID(),
                 analysisJobId: saved.analysisJobId || '', cardsJobId: saved.cardsJobId || '',
                 createdAt: saved.createdAt || Date.now(), categories: [], controller: new AbortController(),
-                documentTitle: 'Uploaded EULA', media: Array.isArray(saved.media) ? saved.media : []
+                documentTitle: saved.createdAt ? 'Upload from ' + new Date(saved.createdAt).toLocaleString() : 'Uploaded EULA',
+                media: Array.isArray(saved.media) ? saved.media : []
             };
         }
 
@@ -762,15 +757,34 @@
             const liveCategories = (analysis.categories || []).map(convertLiveCategory);
             if (!liveCategories.length) throw new Error('No supported categories were found in this document.');
             run.categories = liveCategories; run.analysisFinished = true;
-            run.awaitingCategory = Boolean(file);
-            run.documentTitle = analysis.documentTitle || analysis.fileName || 'Uploaded EULA';
+            run.documentTitle = file?.name || analysis.document?.title || analysis.fileName || analysis.documentTitle || run.documentTitle;
             for (const saved of run.media) {
                 const cat = liveCategories.find(item => item.id === saved.categoryId);
                 if (!cat) continue;
                 cat.comicJobId = saved.comicJobId || ''; cat.videoJobId = saved.videoJobId || ''; cat.cardsJobId = saved.cardsJobId || ''; cat.selectedComicId = saved.selectedComicId || '';
                 cat.scenarioRenders = Object.assign(Object.create(null), Object.fromEntries(Object.entries(saved.scenarioJobs || {}).map(([id, value]) => [id, { jobId: value.jobId || '' }])));
             }
-            activeDocument = 'live'; categories = liveCategories;
+            for (const cat of liveCategories) categoryRuns.set(cat, run);
+            run.file = file;
+            run.phase = 'Ready to open';
+            persistRun(run);
+            updateUploadRow(run);
+            void loadLiveCards(run);
+            for (const cat of run.categories) if (cat.cardsJobId) void loadLiveCards(run, cat);
+            const ordered = [...run.categories].sort((a, b) => RISK_ORDER[a.risk] - RISK_ORDER[b.risk]);
+            for (const [index, cat] of ordered.entries()) {
+                const priority = index === 0 ? 3 : 0;
+                void ensureLiveComic(cat, { priority });
+                void ensureLiveVideo(cat, { priority });
+            }
+        }
+
+        function openUpload(run) {
+            if (!run.analysisFinished || !isRunCurrent(run)) return;
+            comicPlayback?.leave();
+            currentRun = run;
+            activeDocument = 'live'; categories = run.categories;
+            const file = run.file;
             releaseLivePdf();
             if (file) livePdfUrl = URL.createObjectURL(file);
             const frame = document.getElementById('cat-eula-frame');
@@ -784,18 +798,9 @@
             document.getElementById('doc-analysis-title').textContent = file?.name || run.documentTitle;
             renderCategoryNavigation();
             updateCategoryDetails(getSortedCategories()[0]);
-            updateCancelButton(); updateResumeButton(); persistRun(run);
-            setUploadStatus(`Analysis complete. Found ${liveCategories.length} categories. Cards and media appear as they finish.`);
-            // Cards are admitted first, but independent media never wait for the
-            // slowest category. The server enforces actual model resource limits.
-            void loadLiveCards(run);
+            updateCancelButton();
             switchRightTab('video');
-            showDocumentWorkspace(run.awaitingCategory);
-            for (const cat of run.categories) if (cat.cardsJobId) void loadLiveCards(run, cat);
-            for (const cat of getSortedCategories()) {
-                void ensureLiveComic(cat, { priority: 0 });
-                void ensureLiveVideo(cat, { priority: 0 });
-            }
+            showDocumentWorkspace(true);
         }
 
         function applyCardResults(run, results, targets, finished = false) {
@@ -824,7 +829,7 @@
                     }
                 }
             }
-            if (changed) refreshActiveCategory();
+            if (changed && currentRun === run) refreshActiveCategory();
         }
 
         function loadLiveCards(run, category = null) {
@@ -835,7 +840,7 @@
             return mediaScheduler.enqueue(key, 'cards', async () => {
                 owner.cardsJobFinished = false;
                 for (const cat of targets) if (cat.cardsStatus !== 'ready') cat.cardsStatus = 'generating';
-                refreshActiveCategory();
+                if (currentRun === run) refreshActiveCategory();
                 try {
                     const id = await acceptedJob(run, 'cards', owner, 'cardsJobId', '/api/categories/cards/batch/start',
                         { documentTitle: run.documentTitle, categories: targets.map(cat => cat.liveSourceCategory) }, key);
@@ -845,6 +850,7 @@
                     applyCardResults(run, job.result?.results || job.results || [], targets, true);
                     owner.cardsJobFinished = true;
                     persistRun(run);
+                    updateUploadRow(run);
                 } catch (error) {
                     if (!isRunCurrent(run)) return;
                     for (const cat of targets) {
@@ -854,7 +860,8 @@
                     }
                     owner.cardsTerminalFailure = Boolean(error.terminal);
                     owner.cardsJobFinished = Boolean(error.terminal);
-                    refreshActiveCategory();
+                    if (currentRun === run) refreshActiveCategory();
+                    updateUploadRow(run);
                 }
             }, { priority: category ? 20 : 10, signal: run.controller.signal }).catch(error => {
                 if (error.name !== 'AbortError') console.error('Cue-card scheduling failed:', error);
@@ -905,55 +912,138 @@
                 closeTryAnotherDialog();
                 backToHome();
             }
-            const uploadId = ++latestUploadId;
-            const previous = currentRun;
-            if (previous) void cancelLiveJobs(previous.categories, previous);
-            const run = newLiveRun(); currentRun = run; activeDocument = 'uploading';
-            updateCancelButton(); updateResumeButton(); releaseLivePdf();
+            const run = newLiveRun();
+            run.file = file;
+            run.documentTitle = file.name;
+            registerUpload(run);
+            setUploadStatus('');
+            return submitUpload(run, text);
+        }
+
+        async function submitUpload(run, text) {
+            const file = run.file;
+            run.canRetryAdmission = false;
+            setUploadPhase(run, 'Queued');
             try {
-                if (text === undefined) {
-                    setUploadStatus(`Extracting text from “${file.name}”…`);
-                    text = await extractPdfText(file, run.controller.signal);
-                }
-                if (uploadId !== latestUploadId || !isRunCurrent(run)) return;
-                run.documentTitle = file.name;
-                setUploadStatus(`Analyzing “${file.name}”…`);
-                const id = await acceptedJob(run, 'analysis', run, 'analysisJobId', '/api/analyze/start', { text, fileName: file.name }, `${run.documentId}:analysis`);
-                const job = await liveApi.poll(jobPath('analysis', id), { signal: run.controller.signal });
-                if (uploadId !== latestUploadId || !isRunCurrent(run)) return;
-                showLiveAnalysis(run, job.result, file);
+                await pdfAdmissions.enqueue(run.documentId, 'pdf', async () => {
+                    if (text === undefined) {
+                        setUploadPhase(run, 'Reading PDF');
+                        text = await extractPdfText(file, run.controller.signal);
+                    }
+                    if (!isRunCurrent(run)) return;
+                    setUploadPhase(run, 'Queued');
+                    await acceptedJob(run, 'analysis', run, 'analysisJobId', '/api/analyze/start',
+                        { text, fileName: file.name }, run.documentId + ':analysis');
+                }, { signal: run.controller.signal });
+                if (isRunCurrent(run)) await monitorAnalysis(run, file);
             } catch (error) {
-                if (uploadId !== latestUploadId || !isRunCurrent(run)) return;
-                const networkError = error.name === 'TypeError' && /fetch|network|load failed/i.test(error.message);
-                setUploadStatus(networkError ? 'Could not reach the analysis service. Check your connection and try again.' : error.message || 'Could not analyze this PDF.', true);
-                updateResumeButton();
+                if (isRunCurrent(run)) {
+                    run.canRetryAdmission = error instanceof TypeError || error.status >= 500;
+                    setUploadPhase(run, 'Upload failed', error.message);
+                }
             }
         }
 
-        async function restoreLiveRun() {
-            const saved = runStore.load();
-            if (!saved) return;
-            const uploadId = ++latestUploadId;
-            const run = newLiveRun(saved); currentRun = run; activeDocument = 'uploading';
-            updateCancelButton(); setUploadStatus('Reconnecting to your saved analysis…');
+        function registerUpload(run) {
+            uploads.set(run.documentId, run);
+            setUploadPhase(run, 'Queued');
+        }
+
+        function setUploadPhase(run, phase, error = '') {
+            run.phase = phase;
+            run.uploadError = error;
+            updateUploadRow(run);
+        }
+
+        async function monitorAnalysis(run, file) {
             try {
-                const job = await liveApi.poll(jobPath('analysis', run.analysisJobId), { signal: run.controller.signal });
-                if (uploadId !== latestUploadId || !isRunCurrent(run)) return;
-                showLiveAnalysis(run, job.result);
+                const job = await liveApi.poll(jobPath('analysis', run.analysisJobId), {
+                    signal: run.controller.signal,
+                    onUpdate(job) {
+                        if (!isRunCurrent(run)) return;
+                        const phase = { queued: 'Queued', processing: 'Analyzing', reconnecting: 'Reconnecting' }[job.status];
+                        if (phase && phase !== run.phase) setUploadPhase(run, phase);
+                    }
+                });
+                if (isRunCurrent(run)) showLiveAnalysis(run, job.result, file);
             } catch (error) {
                 if (!isRunCurrent(run)) return;
-                if ([401, 403, 404, 410].includes(error.status) || error.terminal) {
-                    runStore.clear(); run.controller.abort(); updateCancelButton();
-                }
-                const message = [401, 403, 404, 410].includes(error.status)
-                    ? 'This saved analysis is no longer available in your browser session. Upload the PDF again to start a new analysis.'
-                    : error.message || 'The saved analysis is no longer available. Upload the PDF again to retry.';
-                setUploadStatus(message, true);
-                updateResumeButton();
+                const unavailable = [401,403,404,410].includes(error.status);
+                if (unavailable || error.terminal) runStore.clear(run.documentId);
+                setUploadPhase(run, 'Analysis failed', unavailable
+                    ? 'This analysis is no longer available in this browser session. Upload the PDF again.'
+                    : error.message);
+                run.canReconnect = !unavailable && !error.terminal;
+                updateUploadRow(run);
             }
         }
 
+        function restoreLiveRun(saved = runStore.load()) {
+            if (!saved) return;
+            const run = uploads.get(saved.documentId) || newLiveRun(saved);
+            if (run.monitoring || run.analysisFinished) return;
+            run.canReconnect = false;
+            if (!uploads.has(run.documentId)) registerUpload(run);
+            setUploadPhase(run, 'Reconnecting');
+            run.monitoring = monitorAnalysis(run, run.file).finally(() => { run.monitoring = null; });
+            return run.monitoring;
+        }
 
+        function removeUpload(run) {
+            void cancelLiveJobs(run.categories, run);
+            uploads.delete(run.documentId);
+            run.row?.node.remove();
+            run.file = undefined;
+            if (currentRun === run) { currentRun = null; releaseLivePdf(); }
+            document.getElementById('upload-queue').hidden = !uploads.size;
+        }
+
+        function updateUploadRow(run) {
+            if (!run || !uploads.has(run.documentId)) return;
+            if (!run.row) {
+                const node = document.createElement('li');
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined upload-row-icon';
+                icon.setAttribute('aria-hidden','true'); icon.textContent = 'description';
+                const info = document.createElement('div');
+                const name = document.createElement('strong'), detail = document.createElement('small');
+                const phase = document.createElement('span');
+                phase.className = 'upload-phase';
+                info.append(name, phase, detail);
+                const open = document.createElement('button'), remove = document.createElement('button');
+                open.type = remove.type = 'button';
+                open.className = 'pill-button'; remove.className = 'quiet-button';
+                open.onclick = () => {
+                    if (run.analysisFinished) openUpload(run);
+                    else if (run.canRetryAdmission) void submitUpload(run);
+                    else void restoreLiveRun(run);
+                };
+                remove.onclick = () => removeUpload(run);
+                node.append(icon, info, open, remove);
+                document.getElementById('upload-list').appendChild(node);
+                run.row = { node, name, phase, detail, open, remove };
+            }
+            const { name, phase, detail, open, remove } = run.row;
+            if (name.textContent !== run.documentTitle) name.textContent = run.documentTitle;
+            const total = run.categories.length;
+            const images = run.categories.filter(cat => cat.comicStatus === 'ready').length;
+            const videos = run.categories.filter(cat => cat.videoStatus === 'ready').length;
+            const status = run.analysisFinished
+                ? [total + (total === 1 ? ' category' : ' categories'), 'Comics ' + images + '/' + total, 'Videos ' + videos + '/' + total].join(' · ')
+                : run.uploadError || '';
+            const label = run.analysisFinished ? 'Ready to open' : run.phase;
+            if (phase.textContent !== label) phase.textContent = label;
+            phase.classList.toggle('has-error', Boolean(run.uploadError));
+            detail.hidden = !status;
+            if (detail.textContent !== status) detail.textContent = status;
+            open.hidden = !run.analysisFinished && !run.canReconnect && !run.canRetryAdmission;
+            const action = run.analysisFinished ? 'Open' : run.canRetryAdmission ? 'Retry' : 'Reconnect';
+            if (open.textContent !== action) open.textContent = action;
+            const removeLabel = run.uploadError || generationFinished(run) ? 'Remove' : 'Cancel';
+            if (remove.textContent !== removeLabel) remove.textContent = removeLabel;
+            if (currentRun === run) updateCancelButton();
+            document.getElementById('upload-queue').hidden = false;
+        }
 
         const zoomCategories = [
     {
@@ -20442,7 +20532,7 @@
             const cat = categories.find(item => item.id === document.getElementById('active-category')?.dataset.catId);
             container.classList.toggle('hidden', activeDocument !== 'live' || !cat);
             if (activeDocument !== 'live' || !cat) return;
-            const labels = { idle: 'Queued', queued: 'Queued', generating: 'Generating', running: 'Generating', processing: 'Generating', 'generating-story': 'Preparing story', 'rendering-image': 'Rendering image', 'generating-script': 'Preparing script', 'generating-video': 'Rendering video', ready: 'Ready', error: 'Failed', canceled: 'Canceled', canceling: 'Canceling', reconnecting: 'Reconnecting' };
+            const labels = { idle: 'Queued', queued: 'Queued', generating: 'Generating', running: 'Generating', processing: 'Generating', 'generating-story': 'Preparing story', 'queued-image': 'Artwork queued', 'queued-video': 'Video queued', 'rendering-image': 'Rendering image', 'generating-script': 'Preparing script', 'generating-video': 'Rendering video', ready: 'Ready', error: 'Failed', canceled: 'Canceled', canceling: 'Canceling', reconnecting: 'Reconnecting' };
             container.replaceChildren();
             for (const [key, title] of [['cards', 'Cue cards'], ['comic', 'Comic'], ['video', 'Video']]) {
                 const item = document.createElement('span');
@@ -20544,15 +20634,11 @@
 
         function switchDocument(doc) {
             comicPlayback?.leave();
-            ++latestUploadId;
-            const previousRun = currentRun;
-            if (previousRun) void cancelLiveJobs(previousRun.categories, previousRun);
             currentRun = null; releaseLivePdf();
             const entry = documentRegistry[doc] || documentRegistry.zoom;
             activeDocument = doc;
             categories = entry.categories();
             updateCancelButton();
-            updateResumeButton();
 
             const titleEl = document.getElementById('doc-analysis-title');
             if (titleEl) {
@@ -20568,7 +20654,7 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initUploadDropzone();
-            updateResumeButton();
+            for (const saved of runStore.list()) void restoreLiveRun(saved);
             if (pendingSample !== null) {
                 const doc = pendingSample;
                 pendingSample = null;
@@ -20730,9 +20816,9 @@
     <span class="upload-copy"><span id="upload-heading">Upload a EULA</span><span id="upload-hint">Drop a PDF here, or click to browse</span></span>
     <span class="upload-action" aria-hidden="true"><span class="material-symbols-outlined">arrow_upward</span></span>
   </button>
-  <input accept="application/pdf,.pdf" class="hidden" id="upload-input" type="file" aria-label="Upload a EULA PDF"/>
+  <input accept="application/pdf,.pdf" class="hidden" id="upload-input" multiple type="file" aria-label="Upload a EULA PDF"/>
   <div id="upload-status" role="status" aria-live="polite"></div>
-  <button id="resume-analysis-btn" type="button" onclick="resumeLiveAnalysis()" class="pill-button hidden">Resume Analysis</button>
+  <section id="upload-queue" aria-labelledby="upload-queue-title" hidden><h2 id="upload-queue-title">Upload queue</h2><ul id="upload-list" aria-live="polite" aria-relevant="additions text"></ul></section>
 </section>
 <section class="sample-section" aria-labelledby="samples-heading"><h2 id="samples-heading">Sample EULAs</h2><div class="sample-grid"><button type="button" class="sample-button glass-panel" onclick="openDocumentView('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="openDocumentView('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
@@ -20940,8 +21026,8 @@ communicated to end users.
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">face_retouching_off</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div></dialog>
 <dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></button></dialog>
 <script src="sample-narration.js?v=77b39b24a9e1ee8b"></script>
-<script src="comic-reader.js?v=9946678aab5dec69"></script>
-<script src="comic-playback.js?v=f2395abd893c466c"></script>
+<script src="comic-reader.js?v=edb6fd51ad59ffbb"></script>
+<script src="comic-playback.js?v=0753787075eff470"></script>
 <script src="category-gallery.js?v=da6c11cdfb1370cf"></script>
 <script src="ui.js?v=c81f6d89d700bcc6"></script>
 </body></html>

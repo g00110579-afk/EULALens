@@ -194,6 +194,18 @@ class ModelTests(unittest.TestCase):
     def test_stable_speaker_voices(self):
         voices=runtime.speaker_voices([{"speaker":"A"},{"speaker":"A"},{"speaker":"B"},{"speaker":"A"}],['one','two'])
         self.assertEqual(voices,['one','one','two','one'])
+    def test_video_worker_uses_the_gpu_selected_by_its_parent(self):
+        timed = load("tested_timed", "ltx-2.3/timed_ltx23_experiment.py")
+        script = self.root / "request.json"
+        script.write_text(json.dumps({"videos": [{"category_id": "example"}]}))
+        argv = ["timed_ltx23_experiment.py", "--scripts", str(script),
+                "--output-root", str(self.root), "--gpu", "0"]
+        with patch.object(sys, "argv", argv), patch.object(timed, "monitor_gpu"), patch.object(timed.subprocess, "Popen") as spawn:
+            spawn.return_value.wait.return_value = 0
+            self.assertEqual(timed.main(), 0)
+        args = spawn.call_args.args[0]
+        self.assertIn("--child", args)
+        self.assertEqual(args[args.index("--gpu") + 1], "0")
     def test_image_native_settings(self):
         good=image.GenerateRequest(prompt="A sufficiently long image prompt")
         image.validate_generation_settings(good)

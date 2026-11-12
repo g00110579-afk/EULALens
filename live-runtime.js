@@ -168,21 +168,41 @@
     return `WEBVTT\n\n${cues.join('\n\n')}\n`;
   }
   function createRunStore(storage, key = 'eulalens:active-run:v1') {
+    const prefix = key + ':';
+    function read(name) {
+      const value = JSON.parse(storage.getItem(name) || 'null');
+      if (value?.version !== 1 || typeof value.documentId !== 'string' || !value.analysisJobId) return null;
+      if (Date.now() - value.createdAt <= 86400000) return value;
+      storage.removeItem(name);
+      return null;
+    }
+    function list() {
+      try {
+        const names = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter(n => n?.startsWith(prefix));
+        const runs = new Map();
+        for (const name of [key, ...names]) {
+          const value = read(name);
+          if (value) runs.set(value.documentId, value);
+        }
+        return [...runs.values()].sort((a,b) => b.createdAt - a.createdAt);
+      } catch { return []; }
+    }
     return {
+      list,
       save(run) {
         try {
           const media = (run.categories || []).map(cat => ({ categoryId: cat.id, comicJobId: cat.comicJobId || '', videoJobId: cat.videoJobId || '', cardsJobId: cat.cardsJobId || '', selectedComicId: cat.selectedComicId || '', scenarioJobs: Object.fromEntries(Object.entries(cat.scenarioRenders || {}).map(([id, value]) => [id, { jobId: value.jobId || '' }])) }));
-          storage.setItem(key, JSON.stringify({ version: 1, documentId: run.documentId, analysisJobId: run.analysisJobId, cardsJobId: run.cardsJobId, createdAt: run.createdAt, media }));
+          storage.setItem(prefix + run.documentId, JSON.stringify({ version: 1, documentId: run.documentId, analysisJobId: run.analysisJobId, cardsJobId: run.cardsJobId, createdAt: run.createdAt, media }));
+          if (read(key)?.documentId === run.documentId) storage.removeItem(key);
         } catch { /* Private browsing and quota limits must not break generation. */ }
       },
-      load() {
+      load() { return list()[0] || null; },
+      clear(id) {
         try {
-          const value = JSON.parse(storage.getItem(key) || 'null');
-          if (value?.version !== 1 || typeof value.documentId !== 'string' || !value.analysisJobId || Date.now() - value.createdAt > 24 * 60 * 60 * 1000) return null;
-          return value;
-        } catch { return null; }
-      },
-      clear() { try { storage.removeItem(key); } catch {} }
+          storage.removeItem(prefix + id);
+          if (read(key)?.documentId === id) storage.removeItem(key);
+        } catch {}
+      }
     };
   }
   root.EULALensRuntime = { Scheduler, createApi, createRunStore, escapeHtml, safeUrl, sleep, abortError, subtitleVtt };

@@ -363,8 +363,11 @@ const sentences = new Intl.Segmenter('en', { granularity: 'sentence' });
 // and repeated wording survive because quotations are sliced from the input.
 function sourcePassages(chunk) {
   const passages = [];
-  for (const { index, segment } of sentences.segment(chunk)) {
-    const text = segment.trim();
+  // Segment soft-wrapped PDF prose as a sentence, retaining UTF-16 offsets
+  // into the original text for evidence links and exact quotations.
+  const continuous = chunk.replace(/(?<=[\p{L}\p{N},])\r?\n(?=[ \t]*\p{Ll})/gu, (breakText) => ' '.repeat(breakText.length));
+  for (const { index, segment } of sentences.segment(continuous)) {
+    const text = chunk.slice(index, index + segment.length).trim();
     if (!text) continue;
     const start = index + segment.length - segment.trimStart().length;
     passages.push({ start, end: start + text.length, text });
@@ -1086,7 +1089,9 @@ function normalizeComicEntry(script, category, index = 0) {
       const purpose = truncate(scene.purpose, 60);
       const legalPoint = sanitizeOverlayText(scene.legal_point || scene.legalPoint);
       const narration = sanitizeOverlayText(scene.narration || scene.body || scene.summary);
-      const dialogue = sanitizeOverlayText(scene.dialogue);
+      const authoredSlots = scene.overlay_slots || scene.overlaySlots;
+      const speech = Array.isArray(authoredSlots) && authoredSlots.find(slot => slot?.kind === 'speech');
+      const dialogue = sanitizeOverlayText(scene.dialogue || speech?.text);
       const visualDescription = truncate(sanitizeArtDescription(scene.visual_description || scene.visualDescription), 360);
       const composition = truncate(scene.composition, 90);
       const visualHook = truncate(scene.visual_hook || scene.visualHook, 160);
@@ -1506,7 +1511,7 @@ Visual storytelling rules:
 17. For data-sharing, vendor, analytics, integration, or cross-border scenarios, do not make the story mostly laptop/tablet diagrams. After the setup panel, use physical routing and handoff scenes: sealed folders moving between desks, server-room handoffs, file carts, a wall map with string routes, border/checkpoint imagery, locked cabinets, redacted paper, and people deciding what data to remove.
 
 Overlay text rules:
-1. overlay_title is a short planning title for the UI card, not for the image model.
+1. Give each scene a short title suitable for its overlay heading.
 2. overlay_caption is a plain-English summary for the UI card, not for the image model.
 3. overlay_slots are comic text bubbles/callouts that the app will render over the image.
 4. Use 1 overlay_slot for most scenes. Use 2 in 1-2 key turning-point scenes when the second line adds distinct context, such as a rule plus consequence or action plus warning.
@@ -1520,19 +1525,7 @@ Overlay text rules:
 12. Keep dialogue short enough for bubbles. Good: "Can I use this dataset for my thesis?", "Sharing my login would bypass approval.", "Ask for written permission first."
 13. Use callouts sparingly for concrete lookouts. Avoid making every bubble a summary sentence.
 
-Raw image prompt rules:
-1. Each comic has its own raw_image_prompt describing one full art-only image mosaic in one self-contained English prompt.
-2. Do not request readable text anywhere in the generated image: no page title, panel title, frame number, caption, label, speech bubble, thought bubble, UI writing, document writing, logo, brand mark, or sign text.
-3. Preserve story flow and character consistency across panels.
-4. Use a clear grid that matches the scene count: 2x2 for 4 scenes, 2x3 for 5-6 scenes.
-5. Describe each panel's action, composition, and dominant visual anchor separately so the image model does not repeat the same shot.
-6. Leave clean negative space near each scene's overlay slot positions, but do not draw the bubbles or callouts; the app will render them later.
-7. Computer screens and documents should use abstract blocks, icons, and unreadable interface lines only.
-8. Never request page titles, panel titles, frame numbers, logos, brand marks, readable UI text, readable document text, button names, exact quoted clause text, EULA text, fine print, signage text, speech bubbles, or thought bubbles as the explanation.
-9. Never write raw_image_prompt using numbered labels like "Panel 1", "Frame 1", or "Cell 1"; image models often turn those into visible title bands.
-10. Avoid photorealism and infographic style.
-11. This prompt can be rough but complete; a downstream image prompt refiner may polish it later.
-12. The raw_image_prompt should pass the hidden-text test: without overlay text, the image sequence still reads like a scenario with cause and effect.
+The app builds the image prompt from visual_description in scene order. Describe the concrete action, recurring character, shot composition and clean space for overlays once in each scene. Omit a separate image prompt. Use the scene title for its overlay heading and put spoken dialogue in overlay_slots.
 
 OUTPUT FORMAT:
 
@@ -1554,12 +1547,9 @@ OUTPUT FORMAT:
       },
       "story_summary": "A one- or two-sentence introduction for the reader: who is involved, which agreement term matters, and the decision it leads to.",
       "story_arc": "setup -> friction -> consequence -> decision",
-      "raw_image_prompt": "one complete art-only image-mosaic prompt for this scenario; no generated text, titles, labels, or bubbles",
       "scenes": [
         {
-          "scene_number": 1,
           "scene_title": "string",
-          "overlay_title": "short title to render outside/over the image later",
           "overlay_caption": "short caption to render outside/over the image later",
           "overlay_slots": [
             {
@@ -1573,7 +1563,6 @@ OUTPUT FORMAT:
           "legal_point": "string",
           "legal_basis": ["short source-grounded point"],
           "narration": "A short sentence to read aloud for this scene, preserving any conditions on the rule.",
-          "dialogue": "string",
           "composition": "wide shot|close-up|over-the-shoulder|split-screen|object metaphor|timeline|workflow view|other",
           "visual_hook": "what makes this scene visually distinct",
           "visual_description": "string"
@@ -1598,7 +1587,7 @@ IMPORTANT:
     label: `scenario comic scripts and image prompts for ${normalized.title}`,
     validate: (value) => (
       Array.isArray(value.comics)
-      || (Array.isArray(value.scenes) && typeof (value.raw_image_prompt || value.rawImagePrompt) === 'string')
+      || Array.isArray(value.scenes)
     ),
     messages: [
       { role: 'system', content: scriptPrompt },
@@ -1617,7 +1606,7 @@ IMPORTANT:
       label: `scenario comic repair for ${normalized.title}`,
       validate: (value) => (
         Array.isArray(value.comics)
-        || (Array.isArray(value.scenes) && typeof (value.raw_image_prompt || value.rawImagePrompt) === 'string')
+        || Array.isArray(value.scenes)
       ),
       messages: [
         { role: 'system', content: scriptPrompt },
@@ -1640,9 +1629,8 @@ For a 6-scene comic, use this device-light structure unless the source absolutel
 
 Story/visual repair:
 - Keep the cause-effect story visible through character action and object movement. Do not rely on legal summaries, labels, or icons to do the work.
-- Remove text-like marks from visual_description and raw_image_prompt. Keep readable words only in overlay_slots; the generated image should have no UI words, document words, logos, EULA text, fine print, labels, stamps, button names, quoted UI text, speech bubbles, or thought bubbles.
+- Remove text-like marks from visual_description. Keep readable words only in overlay_slots; the generated image should have no UI words, document words, logos, EULA text, fine print, labels, stamps, button names, quoted UI text, speech bubbles, or thought bubbles.
 - Remove repeated visual beats. If two scenes use the same person, same object, same room, and same action, rewrite one as a different camera distance, physical handoff, blocked path, consequence preview, permission step, or safer next action.
-- Do not use numbered labels like "Panel 1", "Frame 1", or "Cell 1" in raw_image_prompt.
 - Remove words like "represents", "symbolizes", "symbolizing", and "metaphor" from visual_description. Describe what the viewer literally sees happening.
 - Replace floating icons with concrete scenario actions: a reused image on an unbranded display, a copied file staying on a backup shelf, a renewal receipt arriving, a folder being handed to a partner, a broken tool during a deadline.
 
@@ -1824,6 +1812,7 @@ export async function analyzeWithQwen({ text, fileName, signal }) {
   const categoryPrompt = `You are an expert in legal document analysis, especially EULAs, software licenses, SaaS terms, dataset licenses, and privacy-linked terms.
 
 Identify the meaningful legal/practical categories in the agreement chunk.
+Even one or two sentences can state a complete license rule. Extract an express permission and its limitations together, including requirements for an exception.
 
 A category is a coherent issue a reader should review as one unit: a right, restriction, obligation, permission, risk, process, or remedy. It is not just a heading or keyword. Use precise snake_case names such as ai_training, content_license, auto_renewal, termination, class_action_waiver, data_retention, liability, prohibited_use, refunds, arbitration, or create a better category if needed.
 
@@ -1890,11 +1879,15 @@ IMPORTANT:
     const passages = sourcePassages(chunk);
     const numbered = passages.map((passage, i) => `[${i + 1}] ${passage.text.replace(/\s+/g, ' ')}`).join('\n');
     try {
-      const parsed = await requestQwenJson({
+      const extract = (instruction) => requestQwenJson({
         config, signal, maxTokens, label: `category extraction at source offset ${start}`,
         validate: (value) => extractionValidity(value, passages.length),
-        messages: [{ role: 'system', content: categoryPrompt }, { role: 'user', content: `Analyze these numbered agreement passages. Cite the supporting passage ranges, including conditions and exceptions. Return JSON only:\n\n${numbered}` }]
+        messages: [{ role: 'system', content: categoryPrompt }, { role: 'user', content: `${instruction}\n\n${numbered}` }]
       });
+      let parsed = await extract('Analyze these numbered agreement passages. Cite the supporting passage ranges, including conditions and exceptions. Return JSON only:');
+      if (!parsed.categories.length && /\b(?:must|shall|may|cannot|prohibited|permitted|required|obligat(?:ed|ion)|reserves? the right)\b/i.test(chunk)) {
+        parsed = await extract('Review each passage for an explicit rule. Who may or must do what, and under which condition? If the text states a real permission, limit or duty, name it and cite its full passage range in the requested JSON format. If these words are merely descriptive and no rule is stated, return an empty categories array.');
+      }
       return [{ categories: parsed.categories.map((category) => {
         const sourceEvidence = category.source_ranges.map(([first, last]) => {
           const evidenceStart = start + passages[first - 1].start, evidenceEnd = start + passages[last - 1].end;

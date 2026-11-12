@@ -14,6 +14,7 @@ function environment(api={}) {
     constructor(){this.dataset={};this.children=[];this.attributes={};this.style={setProperty(){}};this.classList={add(){},remove(){},toggle(){},contains(){return false;}};this.textContent='';this.innerHTML='';this.src='';this.complete=false;}
     appendChild(child){this.children.push(child);child.parentElement=this;if(child.id)elements.set(child.id,child);return child;}
     removeChild(child){this.children=this.children.filter(item=>item!==child);}
+    remove(){this.parentElement?.removeChild(this);}
     append(...children){children.forEach(child=>this.appendChild(child));}
     replaceChildren(...children){this.children=[];this.innerHTML='';this.append(...children);}
     setAttribute(name,value){this.attributes[name]=value;}
@@ -28,7 +29,7 @@ function environment(api={}) {
   }
   const get=id=>{if(!elements.has(id)){const node=new Element();node.id=id;node.parentElement=new Element();elements.set(id,node);}return elements.get(id);};
   get('comic-zoom').append(new Element(),new Element());
-  const store=new Map();const storage={getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};
+  const store=new Map();const storage={get length(){return store.size;},key:index=>[...store.keys()][index]??null,getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};
   const ctx={console:{log(){},warn(){},error(){}},setTimeout,clearTimeout,AbortController,DOMException,Promise,WeakSet,URL:class extends URL {static createObjectURL(){return'blob:test';}static revokeObjectURL(){}},crypto:{randomUUID,subtle:{digest:async (_algorithm, data)=>Uint8Array.from(createHash('sha256').update(data).digest()).buffer}},TextEncoder,Uint8Array,Blob,
     location:{href:'https://web.test/'},localStorage:storage,sessionStorage:storage,addEventListener(){},scrollTo(){},requestAnimationFrame(){},
     document:{getElementById:get,createElement:()=>new Element(),querySelectorAll:()=>[],querySelector:selector=>selector==='#comic-reader .comic-art'?get('comic-crop').parentElement:null,addEventListener(){}},
@@ -54,7 +55,7 @@ test('partial cards display before the batch ends, and media starts without a ca
     if(url.includes('/cards/'))updateCards=options.onUpdate;
     return await new Promise(()=>{});
   }});
-  e.run(`currentRun=newLiveRun();currentRun.analysisJobId='analysis';showLiveAnalysis(currentRun,{analysis:{categories:[{id:'c1',title:'First',lenses:{}},{id:'c2',title:'Second',lenses:{}}]}});`);
+  e.run(`currentRun=newLiveRun();currentRun.analysisJobId='analysis';showLiveAnalysis(currentRun,{analysis:{categories:[{id:'c1',title:'First',lenses:{}},{id:'c2',title:'Second',lenses:{}}]}});openUpload(currentRun);`);
   await tick();assert.ok(starts.some(url=>url.includes('/cards/')));assert.ok(starts.some(url=>url.includes('/comic/')));assert.ok(starts.some(url=>url.includes('/video/')));
   e.run(`currentFormat='video';`);
   updateCards({status:'processing',results:[{categoryId:'c1',ok:true,cards:[{question:'Question',backDetail:'Answer'}]}]});
@@ -63,12 +64,15 @@ test('partial cards display before the batch ends, and media starts without a ca
   assert.equal(e.run(`categories[1].cardsStatus`),'error');
 });
 
-test('choosing a sample invalidates older extraction before any analysis POST',async()=>{
-  let release;let requests=0;const e=environment({json:async()=>{requests++;return{jobId:'unexpected'};}});
+test('choosing a sample during PDF extraction leaves its queued analysis running in the background',async()=>{
+  let release;const requests=[];const e=environment({json:async(url)=>{requests.push(url);return{jobId:'accepted'};},poll:async()=>({status:'ready',result:{analysis:{categories:[{id:'only',title:'From the PDF',lenses:{}}]}}})});
   e.ctx.extractPdfText=()=>new Promise(resolve=>{release=resolve;});
   const pending=e.ctx.handleUploadedFile({name:'old.pdf',type:'application/pdf',size:10});
+  await tick();
   e.ctx.switchDocument('zoom');release('A long enough document for analysis.');await pending;await tick();
-  assert.equal(e.run('activeDocument'),'zoom');assert.equal(requests,0);
+  assert.equal(e.run('activeDocument'),'zoom');assert.equal(requests.filter(url=>url==='/api/analyze/start').length,1);
+  assert.equal(e.run('[...uploads.values()][0].categories[0].name'),'From the PDF');
+  assert.ok(!e.run('categories.some(cat=>cat.name==="From the PDF")'));
 });
 
 test('filenames, summaries, cards and comic dialogue remain text',()=>{
@@ -79,10 +83,10 @@ test('filenames, summaries, cards and comic dialogue remain text',()=>{
   assert.equal(e.get('upload-status').children[0].textContent,attack);assert.equal(e.get('cat-comic-img').src,'');
 });
 
-test('late accepted jobs are canceled when the document was replaced',async()=>{
+test('canceling a queued upload cleans up a media job accepted after cancellation',async()=>{
   let release;const calls=[];const e=environment({json:async(url)=>{calls.push(url);if(url.endsWith('/start'))return await new Promise(resolve=>{release=resolve;});return{status:'canceled'};}});
   e.run(setupRun);const promise=e.run(`ensureLiveComic(categories[0])`);await tick();
-  e.ctx.switchDocument('zoom');release({jobId:'late-comic'});await promise;await tick();
+  e.run('registerUpload(currentRun);removeUpload(currentRun);');e.ctx.switchDocument('zoom');release({jobId:'late-comic'});await promise;await tick();
   assert.ok(calls.includes('/api/categories/comic/jobs/late-comic/cancel'));
   assert.equal(e.run('activeDocument'),'zoom');
 });
@@ -227,7 +231,7 @@ test('a saved run with an unavailable session offers reupload without starting a
   const e = environment({ json: async () => { posts++; return {}; }, poll: async () => { throw Object.assign(new Error('Job not found or expired.'), { status: 404, terminal: true }); } });
   e.run(`runStore.save({documentId:'saved',analysisJobId:'old-analysis',createdAt:Date.now(),categories:[]});`);
   await e.ctx.restoreLiveRun();
-  assert.match(e.get('upload-status').children[0].textContent, /no longer available in your browser session.*Upload the PDF again/);
+  assert.match(e.run("uploads.get('saved').row.detail.textContent"), /no longer available.*browser session.*Upload the PDF again/);
   assert.equal(e.run('runStore.load()'), null);
   assert.equal(e.run('isRunCurrent(currentRun)'), false);
   assert.equal(posts, 0);
@@ -238,7 +242,7 @@ test('restored categories keep reserved scenario identifiers isolated from one a
   const e=environment({json:async()=>({jobId:'render-'+ ++starts}),poll:async url=>({status:'ready',comic:{id:'constructor',title:'Secondary',panels:[]},render:{image:{imageUrl:'/api/assets/'+url.split('/').pop()+'/image.png'}}})});
   e.run(`const actualComicLoader=ensureLiveComic;ensureLiveComic=()=>Promise.resolve();ensureLiveVideo=()=>Promise.resolve();loadLiveCards=()=>Promise.resolve();
     currentRun=newLiveRun({analysisJobId:'analysis',media:['one','two'].map(id=>({categoryId:id,comicJobId:'parent-'+id,selectedComicId:'first',scenarioJobs:{first:{jobId:'parent-'+id}}}))});
-    showLiveAnalysis(currentRun,{analysis:{categories:['one','two'].map(id=>({id,title:id,lenses:{}}))}});
+    showLiveAnalysis(currentRun,{analysis:{categories:['one','two'].map(id=>({id,title:id,lenses:{}}))}});openUpload(currentRun);
     ensureLiveComic=actualComicLoader;
     for(const cat of categories){cat.primaryComicId='first';cat.comics=[{id:'first',title:'First',panels:[]},{id:'constructor',title:'Secondary',panels:[]}];}
     displayComicScenario(categories[0],'constructor');`);

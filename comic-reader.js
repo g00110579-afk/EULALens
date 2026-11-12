@@ -411,6 +411,7 @@ function renderComicForCategory(cat) {
       processing: "Preparing comic…",
       canceling: "Canceling comic…",
       "generating-story": "Generating comic story…",
+      "queued-image": "Artwork queued for rendering…",
       "rendering-image": "Rendering comic artwork…",
       reconnecting: "Reconnecting to the existing comic job…",
       canceled: "Comic generation canceled.",

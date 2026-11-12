@@ -3,7 +3,7 @@ Dark glass UI — dark-glass-ui
 The homepage puts PDF upload first, with six compact sample EULAs below it.
 The samples retain their original 164 categories, summaries and media.
 
-Opening a sample or a newly analyzed PDF opens a full-screen category gallery.
+Selecting a sample or opening an analyzed PDF from the upload queue opens the category gallery.
 Sample and uploaded categories share a set of 24 illustrated objects. The
 browser selects up to two from the extracted title as soon as analysis finishes.
 Related titles can share a subject and show different accompanying objects.
@@ -16,6 +16,10 @@ Browse categories reopens it on the current category. Closing it there returns
 to the same reader and format. Reduced motion skips transitions.
 
 The upload-capable public review is at https://api.eulalens.stream/review/.
+The upload queue accepts multiple PDFs and shows each analysis independently.
+Open becomes available when categories are ready. Comic and video counts update
+while the reader browses other documents. Reload reconnects accepted jobs from
+their local identifiers. PDF bytes and extracted text stay out of browser storage.
 It serves the PDF reader locally and sends analysis requests to its own origin.
 Switch EULA in the reader opens the PDF picker and sample choices. A canceled
 picker or unreadable replacement leaves the current agreement available.
@@ -36,8 +40,8 @@ Select any panel on the sheet to open that scene. Demo agreements include
 frame coordinates for every scene. Uploaded comics use the image gutters
 when they match the script, then the layout requested from HiDream.
 
-Read aloud starts on. Its switch shows the sound preference during playback
-and while paused. Play uses that preference. Reduced motion starts paused.
+Comic opens paused. Read aloud starts on, and Play uses the displayed sound
+preference. Changing the category or scenario leaves the next comic paused.
 Muted comics advance on a reading timer.
 Full comic highlights the current panel and follows it while zoomed. Switching
 between Scenes and Full comic keeps the same playback position. Choosing a
@@ -48,8 +52,9 @@ per comic. The 164 recordings and 969 scene timings work on static hosting.
 To rebuild them, use the Kokoro environment with its cached weights and voice,
 NumPy and ffmpeg, and run tools/build_sample_narration.py. Use --device cuda for
 an offline batch on a GPU. The builder reuses completed tracks on interrupted
-runs, then writes sample-narration.js. Uploaded comics use the authenticated
-branch API and the existing Kokoro voice on CPU (see model-services/README.txt).
+runs, then writes sample-narration.js. Uploaded comics queue CPU narration when
+their stories are available, alongside image rendering. Play reuses prepared
+clips through the authenticated API (see model-services/README.txt).
 
 ui.css provides the glass styling, ui.js handles view controls and
 category-gallery.js builds the chooser from the current agreement. The shared

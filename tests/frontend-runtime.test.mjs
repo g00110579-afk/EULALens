@@ -4,7 +4,7 @@ import '../live-runtime.js';
 const { Scheduler, createApi, createRunStore, escapeHtml, safeUrl } = globalThis.EULALensRuntime;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const response = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
-const storage = () => { const values = new Map(); return { setItem: (k,v) => values.set(k,v), getItem: k => values.get(k), removeItem: k => values.delete(k), values }; };
+const storage = () => { const values = new Map(); return { get length() { return values.size; }, key: i => [...values.keys()][i], setItem: (k,v) => values.set(k,v), getItem: k => values.get(k), removeItem: k => values.delete(k), values }; };
 
 test('manual and automatic requests share a bound; duplicates reprioritize without rerunning', async () => {
   const scheduler = new Scheduler({ comic: 2 }); const releases = []; const started = [];

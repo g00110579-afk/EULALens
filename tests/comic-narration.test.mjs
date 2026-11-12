@@ -60,3 +60,30 @@ test('a single session cannot occupy every slot and shutting down rejects queued
   assert.equal((await other)[0].status, 'rejected');
   assert.equal(started, 1);
 });
+
+test('early preparation shares the current clip, gives waiting readers the next turn, and stops on cancellation', async () => {
+  const calls = [];
+  const narrator = createComicNarration({ synthesize: ({ text, signal }) => new Promise((resolve, reject) => {
+    calls.push({ text, finish: () => resolve(Buffer.from(text)) });
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  }) });
+  const warm = new AbortController(), reader = new AbortController();
+  const alternate = { id: 'alt', scenes: [{ narration: 'Alternate scene.' }] };
+  const story = { ...job, comics: [alternate, ...job.comics], selectedComicId: 'example' };
+  try {
+    narrator.prepare(story, warm.signal);
+    await tick();
+    assert.deepEqual(calls.map(call => call.text), ['Scene one.']);
+    const shared = narrator.audio(story, 'example', 0, reader.signal);
+    const requested = narrator.audio(story, 'alt', 0, reader.signal);
+    calls[0].finish();
+    await shared; await tick();
+    assert.deepEqual(calls.map(call => call.text), ['Scene one.', 'Alternate scene.']);
+    warm.abort();
+    calls[1].finish();
+    await requested; await tick();
+    assert.equal(calls.length, 2);
+    assert.equal((await narrator.audio(story, 'example', 0, reader.signal)).toString(), 'Scene one.');
+    assert.equal(calls.length, 2);
+  } finally { await narrator.close(); }
+});

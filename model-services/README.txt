@@ -97,11 +97,11 @@ The web backend proxies authenticated media; direct model artifact requests also
 require their service key. Configure matching web/model credentials before
 activation, and deploy the matching authenticated web client and backend.
 
-Keep GPU placement explicit. The reviewed live deployment put Qwen on physical
-GPU 0 and HiDream plus subprocess LTX on GPU 1. Example values are not a GPU
-capacity recommendation. Preserve the chosen resident/nonresident LTX mode
-unless the target hardware has been measured for the alternative. These CPU
-tests do not establish GPU memory headroom or output quality.
+The two-L40S launcher puts Qwen and CPU-offloaded LTX on GPU 0 and HiDream
+on GPU 1. This lets the two diffusion models render concurrently on separate
+GPUs. Recent 704 × 448, 12 fps LTX workers peaked at 8,600 MiB alongside a
+Qwen allocation of 26,980 MiB on a 46,068 MiB GPU. Set EULALENS_VIDEO_GPU
+when launching on hardware with a different placement or memory budget.
 
 HiDream's dev checkpoint supports native preset sizes, including 2048x2048,
 and exactly 28 steps. The wrapper rejects unsupported 1024x1024/four-step

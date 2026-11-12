@@ -101,8 +101,9 @@ export function createApp(options = {}) {
       signal.throwIfAborted();
       const selected = collection?.find(c => c.id === selectedId) || collection?.[0];
       if (!selected?.imagePrompt) throw httpError(502, 'No validated comic scenario was returned.');
-      update({ comics: collection, selectedComicId: selected.id, comic: selected, status: 'rendering-image' });
-      const result = await render('image', () => { update({ upstreamStarted: true }); return api.renderCategoryComicImage({ ...payload, comic: selected, jobId: job.jobId, signal }); }, signal);
+      update({ comics: collection, selectedComicId: selected.id, comic: selected, status: 'queued-image' });
+      if (kind === 'comic') narration.prepare(job, signal);
+      const result = await render('image', () => { update({ status: 'rendering-image', upstreamStarted: true }); return api.renderCategoryComicImage({ ...payload, comic: selected, jobId: job.jobId, signal }); }, signal);
       signal.throwIfAborted();
       const imageUrl = attachArtifact(job, result.image.imageUrl, 'image', security, update);
       const { imagePath, ...image } = result.image;
@@ -112,8 +113,8 @@ export function createApp(options = {}) {
     const scriptResult = kind === 'clip' ? { video: payload.category.video } : await api.generateCategoryVideoScript({ ...payload, signal });
     signal.throwIfAborted();
     if (!scriptResult.video?.modelPrompt) throw httpError(502, 'No validated video script was returned.');
-    update({ videoScript: scriptResult.video, status: 'generating-video' });
-    const result = await render('video', () => { update({ upstreamStarted: true }); return api.generateCategoryVideo({ ...payload, category: { ...payload.category, video: scriptResult.video }, jobId: job.jobId, signal,
+    update({ videoScript: scriptResult.video, status: 'queued-video' });
+    const result = await render('video', () => { update({ status: 'generating-video', upstreamStarted: true }); return api.generateCategoryVideo({ ...payload, category: { ...payload.category, video: scriptResult.video }, jobId: job.jobId, signal,
       onProviderJobId: id => update({ providerJobId: id }) }); }, signal);
     signal.throwIfAborted();
     if (!result.videoUrl || !['ready', 'completed', 'succeeded', 'success'].includes(result.status)) throw httpError(502, 'Video provider has not completed a playable video.');

@@ -158,6 +158,9 @@ try {
       };
     });
     await restricted.locator("#tabbtn-comic").click();
+    await restricted.locator("#comic-crop:not([hidden])").waitFor();
+    assert.equal(await restricted.locator("#comic-audio").evaluate(audio => audio.hasAttribute("src")), false);
+    await restricted.getByRole("button", { name: "Play comic", exact: true }).click();
     await restricted.getByText("Select Play to start narration.", { exact: true }).waitFor();
     assert.equal(await restricted.locator("#comic-reader.is-playing").count(), 0);
     await restricted.getByRole("button", { name: "Play comic", exact: true }).click();
@@ -244,8 +247,8 @@ try {
   await page.keyboard.press("Enter");
   assert.equal(
     (await chooser).isMultiple(),
-    false,
-    "Keyboard activation opens the PDF picker",
+    true,
+    "Keyboard activation opens the multi-PDF picker",
   );
   const viewports = [
     [1440, 900],
@@ -483,9 +486,11 @@ try {
           return samples.some(value => Math.abs(value) > 0.02);
         };
       });
-      await page.waitForFunction(() => window.narrationLevel());
       assert.equal(await page.locator("#comic-narration").getAttribute("aria-pressed"), "true");
       const audio = page.locator("#comic-audio");
+      assert(await audio.evaluate(a => a.paused && !a.hasAttribute("src")));
+      await page.getByRole("button", {name: "Play comic", exact: true}).click();
+      await page.waitForFunction(() => window.narrationLevel());
       await page.waitForFunction(() => {
         const a = document.getElementById("comic-audio");
         return !a.paused && a.currentTime > 0 && Number.isFinite(a.duration);
@@ -619,13 +624,15 @@ try {
         await page.locator("#comic-position").textContent(),
         /^Scene 1 of/,
       );
-      await page.waitForFunction(() =>
-        document.getElementById("comic-playback").getAttribute("aria-label") === "Pause comic" &&
-        document.getElementById("comic-progress").value > 0);
+      await page.locator("#comic-crop:not([hidden])").waitFor();
+      assert(await audio.evaluate(a => a.paused && !a.hasAttribute("src")));
+      await page.getByRole("button", {name: "Play comic", exact: true}).click();
+      await page.waitForFunction(() => document.getElementById("comic-progress").value > 0);
       await page
         .locator("#category-select")
         .selectOption({ label: "Arbitration Mandate" });
       await page.waitForFunction(() => comicReader.boxes.length === 5);
+      assert(await audio.evaluate(a => a.paused && !a.hasAttribute("src")));
       for (let count = 0; count < 4; count++)
         await page.locator("#comic-next").click();
       assert.equal(
@@ -907,7 +914,7 @@ try {
           "in-place cue-card flips, keyboard operation and refresh",
           "format retention",
           "category boundaries",
-          "comic summaries, automatic advance after category changes, pause and replay",
+          "comic summaries, explicit playback after category changes, pause and replay",
           "audible default playback, highlighted scene cues and backup delivery after a blocked public recording",
           "full-sheet zoom, scene selection, original lettering and artwork retry",
           "video playback/pause",

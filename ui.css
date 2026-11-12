@@ -423,6 +423,24 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
 .upload-phase { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 12px; border: 1px solid var(--line); color: #dedee9; background: #ffffff09; font-size: 12px; }
 .upload-phase.has-error { color: #f5c3b5; }
 #upload-list button { flex: none; padding: 5px 10px; min-height: 36px; }
+#upload-list .upload-video-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border: 1px solid #89cdb655;
+  border-radius: 12px;
+  background: #89cdb614;
+  color: #c1efdd;
+  font-size: 13px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.upload-video-ready:hover { text-decoration: underline; }
+.upload-video-ready .material-symbols-outlined { flex: none; font-size: 18px; }
 .upload-row-icon { color: var(--muted); }
 @media (max-width: 440px) {
   #upload-queue { padding-inline: 12px; }

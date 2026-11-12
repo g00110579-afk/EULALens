@@ -253,3 +253,28 @@ test('restored categories keep reserved scenario identifiers isolated from one a
   assert.notEqual(e.run('categories[0].comic'),e.run('categories[1].comic'));
   assert.equal(e.run('categories[0].scenarioRenders.constructor === categories[1].scenarioRenders.constructor'),false);
 });
+
+test('the queue opens the first completed playable video even when jobs reconnect out of order', () => {
+  const e = environment();
+  e.run(setupRun);
+  e.run(`registerUpload(currentRun); currentRun.analysisFinished = true;
+    window.openUpload = (run, cat) => { window.openedCategory = cat.id; };
+    categories[0].videoStatus = 'ready';
+    categories[1].videoStatus = 'generating-video';
+    updateUploadRow(currentRun);`);
+  const row = e.run('currentRun.row');
+  assert.equal(row.firstVideo.hidden, true);
+  assert.equal(row.phase.textContent, 'Rendering first video');
+  e.run(`Object.assign(categories[2], {videoStatus:'ready', video:'https://example.test/newer.mp4', videoCompletedAt:20});
+    updateUploadRow(currentRun);`);
+  assert.equal(row.firstVideo.hidden, false);
+  assert.equal(row.videoLabel.textContent, 'First video ready · Category 2');
+  e.run(`Object.assign(categories[3], {videoStatus:'ready', video:'https://example.test/earlier.mp4', videoCompletedAt:10});
+    updateUploadRow(currentRun);`);
+  assert.equal(row.videoLabel.textContent, 'First video ready · Category 3');
+  row.firstVideo.onclick();
+  assert.equal(e.ctx.openedCategory, 'c3');
+  e.run("for (const cat of categories) cat.videoStatus = 'error'; updateUploadRow(currentRun);");
+  assert.equal(row.firstVideo.hidden, true);
+  assert.equal(row.phase.textContent, 'No video available');
+});

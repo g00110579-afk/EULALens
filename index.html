@@ -102,7 +102,7 @@
             }
         }
     </script>
-<link href="ui.css?v=1d74855259ec3fb5" rel="stylesheet"/>
+<link href="ui.css?v=8ee3c700c81da7e1" rel="stylesheet"/>
 <script src="runtime-config.js"></script>
 <script src="live-runtime.js?v=ca22a63f6854d278"></script>
 <script>
@@ -398,6 +398,7 @@
                     const url = safeMediaUrl(job.video?.videoUrl);
                     if (!url) throw Object.assign(new Error('The finished video has no usable playback URL.'), { terminal: true });
                     cat.video = url;
+                    cat.videoCompletedAt = job.completedAt ?? Date.now();
                     cat.videoSubtitleLines = Array.isArray(job.video.subtitleLines) ? job.video.subtitleLines : [];
                     cat.videoEmbeddedSubtitles = Boolean(job.video.embeddedSubtitles);
                     cat.videoDegradation = job.video.degradation || null;
@@ -771,7 +772,7 @@
             }
             for (const cat of liveCategories) categoryRuns.set(cat, run);
             run.file = file;
-            run.phase = 'Ready to open';
+            run.phase = 'Waiting for first video';
             persistRun(run);
             updateUploadRow(run);
             void loadLiveCards(run);
@@ -784,7 +785,7 @@
             }
         }
 
-        function openUpload(run) {
+        function openUpload(run, videoCategory) {
             if (!run.analysisFinished || !isRunCurrent(run)) return;
             comicPlayback?.leave();
             currentRun = run;
@@ -802,10 +803,10 @@
             document.getElementById('pdf-unavailable').hidden = Boolean(livePdfUrl);
             document.getElementById('doc-analysis-title').textContent = file?.name || run.documentTitle;
             renderCategoryNavigation();
-            updateCategoryDetails(getSortedCategories()[0]);
+            updateCategoryDetails(videoCategory || getSortedCategories()[0]);
             updateCancelButton();
             switchRightTab('video');
-            showDocumentWorkspace(true);
+            showDocumentWorkspace(!videoCategory);
         }
 
         function applyCardResults(run, results, targets, finished = false) {
@@ -1074,7 +1075,17 @@
                 const name = document.createElement('strong'), detail = document.createElement('small');
                 const phase = document.createElement('span');
                 phase.className = 'upload-phase';
-                info.append(name, phase, detail);
+                const firstVideo = document.createElement('button');
+                firstVideo.type = 'button';
+                firstVideo.className = 'upload-video-ready';
+                firstVideo.title = 'Open this category’s video';
+                const playIcon = document.createElement('span');
+                playIcon.className = 'material-symbols-outlined';
+                playIcon.setAttribute('aria-hidden', 'true');
+                playIcon.textContent = 'play_circle';
+                const videoLabel = document.createElement('span');
+                firstVideo.append(playIcon, videoLabel);
+                info.append(name, phase, firstVideo, detail);
                 const open = document.createElement('button'), remove = document.createElement('button');
                 open.type = remove.type = 'button';
                 open.className = 'pill-button'; remove.className = 'quiet-button';
@@ -1086,17 +1097,30 @@
                 remove.onclick = () => removeUpload(run);
                 node.append(icon, info, open, remove);
                 document.getElementById('upload-list').appendChild(node);
-                run.row = { node, name, phase, detail, open, remove };
+                run.row = { node, name, phase, firstVideo, videoLabel, detail, open, remove };
             }
-            const { name, phase, detail, open, remove } = run.row;
+            const { name, phase, firstVideo, videoLabel, detail, open, remove } = run.row;
             if (name.textContent !== run.documentTitle) name.textContent = run.documentTitle;
             const total = run.categories.length;
             const images = run.categories.filter(cat => cat.comicStatus === 'ready').length;
-            const videos = run.categories.filter(cat => cat.videoStatus === 'ready').length;
+            const readyVideos = run.categories.filter(cat => cat.videoStatus === 'ready' && cat.video);
+            const earliest = readyVideos.reduce((first, cat) => !first || cat.videoCompletedAt < first.videoCompletedAt ? cat : first, null);
+            firstVideo.hidden = !earliest;
+            phase.hidden = Boolean(earliest);
+            if (earliest) {
+                const text = 'First video ready · ' + earliest.name;
+                if (videoLabel.textContent !== text) videoLabel.textContent = text;
+                firstVideo.onclick = () => openUpload(run, earliest);
+            }
             const status = run.analysisFinished
-                ? [total + (total === 1 ? ' category' : ' categories'), 'Comics ' + images + '/' + total, 'Videos ' + videos + '/' + total].join(' · ')
+                ? [total + (total === 1 ? ' category' : ' categories'), 'Comics ' + images + '/' + total, 'Videos ' + readyVideos.length + '/' + total].join(' · ')
                 : run.uploadError || '';
-            const label = run.analysisFinished ? 'Ready to open' : run.phase;
+            let label = run.phase;
+            if (run.analysisFinished && !earliest) {
+                if (run.categories.every(cat => ['error', 'canceled'].includes(cat.videoStatus))) label = 'No video available';
+                else if (run.categories.some(cat => cat.videoStatus === 'generating-video')) label = 'Rendering first video';
+                else label = 'Waiting for first video';
+            }
             if (phase.textContent !== label) phase.textContent = label;
             phase.classList.toggle('has-error', Boolean(run.uploadError));
             detail.hidden = !status;

@@ -123,6 +123,8 @@ try {
   await secondRow.waitFor();
   assert.equal(await page.locator('#upload-list li').count(),2);
   firstAnalysis.resolve();
+  await firstRow.getByText('Waiting for first video', {exact:true}).waitFor();
+  assert.equal(await firstRow.getByRole('button', {name:/First video ready/}).count(), 0);
   await openRow(firstRow);
   const galleryChoice = page.getByRole('dialog', { name: 'Choose a category' }).getByRole('button', {name:'License scope', exact:true});
   await galleryChoice.waitFor();
@@ -248,8 +250,11 @@ try {
     new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cancel did not reach the second comic provider')),10000).unref()),
   ]);
   assert.equal(await secondRow.count(),0);
-  await openRow(firstRow);
-  await galleryChoice.click();
+  await firstRow.getByRole('button', {name:'First video ready · License scope'}).click();
+  assert.equal(await page.getByRole('dialog', {name:'Choose a category'}).count(), 0);
+  assert.equal(await page.locator('#cat-title').innerText(), 'License scope');
+  assert.equal(await page.locator('#tabbtn-video').getAttribute('aria-selected'), 'true');
+  await page.waitForFunction(() => document.querySelector('#cat-video')?.readyState >= 1);
   await page.waitForFunction(() => mediaScheduler.jobs.size === 0 && categories[0].cardsStatus === 'ready' && categories[0].videoStatus === 'ready' && categories[0].selectedComicId === 'second' && categories[0].comicStatus === 'ready');
   assert.deepEqual(counts, beforeReload, 'Reload must reconnect, not regenerate');
   // Simulate a reopened browser whose anonymous session credential is gone.

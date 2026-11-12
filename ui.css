@@ -2386,7 +2386,7 @@ html[data-home-layout] {
   --title-size: clamp(48px, min(15vw, 20svh), 216px);
   --title-gap: clamp(70px, 15svh, 160px);
   --upload-height: 82px;
-  --cover-height: clamp(58px, 9vw, 114px);
+  --cover-height: clamp(54px, 8.4vw, 104px);
 }
 html[data-home-layout="compact-shelf"] {
   --upload-width: 550px;
@@ -2479,6 +2479,15 @@ html[data-home-layout] .home-content:has(#learn-more-panel.hidden) {
   & .sample-label { padding: 9px 22px 9px 12px; font-size: 15px; }
   & .sample-button:hover { border-color: #ffffff65; }
 }
+/* Split spare height above and below the upload and samples; short screens use the minimum gap. */
+html[data-home-layout="cover-gallery"] .home-content:has(#learn-more-panel.hidden) {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  & .upload-section { margin-block-start: auto; }
+  &::after { content: ""; margin-block-start: auto; }
+  & .sample-section { width: min(90%, calc(var(--upload-width) * .9)); }
+}
 html[data-home-layout="compact-shelf"] .home-content:has(#learn-more-panel.hidden) {
   & .upload-dropzone { padding: 9px 16px; }
   & #upload-heading { font-size: 17px; }
@@ -2497,8 +2506,9 @@ html[data-home-layout="compact-shelf"] .home-content:has(#learn-more-panel.hidde
   & .sample-icons { display: none; }
 }
 @media (max-width: 700px) {
+  html[data-home-layout="cover-gallery"] .home-content:has(#learn-more-panel.hidden) .sample-section { width: 94%; }
   html[data-home-layout] {
-    --cover-height: 48px;
+    --cover-height: 44px;
     --title-gap: clamp(48px, 9svh, 84px);
     --upload-height: 64px;
   }
@@ -2515,17 +2525,17 @@ html[data-home-layout="compact-shelf"] .home-content:has(#learn-more-panel.hidde
   html[data-home-layout="cover-gallery"] .home-content:has(#learn-more-panel.hidden) .sample-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  html[data-home-layout] { --cover-height: clamp(33px, 5.8svh, 46px); }
+  html[data-home-layout] { --cover-height: clamp(30px, 5.3svh, 42px); }
 }
 @media (min-width: 701px) and (max-height: 660px) {
   html[data-home-layout="cover-gallery"] {
     --title-gap: clamp(40px, 10svh, 66px);
-    --cover-height: clamp(44px, 12svh, 76px);
+    --cover-height: clamp(40px, 11svh, 70px);
     --upload-height: 70px;
   }
 }
 @media (max-height: 550px) and (min-width: 600px) {
-  html[data-home-layout] { --title-size: 58px; --title-gap: 32px; --upload-height: 48px; --cover-height: 38px; }
+  html[data-home-layout] { --title-size: 58px; --title-gap: 32px; --upload-height: 48px; --cover-height: 34px; }
   html[data-home-layout] .home-content:has(#learn-more-panel.hidden) {
     & .home-hero { padding-top: 4px; }
     & .upload-section { margin-bottom: 10px; }

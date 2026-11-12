@@ -96,8 +96,9 @@ try {
   const shelf = page.locator('.sample-section .sample-grid');
   const emptyShelf = await shelf.boundingBox();
   const uploadBox = await page.locator('#upload-dropzone').boundingBox();
-  assert.equal(emptyShelf.x, uploadBox.x);
-  assert.equal(emptyShelf.width, uploadBox.width);
+  assert(emptyShelf.width < uploadBox.width, 'Sample cards should span less width than the upload box');
+  assert(Math.abs((emptyShelf.x + emptyShelf.width / 2) - (uploadBox.x + uploadBox.width / 2)) < 1,
+    'The sample shelf should be centered beneath the upload box');
   await page.getByRole('button', { name: 'Zoom', exact: true }).click();
   await page.locator('.gallery-choice').first().click();
   await page.getByRole('button', { name: 'Switch EULA' }).click();

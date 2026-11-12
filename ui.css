@@ -529,6 +529,7 @@ body:has(#documents-tab:not(.hidden)) #queue-control { display: none; }
   text-align: left;
   overflow-wrap: anywhere;
 }
+.upload-format-links:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 5px; }
 .upload-video-ready:hover { text-decoration: underline; }
 .upload-video-ready .ui-icon { flex: none; font-size: 18px; }
 .upload-row-icon { color: var(--muted); }

@@ -295,13 +295,32 @@ test('the matching Deepfake upload can open its prepared category before analysi
   const bytes = fs.readFileSync(new URL('../deepfake/eula_deepfake.pdf', import.meta.url));
   const file = {name: 'renamed.pdf', type: 'application/pdf', size: bytes.length,
     arrayBuffer: async () => new Uint8Array(bytes).buffer};
+  let release;
+  e.ctx.setTimeout = (fn, delay) => {
+    assert.ok(delay > 44000 && delay <= 45000);
+    release = fn;
+    return 1;
+  };
   const pending = e.ctx.handleUploadedFile(file);
   for (let attempt=0; !finishAnalysis && attempt<30; attempt++) await tick();
   assert.ok(finishAnalysis, e.run("[...uploads.values()][0]?.uploadError"));
   const active = '[...uploads.values()][0]';
+  const row = e.run(active + '.row');
+  assert.equal(row.firstVideo.hidden, true);
+  assert.equal(row.formats.hidden, true);
   e.run(`openUpload(${active}, ${active}.previewCategory)`);
+  assert.equal(e.run('currentRun'), null);
+  release();
+  assert.equal(row.firstVideo.hidden, false);
+  assert.equal(row.videoLabel.textContent, 'First video ready · Permitted Use');
+  row.firstVideo.onclick();
   assert.match(e.get('cat-video').src, /deepfake\/videos\/permitted-use.mp4$/);
   assert.equal(e.get('cat-title').textContent, 'Permitted Use');
+  assert.equal(row.formats.hidden, false);
+  row.formats.children[0].onclick();
+  assert.equal(e.run('currentFormat'), 'comic');
+  row.formats.children[1].onclick();
+  assert.equal(e.run('currentFormat'), 'cards');
   finishAnalysis({result: {analysis: {categories: [
     {id:'permitted-use', title:'Permitted Use'}, {id:'access-control', title:'Access Control'}
   ]}}});

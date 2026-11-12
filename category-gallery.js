@@ -178,5 +178,12 @@ const categoryGallery = (() => {
   const trigger = document.getElementById("view-gallery");
   trigger.hidden = false;
   trigger.onclick = () => open();
-  return { open };
+  function refresh() {
+    if (!dialog.open) return;
+    ordered = getSortedCategories();
+    prepareArtwork(ordered);
+    dialog.classList.toggle("short-agreement", ordered.length <= 4);
+    render();
+  }
+  return { open, refresh };
 })();

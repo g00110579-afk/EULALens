@@ -85,7 +85,7 @@ const wholeComic = { x: 0, y: 0, width: 1, height: 1 };
 function comicSceneBounds(image, category, count) {
   if (!count) return [];
   if (count === 1) return [wholeComic];
-  if (activeDocument === "live") {
+  if (activeDocument === "live" && !category.precomputed) {
     const detected = findComicPanels(image, count);
     if (detected.length) return detected;
   }
@@ -386,7 +386,7 @@ function renderComicForCategory(cat) {
     (comic) => comic.id === cat.selectedComicId,
   );
   const summary =
-    activeDocument === "live"
+    activeDocument === "live" && !cat.precomputed
       ? selected?.storySummary ||
         selected?.visualReadThrough ||
         selected?.storyArc ||

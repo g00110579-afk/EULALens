@@ -133,7 +133,7 @@ comicPlayback = (() => {
     category = next;
     scenario = comicReader.scenario;
     sample =
-      activeDocument !== "live" &&
+      (activeDocument !== "live" || category?.precomputed) &&
       category &&
       typeof sampleNarration !== "undefined"
         ? sampleNarration[category.comic]

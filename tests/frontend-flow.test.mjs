@@ -30,7 +30,7 @@ function environment(api={}) {
   const get=id=>{if(!elements.has(id)){const node=new Element();node.id=id;node.parentElement=new Element();elements.set(id,node);}return elements.get(id);};
   get('comic-zoom').append(new Element(),new Element());
   const store=new Map();const storage={get length(){return store.size;},key:index=>[...store.keys()][index]??null,getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};
-  const ctx={console:{log(){},warn(){},error(){}},setTimeout,clearTimeout,AbortController,DOMException,Promise,WeakSet,URL:class extends URL {static createObjectURL(){return'blob:test';}static revokeObjectURL(){}},crypto:{randomUUID,subtle:{digest:async (_algorithm, data)=>Uint8Array.from(createHash('sha256').update(data).digest()).buffer}},TextEncoder,Uint8Array,Blob,
+  const ctx={console:{log(){},warn(){},error(){}},setTimeout,clearTimeout,AbortController,DOMException,Promise,WeakSet,URL:class extends URL {static createObjectURL(){return'blob:test';}static revokeObjectURL(){}},crypto:{randomUUID,subtle:{digest:async (_algorithm, data)=>Uint8Array.from(createHash('sha256').update(new Uint8Array(data)).digest()).buffer}},TextEncoder,Uint8Array,Blob,
     location:{href:'https://web.test/'},localStorage:storage,sessionStorage:storage,addEventListener(){},scrollTo(){},requestAnimationFrame(){},
     document:{getElementById:get,createElement:()=>new Element(),querySelectorAll:()=>[],querySelector:selector=>selector==='#comic-reader .comic-art'?get('comic-crop').parentElement:null,addEventListener(){}},
     EULALensRuntime:{...globalThis.EULALensRuntime,createApi:()=>({json:async()=>({}),poll:async()=>({}),...api})}};
@@ -277,4 +277,44 @@ test('the queue opens the first completed playable video even when jobs reconnec
   e.run("for (const cat of categories) cat.videoStatus = 'error'; updateUploadRow(currentRun);");
   assert.equal(row.firstVideo.hidden, true);
   assert.equal(row.phase.textContent, 'No video available');
+});
+
+test('the matching Deepfake upload can open its prepared category before analysis and schedules only remaining categories', async () => {
+  const requests = [];
+  let finishAnalysis;
+  const e = environment({
+    json: async (url, options) => {
+      requests.push({url, body: options.body});
+      return {jobId: 'job-' + requests.length};
+    },
+    poll: async url => new Promise(resolve => {
+      if (url.includes('/analyze/')) finishAnalysis = resolve;
+    })
+  });
+  e.ctx.extractPdfText = async () => 'PDF text';
+  const bytes = fs.readFileSync(new URL('../deepfake/eula_deepfake.pdf', import.meta.url));
+  const file = {name: 'renamed.pdf', type: 'application/pdf', size: bytes.length,
+    arrayBuffer: async () => new Uint8Array(bytes).buffer};
+  const pending = e.ctx.handleUploadedFile(file);
+  for (let attempt=0; !finishAnalysis && attempt<30; attempt++) await tick();
+  assert.ok(finishAnalysis, e.run("[...uploads.values()][0]?.uploadError"));
+  const active = '[...uploads.values()][0]';
+  e.run(`openUpload(${active}, ${active}.previewCategory)`);
+  assert.match(e.get('cat-video').src, /deepfake\/videos\/permitted-use.mp4$/);
+  assert.equal(e.get('cat-title').textContent, 'Permitted Use');
+  finishAnalysis({result: {analysis: {categories: [
+    {id:'permitted-use', title:'Permitted Use'}, {id:'access-control', title:'Access Control'}
+  ]}}});
+  await pending; await tick();
+  assert.equal(e.run('categories.length'), 2);
+  assert.equal(e.run('categories[0] === currentRun.previewCategory'), true);
+  const media = requests.filter(r => r.body.category);
+  assert.deepEqual(media.map(r => r.body.category.id), ['access-control','access-control']);
+  assert.deepEqual(Array.from(requests.find(r => r.body.categories).body.categories, c => c.id), ['access-control']);
+  assert.equal(e.run('runStore.load().deepfakePreview'), true);
+
+  const changed = new Uint8Array(bytes); changed[100] ^= 1;
+  void e.ctx.handleUploadedFile({...file, name:'EULA_Explainable_Deepfake_Detection_Challenge_2026.pdf', arrayBuffer:async()=>changed.buffer});
+  await tick(); await tick();
+  assert.equal(e.run('[...uploads.values()][1].previewCategory'), undefined);
 });

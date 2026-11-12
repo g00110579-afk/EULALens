@@ -109,7 +109,7 @@
         }
     </script>
 <script src="runtime-config.js"></script>
-<script src="live-runtime.js?v=86775bf9aac16da6"></script>
+<script src="live-runtime.js?v=5e7e994d2b410e3f"></script>
 <script>
         const LIVE_API_BASE = (window.EULALENS_API_BASE || 'https://api.eulalens.stream').replace(/\/+$/, '');
         let comicPlayback;
@@ -268,8 +268,7 @@
             if (!owner[field]) {
                 // Finish the start handshake even when navigation cancels the run,
                 // so its returned ID can be canceled rather than orphaned.
-                const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
-                const requestKey = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+                const requestKey = await sha256Hex(new TextEncoder().encode(key));
                 let started;
                 while (!started) {
                     if (!isRunCurrent(run)) throw EULALensRuntime.abortError();
@@ -703,6 +702,26 @@
             } finally { signal?.removeEventListener('abort', abort); await loading.destroy(); }
         }
 
+        async function sha256Hex(data) {
+            const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+            return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        function prepareDeepfakePreview(run) {
+            if (run.previewCategory || !isRunCurrent(run)) return;
+            const sample = deepfakeCategories.find(cat => cat.id === 'permitted-use');
+            const preview = {
+                ...sample, precomputed: true, video: new URL(sample.video, location.href).href,
+                cardsStatus: 'ready', comicStatus: 'ready', videoStatus: 'ready',
+                comicFinished: true, videoFinished: true, videoCompletedAt: run.createdAt,
+                sourceSegments: ['The Dataset and Challenge Materials are licensed strictly for academic, non-commercial, not-for-profit research and challenge participation.']
+            };
+            run.previewCategory = preview;
+            run.categories = [preview];
+            categoryRuns.set(preview, run);
+            updateUploadRow(run);
+        }
+
         function convertLiveCard(card) {
             return {
                 icon: 'help_outline',
@@ -771,7 +790,22 @@
             const analysis = result.analysis || result;
             const liveCategories = (analysis.categories || []).map(convertLiveCategory);
             if (!liveCategories.length) throw new Error('No supported categories were found in this document.');
+            const preview = run.previewCategory;
+            if (preview) {
+                const match = liveCategories.findIndex(cat => cat.id === preview.id);
+                if (match >= 0) {
+                    if (liveCategories[match].sourceSegments.length) preview.sourceSegments = liveCategories[match].sourceSegments;
+                    liveCategories.splice(match, 1);
+                }
+                liveCategories.unshift(preview);
+            }
             run.categories = liveCategories; run.analysisFinished = true;
+            if (preview && currentRun === run) {
+                categories = liveCategories;
+                renderCategoryNavigation();
+                refreshActiveCategory();
+                if (typeof categoryGallery !== 'undefined') categoryGallery.refresh();
+            }
             run.documentTitle = file?.name || analysis.document?.title || analysis.fileName || analysis.documentTitle || run.documentTitle;
             for (const saved of run.media) {
                 const cat = liveCategories.find(item => item.id === saved.categoryId);
@@ -796,7 +830,7 @@
         }
 
         function openUpload(run, videoCategory) {
-            if (!run.analysisFinished || !isRunCurrent(run)) return;
+            if ((!run.analysisFinished && !run.previewCategory) || !isRunCurrent(run)) return;
             comicPlayback?.leave();
             currentRun = run;
             activeDocument = 'live'; categories = run.categories;
@@ -849,7 +883,11 @@
         }
 
         function loadLiveCards(run, category = null) {
-            const targets = category ? [category] : run.categories;
+            const targets = category ? [category] : run.categories.filter(cat => !cat.precomputed);
+            if (!targets.length) {
+                run.cardsJobFinished = true;
+                return Promise.resolve();
+            }
             const owner = category || run;
             const revision = owner.cardsRevision || 0;
             const key = `${run.documentId}:cards:${category?.id || 'batch'}:${revision}`;
@@ -912,12 +950,16 @@
             }
             // Keep the current agreement, PDF and jobs until its replacement can be read.
             let text;
+            let recognizedPdf = false;
+            const matchesDemoPdf = async () => file.size === 33121 &&
+                await sha256Hex(await file.arrayBuffer()) === 'b8f42ed2d90d643c4232a3c8526510bac181c28d2c8e8b1691f04b6f94ce37b3';
             if (switcher.open) {
                 const read = new AbortController();
                 switchPdfRead = read;
                 status.textContent = `Reading “${file.name}”…`;
                 try {
-                    text = await extractPdfText(file, read.signal);
+                    recognizedPdf = await matchesDemoPdf();
+                    if (!recognizedPdf) text = await extractPdfText(file, read.signal);
                     if (read.signal.aborted || !switcher.open) return;
                 } catch (error) {
                     if (!read.signal.aborted) status.textContent = error.message || 'Could not read this PDF.';
@@ -933,6 +975,11 @@
             run.documentTitle = file.name;
             registerUpload(run);
             setUploadStatus('');
+            if (!recognizedPdf && text === undefined) {
+                try { recognizedPdf = await matchesDemoPdf(); } catch { /* Extraction reports file read errors. */ }
+            }
+            if (!isRunCurrent(run)) return;
+            if (recognizedPdf) prepareDeepfakePreview(run);
             return submitUpload(run, text);
         }
 
@@ -945,6 +992,13 @@
                     if (text === undefined) {
                         setUploadPhase(run, 'Reading PDF');
                         text = await extractPdfText(file, run.controller.signal);
+                    }
+                    if (!isRunCurrent(run)) return;
+                    // A re-export can have different bytes and the same complete agreement text.
+                    const normalized = text.replace(/\s+/g, ' ').trim();
+                    if (!run.previewCategory && normalized.length === 6611 &&
+                        await sha256Hex(new TextEncoder().encode(normalized)) === '43278afb9a2972ee20113ad55ea876d937208cafc193f2d5bfec63cd78acf85b') {
+                        prepareDeepfakePreview(run);
                     }
                     if (!isRunCurrent(run)) return;
                     setUploadPhase(run, 'Queued');
@@ -1000,6 +1054,7 @@
             if (run.monitoring || run.analysisFinished) return;
             run.canReconnect = false;
             if (!uploads.has(run.documentId)) registerUpload(run);
+            if (saved.deepfakePreview) prepareDeepfakePreview(run);
             setUploadPhase(run, 'Reconnecting');
             run.monitoring = monitorAnalysis(run, run.file).finally(() => { run.monitoring = null; });
             return run.monitoring;
@@ -1141,13 +1196,13 @@
             firstVideo.hidden = !earliest;
             phase.hidden = Boolean(earliest);
             if (earliest) {
-                const text = 'First video ready · ' + earliest.name;
+                const text = (earliest.precomputed ? 'Precomputed video ready · ' : 'First video ready · ') + earliest.name;
                 if (videoLabel.textContent !== text) videoLabel.textContent = text;
                 firstVideo.onclick = () => openUpload(run, earliest);
             }
             const status = run.analysisFinished
                 ? [total + (total === 1 ? ' category' : ' categories'), 'Comics ' + images + '/' + total, 'Videos ' + readyVideos.length + '/' + total].join(' · ')
-                : run.uploadError || '';
+                : run.uploadError || (run.previewCategory ? run.phase + ' · Remaining categories' : '');
             let label = run.phase;
             if (run.analysisFinished && !earliest) {
                 if (run.categories.every(cat => ['error', 'canceled'].includes(cat.videoStatus))) label = 'No video available';
@@ -21157,8 +21212,8 @@ communicated to end users.
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('deepfake')" aria-label="Deepfake Challenge"><span class="sample-icons"><span class="ui-icon" aria-hidden="true" data-icon="face_retouching_off"></span><span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></span><span><span class="sample-label">Deepfake Challenge</span><span class="sample-description">Deepfake Detection Challenge EULA</span></span></button></div><div class="switch-reset"><button type="button" class="quiet-button demo-reset" onclick="resetDemo()" title="Cancel generation for this session and clear the upload queue"><span class="ui-icon" aria-hidden="true" data-icon="restart_alt"></span>Reset demo</button></div></dialog>
 <dialog id="help-dialog" class="glass-dialog help-dialog" aria-labelledby="help-title"><div class="dialog-header"><h2 id="help-title">Help</h2><button type="button" class="icon-button" onclick="closeHelpDialog()" aria-label="Close help"><span class="ui-icon" aria-hidden="true" data-icon="close"></span></button></div><dl><dt>Categories</dt><dd>Categories are ordered from highest to lowest risk. Select any category to open its breakdown.</dd><dt>Cue cards</dt><dd>Select a card to flip it.</dd><dt>Comic &amp; Video</dt><dd>Explore the selected category through comics and video explainers.</dd><dt>Original EULA</dt><dd>Open the original PDF to verify the explanation. Uploaded agreements also show supporting clauses.</dd></dl><button type="button" class="quiet-button" onclick="this.closest('dialog').close(); showResearch()">Learn more <span class="ui-icon" aria-hidden="true" data-icon="arrow_outward"></span></button></dialog>
 <script src="sample-narration.js?v=77b39b24a9e1ee8b"></script>
-<script src="comic-reader.js?v=93bd47ecb2827eed"></script>
-<script src="comic-playback.js?v=0f4555a6b1af3547"></script>
-<script src="category-gallery.js?v=da6c11cdfb1370cf"></script>
+<script src="comic-reader.js?v=2af47f3caf3de673"></script>
+<script src="comic-playback.js?v=b2257cba3ff8e2bb"></script>
+<script src="category-gallery.js?v=d495562e6906697e"></script>
 <script src="ui.js?v=c81f6d89d700bcc6"></script>
 </body></html>

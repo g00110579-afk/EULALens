@@ -193,7 +193,7 @@
       save(run) {
         try {
           const media = (run.categories || []).map(cat => ({ categoryId: cat.id, comicJobId: cat.comicJobId || '', videoJobId: cat.videoJobId || '', cardsJobId: cat.cardsJobId || '', selectedComicId: cat.selectedComicId || '', scenarioJobs: Object.fromEntries(Object.entries(cat.scenarioRenders || {}).map(([id, value]) => [id, { jobId: value.jobId || '' }])) }));
-          storage.setItem(prefix + run.documentId, JSON.stringify({ version: 1, documentId: run.documentId, analysisJobId: run.analysisJobId, cardsJobId: run.cardsJobId, createdAt: run.createdAt, media }));
+          storage.setItem(prefix + run.documentId, JSON.stringify({ version: 1, documentId: run.documentId, analysisJobId: run.analysisJobId, cardsJobId: run.cardsJobId, createdAt: run.createdAt, deepfakePreview: Boolean(run.previewCategory), media }));
           if (read(key)?.documentId === run.documentId) storage.removeItem(key);
         } catch { /* Private browsing and quota limits must not break generation. */ }
       },

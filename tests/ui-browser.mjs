@@ -129,6 +129,10 @@ try {
     await publicPage.getByRole("button", { name: "Zoom", exact: true }).click();
     await publicPage.getByRole("dialog", { name: "Choose a category" })
       .getByRole("button", { name: "Authority Warranty", exact: true }).click();
+    await publicPage.locator("#try-another-btn").click();
+    assert.equal(await publicPage.getByRole("link", { name: "Upload a PDF" }).getAttribute("href"),
+      "https://api.eulalens.stream/review/");
+    await publicPage.keyboard.press("Escape");
     await publicPage.locator("#tabbtn-comic").click();
     await publicPage.locator("#comic-next").click();
     await publicPage.locator("#comic-narration").click();
@@ -139,6 +143,29 @@ try {
     assert(primaryFailed, "The backup must be exercised after a blocked primary recording");
   } finally {
     await publicPage.close();
+  }
+  const restricted = await browser.newPage();
+  try {
+    await restricted.goto(base, { waitUntil: "domcontentloaded" });
+    await restricted.getByRole("button", { name: "Zoom", exact: true }).click();
+    await restricted.locator(".gallery-choice").first().click();
+    // Some browsers require a fresh click after the image or audio has loaded.
+    await restricted.locator("#comic-audio").evaluate(audio => {
+      audio.play = () => {
+        delete audio.play;
+        return Promise.reject(new DOMException("User activation required", "NotAllowedError"));
+      };
+    });
+    await restricted.locator("#tabbtn-comic").click();
+    await restricted.getByText("Select Play to start narration.", { exact: true }).waitFor();
+    assert.equal(await restricted.locator("#comic-reader.is-playing").count(), 0);
+    await restricted.getByRole("button", { name: "Play comic", exact: true }).click();
+    await restricted.waitForFunction(() => {
+      const audio = document.getElementById("comic-audio");
+      return !audio.paused && audio.currentTime > 0;
+    });
+  } finally {
+    await restricted.close();
   }
   const catalogue = await browser.newPage({ reducedMotion: "reduce" });
   try {
@@ -234,6 +261,19 @@ try {
     if (width === 390) await screenshot("home-mobile");
   }
   await page.setViewportSize({ width: 1440, height: 900 });
+  for (const close of ["button", "Escape"]) {
+    const sample = page.getByRole("button", { name: "Zoom", exact: true });
+    await sample.click();
+    assert.equal(await page.locator("#gallery-choices [aria-current]").count(), 0);
+    const search = page.getByRole("searchbox");
+    await search.click();
+    assert.equal(await search.evaluate(el => getComputedStyle(el).boxShadow), "none");
+    assert.notEqual(await search.evaluate(el => getComputedStyle(el.parentElement).boxShadow), "none");
+    if (close === "button") await page.locator("#close-gallery").click();
+    else await page.keyboard.press("Escape");
+    assert(await page.locator("#dashboard-tab").isVisible());
+    assert(await sample.evaluate(el => document.activeElement === el));
+  }
   for (const [name, count] of [
     ["Zoom", 35],
     ["Spotify", 28],
@@ -403,20 +443,10 @@ try {
     await page
       .getByRole("button", { name: "Category details", exact: true })
       .click();
-    await page.getByRole("button", { name: "Impact", exact: true }).click();
-    assert.equal(
-      await page
-        .locator("#insight-accbtn-impact")
-        .getAttribute("aria-expanded"),
-      "true",
-    );
+    assert(await page.getByRole("region", { name: "Impact", exact: true }).getByRole("list").isVisible());
+    assert(await page.getByRole("region", { name: "Lookouts", exact: true }).getByRole("list").isVisible());
     await page.evaluate(() => refreshActiveCategory());
-    assert.equal(
-      await page
-        .locator("#insight-accbtn-impact")
-        .getAttribute("aria-expanded"),
-      "true",
-    );
+    assert(await page.locator("#cat-impact li").first().isVisible());
     await page.keyboard.press("Escape");
     if (name === "Zoom") {
       await page.getByRole("tab", { name: "Comic", exact: true }).click();
@@ -439,19 +469,6 @@ try {
         await summary.textContent(),
         await page.evaluate(() => comicReader.category.comicSummary),
       );
-      // Silent advancement is automatic; speech begins only after opting in.
-      assert.equal(
-        await page.locator("#comic-narration").getAttribute("aria-label"),
-        "Read aloud",
-      );
-      await page.waitForFunction(() => comicReader.index === 1, null, {
-        timeout: 45000,
-      });
-      await page.locator("#comic-prev").click();
-      assert.equal(
-        await page.locator("#comic-playback").getAttribute("aria-label"),
-        "Play comic",
-      );
       // Observe the decoded signal routed to the audio output. A playing media
       // clock alone also advances for silence.
       await page.evaluate(() => {
@@ -459,15 +476,14 @@ try {
         const analyser = context.createAnalyser();
         context.createMediaElementSource(document.getElementById("comic-audio")).connect(analyser);
         analyser.connect(context.destination);
-        document.getElementById("comic-narration").addEventListener("click", () => context.resume(), { once: true });
         window.narrationLevel = () => {
           const samples = new Float32Array(analyser.fftSize);
           analyser.getFloatTimeDomainData(samples);
           return samples.some(value => Math.abs(value) > 0.02);
         };
       });
-      await page.getByRole("button", {name: "Read aloud", exact: true}).click();
       await page.waitForFunction(() => window.narrationLevel());
+      assert.equal(await page.locator("#comic-narration").getAttribute("aria-label"), "Mute narration");
       const audio = page.locator("#comic-audio");
       await page.waitForFunction(() => {
         const a = document.getElementById("comic-audio");
@@ -477,10 +493,20 @@ try {
         () => sampleNarration[comicReader.category.comic],
       );
       assert((await audio.evaluate((a) => a.currentSrc)).endsWith(track.src));
+      await page.getByRole("button", {name: "Full comic", exact: true}).click();
+      assert.equal(await audio.evaluate(a => a.paused), false);
+      const lit = page.locator("#comic-reader.is-playing [aria-current=true]");
+      const dim = page.locator("#comic-reader.is-playing [aria-current=false]").first();
+      assert.equal(await lit.getAttribute("data-scene"), "0");
+      assert.equal(await lit.evaluate(el => getComputedStyle(el, "::after").borderTopStyle), "solid");
+      assert.notEqual(await dim.evaluate(el => getComputedStyle(el, "::after").backgroundColor),
+        await lit.evaluate(el => getComputedStyle(el, "::after").backgroundColor));
       await audio.evaluate((a, t) => {
         a.currentTime = t - 0.15;
       }, track.starts[1]);
       await page.waitForFunction(() => comicReader.index === 1);
+      assert.equal(await lit.getAttribute("data-scene"), "1");
+      await page.locator("#comic-view-scenes").click();
       await page.evaluate(() => refreshActiveCategory());
       assert.equal(await audio.evaluate((a) => a.paused), false);
       await page.locator("#comic-playback").click();
@@ -545,6 +571,9 @@ try {
       assert.equal(await page.locator("#comic-open-link").getAttribute("aria-pressed"), "true");
       assert.equal(await page.locator("#comic-crop button[data-scene]").count(), scenes.length);
       await screenshot("full-comic-mobile");
+      const label = await page.locator(".comic-scene-label").boundingBox();
+      const play = await page.locator("#comic-playback").boundingBox();
+      assert(label.y + label.height <= play.y + 1, "The mobile scene title has its own row");
       await page.locator("#comic-zoom").click();
       assert.equal(await page.locator("#comic-zoom").getAttribute("aria-pressed"), "true");
       await page.locator("#comic-crop button[data-scene='1']").click();
@@ -697,11 +726,11 @@ try {
         true,
       );
       await page
-        .getByRole("button", { name: "Try another EULA", exact: true })
+        .getByRole("button", { name: "Switch EULA", exact: true })
         .click();
       assert(
         await page
-          .getByRole("dialog", { name: "Try another EULA", exact: true })
+          .getByRole("dialog", { name: "Switch EULA", exact: true })
           .isVisible(),
       );
       await fits("sample dialog");
@@ -759,7 +788,7 @@ try {
   await page.getByRole("button", { name: "Zoom", exact: true }).click();
   await page.locator(".gallery-choice").first().click();
   await page
-    .getByRole("button", { name: "Try another EULA", exact: true })
+    .getByRole("button", { name: "Switch EULA", exact: true })
     .click();
   await page
     .getByRole("dialog")
@@ -877,7 +906,7 @@ try {
           "format retention",
           "category boundaries",
           "comic summaries, automatic advance after category changes, pause and replay",
-          "narrated scene cues and backup delivery after a blocked public recording",
+          "audible default playback, highlighted scene cues and backup delivery after a blocked public recording",
           "full-sheet zoom, scene selection, original lettering and artwork retry",
           "video playback/pause",
           "original PDF",

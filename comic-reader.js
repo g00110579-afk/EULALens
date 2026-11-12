@@ -282,7 +282,24 @@ function positionComicArtwork() {
 function selectComicScene(index) {
   comicReader.index = index;
   showComicScene();
+  followZoomedComicPanel();
   document.getElementById("comic-script").scrollTop = 0;
+}
+
+function followZoomedComicPanel() {
+  if (!comicReader.zoomed || comicReader.mode !== "full") return;
+  const reader = document.getElementById("comic-reader");
+  const panel = reader.querySelector(".comic-panel-overlay[aria-current=true]");
+  if (!reader.classList.contains("is-playing") || !panel) return;
+  const art = reader.querySelector(".comic-art");
+  const view = art.getBoundingClientRect();
+  const box = panel.getBoundingClientRect();
+  // Center only the axes that need to move. Keep the page and keyboard focus still.
+  const left = box.left < view.left || box.right > view.left + art.clientWidth
+    ? art.scrollLeft + box.left - view.left + (box.width - art.clientWidth) / 2 : art.scrollLeft;
+  const top = box.top < view.top || box.bottom > view.top + art.clientHeight
+    ? art.scrollTop + box.top - view.top + (box.height - art.clientHeight) / 2 : art.scrollTop;
+  art.scrollTo({ left, top, behavior: "instant" });
 }
 
 function moveComicScene(step) {
@@ -308,6 +325,7 @@ function setComicZoom(zoomed) {
     art.removeAttribute("aria-label");
   }
   art.scrollTo(0, 0);
+  followZoomedComicPanel();
   const zoom = document.getElementById("comic-zoom");
   const zoomLabel = zoomed ? "Fit page" : "Zoom in";
   zoom.setAttribute("aria-pressed", String(zoomed));
@@ -319,7 +337,6 @@ function setComicZoom(zoomed) {
 
 function setComicView(mode, index = comicReader.index) {
   if (comicReader.mode === mode) return;
-  comicPlayback?.pause();
   if (index !== comicReader.index) comicPlayback?.seek();
   comicReader.mode = mode;
   setComicZoom(false);

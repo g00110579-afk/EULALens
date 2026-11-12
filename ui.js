@@ -84,6 +84,7 @@ function openCategoryDetails() {
     .getElementById("dialog-notes")
     .appendChild(document.getElementById("category-notes"));
   detailDialog.showModal();
+  document.getElementById("dialog-notes").scrollTop = 0;
 }
 
 const categoryVideo = document.getElementById("cat-video");

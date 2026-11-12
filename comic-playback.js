@@ -48,6 +48,7 @@ comicPlayback = (() => {
   }
 
   function controls() {
+    document.getElementById("comic-reader").classList.toggle("is-playing", Boolean(run));
     const label = run ? "Pause" : finished ? "Replay" : "Play";
     document.getElementById("comic-play-label").textContent = label;
     document.getElementById("comic-play-icon").textContent = run
@@ -154,7 +155,7 @@ comicPlayback = (() => {
     if (
       pendingStart &&
       visible() &&
-      category?.comicScenes?.length > 1 &&
+      category?.comicScenes?.length > 0 &&
       (activeDocument !== "live" || category.comicStatus === "ready") &&
       (!comicReader.url || !document.getElementById("comic-crop").hidden)
     )
@@ -240,7 +241,7 @@ comicPlayback = (() => {
     }
     pause();
     if (error?.name === "NotAllowedError") {
-      message("Audio is ready. Select Read aloud to play it.");
+      message("Select Play to start narration.");
     } else {
       releaseAudio();
       narrated = false;
@@ -309,26 +310,24 @@ comicPlayback = (() => {
       seek();
       selectComicScene(0);
     }
+    narrated = soundOnPlay && !voiceButton.disabled;
     message();
     run = new AbortController();
     progressTimer = setInterval(showProgress, 200);
     controls();
+    followZoomedComicPanel();
     void playScene(run);
   }
 
   playButton.onclick = () => {
     preferManual = Boolean(run);
     if (run) pause();
-    else {
-      narrated = soundOnPlay && !voiceButton.disabled;
-      start();
-    }
+    else start();
   };
   voiceButton.onclick = () => {
     const mute = Boolean(run && narrated);
     if (run) seek();
-    narrated = !mute;
-    soundOnPlay = narrated;
+    soundOnPlay = !mute;
     preferManual = false;
     // Call play in this click handler for a sample, including from a paused
     // scene. Resume an already loaded cue without rewinding the user's place.

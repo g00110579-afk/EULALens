@@ -56,7 +56,7 @@ try {
   } });
   const apiBase = await listen(app);
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
-  const page = await browser.newPage({ viewport: { width: 1366, height: 900 } }); const errors = [];
+  const page = await browser.newPage({ viewport: { width: 1366, height: 900 }, reducedMotion: 'reduce' }); const errors = [];
   page.on('pageerror', error => { errors.push(error.message); console.error('BROWSER ERROR:', error.message); });
   page.on('console', message => { if (message.type() === 'error') console.error('BROWSER CONSOLE:', message.text()); });
   await page.addInitScript(base => { window.EULALENS_API_BASE = base; }, apiBase);
@@ -73,7 +73,24 @@ try {
     return route.fulfill({ path: path.join(pdfjsBuild, file), contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' } });
   });
   await page.goto(siteBase, { waitUntil: 'domcontentloaded' });
-  await page.locator('#upload-input').setInputFiles({ name: 'fixture<img src=x onerror=window.auditSentinel=2>.pdf', mimeType: 'application/pdf', buffer: pdf('You may use the fictional app on one device. Do not redistribute it.') });
+  await page.getByRole('button', { name: 'Zoom', exact: true }).click();
+  await page.locator('.gallery-choice').first().click();
+  await page.getByRole('button', { name: 'Switch EULA' }).click();
+  const switcher = page.getByRole('dialog', { name: 'Switch EULA' });
+  async function chooseFile(file) {
+    const chooser = page.waitForEvent('filechooser');
+    await switcher.getByRole('button', { name: 'Upload a PDF' }).click();
+    await (await chooser).setFiles(file);
+  }
+  await chooseFile([]);
+  assert(await switcher.isVisible());
+  await chooseFile({ name: 'other.txt', mimeType: 'text/plain', buffer: Buffer.from('Not a PDF') });
+  assert.match(await page.locator('#switch-upload-status').innerText(), /upload a PDF/i);
+  await chooseFile({ name: 'broken.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF- broken') });
+  await page.waitForFunction(() => /invalid|could not/i.test(document.getElementById('switch-upload-status').textContent));
+  assert(await switcher.isVisible());
+  assert.equal(counts.analysis, 0);
+  await chooseFile({ name: 'fixture<img src=x onerror=window.auditSentinel=2>.pdf', mimeType: 'application/pdf', buffer: pdf('You may use the fictional app on one device. Do not redistribute it.') });
   try { await page.waitForFunction(() => document.querySelector('#cat-title')?.textContent === 'License scope', undefined, { timeout: 30000 }); } catch(error) { console.error('UPLOAD STATUS:', await page.locator('#upload-status').textContent()); throw error; }
   const galleryChoice = page.getByRole('dialog', { name: 'Choose a category' }).getByRole('button', {name:'License scope', exact:true});
   await galleryChoice.waitFor();
@@ -84,7 +101,12 @@ try {
   assert.equal(counts.image, 0);
   assert.equal(counts.video, 0);
   const initialArtwork = await art.innerHTML();
+  await page.locator('#close-gallery').click();
+  assert(await page.locator('#dashboard-tab').isVisible());
+  await page.locator('#resume-analysis-btn').click();
+  assert(await page.locator('#category-gallery').isVisible());
   await galleryChoice.click();
+  assert.equal(counts.analysis, 1);
   releaseMedia();
   await page.waitForFunction(() => document.querySelector('#cat-cards')?.textContent.includes('How many devices?'), undefined, { timeout: 30000 });
   assert.equal(await page.evaluate(() => window.auditSentinel), undefined);
@@ -95,6 +117,8 @@ try {
   assert.equal(await page.locator('#tabbtn-video').getAttribute('aria-selected'), 'true');
   assert.match(await page.locator('#category-position').textContent(), /Category 1 of 1/);
   await page.getByRole('button', { name: 'Category details', exact: true }).click();
+  assert.equal(await page.locator('#cat-impact li').innerText(), 'One device only.');
+  assert.equal(await page.locator('#cat-lookouts li').innerText(), 'Check devices.');
   await page.locator('#source-evidence summary').click();
   assert(await page.locator('#source-evidence details').getAttribute('open') !== null);
   await page.keyboard.press('Escape');
@@ -107,9 +131,11 @@ try {
   assert.deepEqual(await page.locator('#comic-crop .comic-panel-caption').allTextContents(), ['A source-backed example.','A second scene.']);
   await page.locator('#comic-crop button[data-scene="0"]').click();
   assert(await page.locator('#comic-crop .comic-panel-caption').isVisible());
-  await page.locator('#comic-narration').click();
+  await page.getByRole('button',{name:'Play comic',exact:true}).click();
+  await page.getByRole('button',{name:'Full comic',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('comic-audio').currentTime>0);
   await page.waitForFunction(()=>document.getElementById('comic-position').textContent==='Scene 2 of 2');
+  assert.equal(await page.locator('#comic-reader.is-playing button[aria-current=true]').getAttribute('data-scene'), '1');
   await page.getByRole('button',{name:'Replay comic',exact:true}).waitFor();
   assert.deepEqual(spoken,['The first story begins.','The first story ends.']);
   assert.equal(await page.locator('#comic-caption').textContent(), 'A second scene.');
@@ -145,6 +171,23 @@ try {
   assert.match(await page.locator('#video-degradation').textContent(), /audio/i);
   assert(await page.locator('#source-evidence details').getAttribute('open') !== null, 'Generation updates retain expanded source evidence');
   await page.locator('#tabbtn-eula').click(); assert.match(await page.locator('#source-evidence').textContent(), /one device/);
+  // Abandon a replacement while its text is still being read. Its completion
+  // must leave the open document, original PDF and accepted jobs intact.
+  const originalPdf = await page.locator('#cat-eula-frame').getAttribute('src');
+  await page.evaluate(() => {
+    const original = extractPdfText;
+    extractPdfText = () => new Promise(resolve => {
+      window.completePendingRead = () => { extractPdfText = original; resolve('fictional replacement'); };
+    });
+  });
+  await page.getByRole('button', { name: 'Switch EULA' }).click();
+  await chooseFile({ name: 'replacement.pdf', mimeType: 'application/pdf', buffer: pdf('Another fictional license.') });
+  await page.waitForFunction(() => typeof window.completePendingRead === 'function');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => window.completePendingRead());
+  assert.equal(await page.locator('#cat-eula-frame').getAttribute('src'), originalPdf);
+  assert.equal(await page.locator('#tabbtn-eula').getAttribute('aria-selected'), 'true');
+  assert.equal(counts.analysis, 1);
   const beforeReload = { ...counts };
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('#resume-analysis-btn').click();
@@ -160,7 +203,7 @@ try {
   assert.match(await page.locator('#upload-status').textContent(), /Upload the PDF again/);
   assert.deepEqual(counts, beforeReload, 'An inaccessible saved run must not regenerate automatically');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['actual PDF upload', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'scenario summaries and narrated comic playback', 'scenario selection', 'speech captions and degradation', 'source excerpts', 'reload without duplicate generation', 'expired-session restore recovery'], requests: counts }, null, 2));
+  console.log(JSON.stringify({ status: 'passed', browser: 'Chromium', coverage: ['PDF picker cancel, invalid file and document replacement', 'dismiss and resume the first category chooser', 'authenticated API jobs', 'escaped untrusted content', 'signed image/video media', 'narration and highlighted panels in a generated comic', 'scenario selection', 'speech captions and degradation', 'visible Impact, Lookouts and supporting clauses', 'reload without duplicate generation', 'expired-session restore recovery'], requests: counts }, null, 2));
 } finally {
   releaseMedia?.();
   await browser?.close(); await app?.locals.close();

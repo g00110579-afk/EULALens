@@ -847,37 +847,44 @@ body:has(#documents-tab:not(.hidden)) .home-research-link {
 }
 .insights {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 28px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr));
+  gap: 12px;
+  margin-top: 18px;
 }
-.insight-button {
+.insights section {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ffffff09, #ffffff03);
+}
+.insights h3 {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-  min-height: 46px;
-  padding: 10px 0;
-  background: none;
-  border: none;
-  text-align: left;
-  color: #c9c9d3;
-  font-size: 14px;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
 }
-.insight-content {
-  color: var(--muted);
+.insights h3 .material-symbols-outlined {
+  font-size: 19px;
+  color: #cbcbd6;
+}
+.insights ul {
+  list-style: disc;
+  padding-inline-start: 1.1em;
+  margin: 0;
+  color: #dddde5;
   font-size: 15px;
-  line-height: 1.75;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
-.insight-content ul {
-  padding-left: 20px;
-  margin: 8px 0;
+.insights li::marker {
+  color: #9696a3;
 }
-.insight-content li + li {
-  margin-top: 9px;
+.insights li + li {
+  margin-top: 8px;
 }
 .generation-status {
   display: flex;
@@ -1062,6 +1069,23 @@ button.comic-panel-overlay:focus-visible {
 button.comic-panel-overlay[aria-current="true"] {
   box-shadow: inset 0 0 0 2px #faf9f4;
 }
+.comic-reader.is-playing[data-view="full"] .comic-panel-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgb(8 8 13 / 48%);
+}
+.comic-reader.is-playing[data-view="full"] .comic-panel-overlay[aria-current="true"]::after {
+  background: transparent;
+  border: 3px solid #fff;
+  box-shadow: inset 0 0 0 2px #24242a;
+}
+.comic-reader.is-playing .comic-panel-overlay:focus-visible {
+  outline-offset: -7px;
+  outline-style: dashed;
+  z-index: 1;
+}
 .comic-lettering {
   position: absolute;
   inset: 0;
@@ -1236,9 +1260,14 @@ button.comic-panel-overlay[aria-current="true"] {
     line-height: 1.2;
   }
 }
-@container comic-controls (max-width: 305px) {
-  .comic-pager { flex-wrap: wrap; justify-content: flex-end; gap: 3px; }
-  .comic-scene-label { flex: 1 0 100%; display: flex; align-items: baseline; gap: 7px; }
+@container comic-controls (max-width: 430px) {
+  .comic-pager {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 5px;
+  }
+  .comic-pager .comic-control { justify-self: start; }
+  .comic-scene-label { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 9px; }
   #comic-position { flex: none; white-space: nowrap; }
   #comic-scene-title { margin: 0; }
 }
@@ -1414,6 +1443,25 @@ button.comic-panel-overlay[aria-current="true"] {
   font-weight: 500;
   letter-spacing: -0.5px;
 }
+.switch-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 62px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border-color: #ffffff40;
+  background: linear-gradient(110deg, #ffffff12, #ffffff05);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 550;
+  text-decoration: none;
+}
+.switch-upload:hover { border-color: #ffffff80; }
+.switch-upload > :last-child { margin-left: auto; font-size: 20px; }
+#switch-upload-status:not(:empty) { margin: 8px 0 0; font-size: 14px; }
+.switch-samples-heading { margin: 20px 0 9px; font-size: 15px; font-weight: 500; }
 
 .help-dialog {
   max-width: 540px;
@@ -1430,24 +1478,22 @@ button.comic-panel-overlay[aria-current="true"] {
   line-height: 1.75;
 }
 .detail-dialog {
-  max-width: 620px;
+  max-width: 680px;
 }
+.detail-dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
+.detail-dialog .dialog-header { flex: none; margin-bottom: 14px; }
+#dialog-notes { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .dialog-kicker {
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
 }
 #details-summary {
-  margin: 16px 0;
+  margin: 4px 0 16px;
   color: #d4d4dd;
   font-size: 17px;
   line-height: 1.65;
   overflow-wrap: anywhere;
-}
-#category-notes .insights {
-  display: block;
-  margin: 14px 0 0;
-  padding: 4px 0 0;
 }
 .video-notes {
   display: none;
@@ -1528,7 +1574,7 @@ button.comic-panel-overlay[aria-current="true"] {
   border-radius: 22px;
   background: #ffffff06;
 }
-.gallery-search:focus-within {outline: 2px solid #d8d8e2; outline-offset: 2px}
+.gallery-search:focus-within {border-color: #aaaab8; box-shadow: 0 0 0 1px #aaaab8}
 .gallery-search .material-symbols-outlined {font-size: 19px}
 .gallery-search input {
   width: 100%;
@@ -1542,6 +1588,11 @@ button.comic-panel-overlay[aria-current="true"] {
   background: none;
 }
 .gallery-search input::placeholder {color: var(--muted)}
+#gallery-search:focus { outline: none; border: 0; box-shadow: none; }
+.gallery-body:focus-visible, .comic-art.is-zoomed:focus-visible {
+  outline: 2px solid #d8d8e2;
+  outline-offset: -2px;
+}
 .gallery-body {
   min-height: 0;
   overflow-y: auto;
@@ -1755,16 +1806,23 @@ button.comic-panel-overlay[aria-current="true"] {
   body:has(#documents-tab:not(.hidden)) .brand-link > :last-child {
     display: none;
   }
-  .document-actions .pill-button,
   .document-actions .danger-button {
     width: 40px;
     min-height: 40px;
     padding: 7px;
   }
-  .document-actions .pill-button > :last-child,
   .document-actions .danger-button > :last-child {
     display: none;
   }
+  #try-another-btn {
+    flex: none;
+    gap: 4px;
+    padding: 5px 9px;
+    min-height: 40px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  #try-another-btn .material-symbols-outlined { font-size: 16px; }
   .document-actions .danger-button {
     margin-top: 0;
   }

@@ -11,19 +11,23 @@ Unfamiliar titles use their own initials on etched glass. Initials also keep
 every tile usable while the shared image loads. The artwork stays stable as
 videos and comics finish. The category grid scrolls beneath a fixed heading
 and search box. Search matches the whole agreement and shows the number of matches.
-Choose a category to open its review. Escape closes the gallery, and Browse
-categories reopens it on the current category. Reduced motion skips transitions.
+Choose a category to open its review. Closing this first chooser returns home.
+Browse categories reopens it on the current category. Closing it there returns
+to the same reader and format. Reduced motion skips transitions.
 
 The upload-capable public review is at https://api.eulalens.stream/review/.
 It serves the PDF reader locally and sends analysis requests to its own origin.
-The shared GitHub file preview links to that workspace for uploads.
+Switch EULA in the reader opens the PDF picker and sample choices. A canceled
+picker or unreadable replacement leaves the current agreement available.
+The shared GitHub file preview links to the public workspace for uploads.
 
 The format order is Video, Comic, Cue cards and Original EULA. Video opens first. The header identifies the agreement, category
 position and risk. Desktop has a risk-grouped category index; on smaller
 screens the position control opens the category picker. Previous/Next and the
 index retain the selected format. The player and navigation fit the viewport.
 Long documents, scene text and lists scroll within their panels. In portrait,
-the category notes sit beneath the video; Details opens them from other formats.
+the category notes sit beneath the video. Details opens them from other formats.
+Impact and Lookouts are visible in both layouts.
 
 Cue cards flip in place. The comic reader includes the selected scenario’s
 summary. Scenes places the original dialogue, thoughts and captions over the
@@ -32,11 +36,11 @@ Select any panel on the sheet to open that scene. Demo agreements include
 frame coordinates for every scene. Uploaded comics use the image gutters
 when they match the script, then the layout requested from HiDream.
 
-Comics advance on a reading timer. Pause and scene arrows allow manual reading.
-Reduced motion starts paused. Read aloud begins speaking the current scene.
-Play resumes with sound unless the reader chose Mute narration. Both views
-follow the recording's scene cues. Opening another view, format or dialog
-pauses playback.
+Comics start with narration. Reduced motion starts paused. Play includes sound
+unless the reader chose Mute narration. Muted comics advance on a reading timer.
+Full comic highlights the current panel and follows it while zoomed. Switching
+between Scenes and Full comic keeps the same playback position. Choosing a
+different scene, opening a dialog or leaving Comic pauses playback.
 
 All six sample agreements include original scenario metadata and a local MP3
 per comic. The 164 recordings and 969 scene timings work on static hosting.

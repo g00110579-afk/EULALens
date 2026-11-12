@@ -6,6 +6,7 @@ const categoryGallery = (() => {
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   let ordered = [], matches = [];
   let selected = "";
+  let onDismiss;
 
   // Tile indices address the shared 6 × 4 illustration sheet. Specific topics
   // come first so a qualifier such as "account" can accompany "termination".
@@ -138,20 +139,22 @@ const categoryGallery = (() => {
     const choice = event.target.closest("button[data-category-id]");
     if (!choice) return;
     selectCategory(choice.dataset.categoryId);
+    onDismiss = undefined;
     dialog.close();
     const title = document.getElementById("cat-title");
     title.focus({ preventScroll: true });
     if (!reducedMotion.matches) title.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 200 });
   });
 
-  function open() {
+  function open({ dismissToHome } = {}) {
     if (dialog.open) return;
     ordered = getSortedCategories();
     if (!ordered.length) return;
+    onDismiss = dismissToHome;
     prepareArtwork(ordered);
     dialog.classList.toggle("short-agreement", ordered.length <= 4);
     if (sheet.complete && !sheet.naturalWidth) sheet.src = "images/category-objects.webp";
-    selected = document.getElementById("active-category").dataset.catId;
+    selected = dismissToHome ? "" : document.getElementById("active-category").dataset.catId;
     document.getElementById("gallery-document").textContent = document.getElementById("doc-analysis-title").textContent;
     document.getElementById("cat-video").pause();
     comicPlayback?.pause();
@@ -162,9 +165,18 @@ const categoryGallery = (() => {
     if (!reducedMotion.matches) grid.animate([{ opacity: .5 }, { opacity: 1 }], { duration: 180 });
   }
 
-  document.getElementById("close-gallery").onclick = () => dialog.close();
+  function dismiss() {
+    dialog.close();
+    onDismiss?.();
+    onDismiss = undefined;
+  }
+  document.getElementById("close-gallery").onclick = dismiss;
+  dialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    dismiss();
+  });
   const trigger = document.getElementById("view-gallery");
   trigger.hidden = false;
-  trigger.onclick = open;
+  trigger.onclick = () => open();
   return { open };
 })();

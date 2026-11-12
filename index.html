@@ -110,12 +110,18 @@
         let comicPlayback;
         const escapeHtml = EULALensRuntime.escapeHtml;
         const safeMediaUrl = value => EULALensRuntime.safeUrl(value, LIVE_API_BASE + '/');
-        function showDocumentWorkspace(animate = false) {
-            document.getElementById('dashboard-tab').classList.add('hidden');
+        function showDocumentWorkspace(chooseCategory = false) {
+            const dashboard = document.getElementById('dashboard-tab');
+            const opener = document.activeElement;
+            dashboard.classList.add('hidden');
             document.getElementById('documents-tab').classList.remove('hidden');
             window.scrollTo({ top: 0, behavior: 'instant' });
-            document.getElementById('cat-title').focus({ preventScroll: true });
-            if (animate && typeof categoryGallery !== 'undefined') categoryGallery.open();
+            if (chooseCategory && typeof categoryGallery !== 'undefined') {
+                categoryGallery.open({ dismissToHome() {
+                    backToHome();
+                    if (dashboard.contains(opener) && opener.getClientRects().length) opener.focus({ preventScroll: true });
+                } });
+            } else document.getElementById('cat-title').focus({ preventScroll: true });
             if (currentFormat === 'comic') comicPlayback?.enter();
         }
 
@@ -143,7 +149,7 @@
                 void restoreLiveRun(); return;
             }
             updateCancelButton();
-            showDocumentWorkspace();
+            showDocumentWorkspace(currentRun.awaitingCategory);
         }
 
         function backToHome() {
@@ -155,11 +161,16 @@
             if (!document.getElementById('learn-more-panel').classList.contains('hidden')) toggleLearnMore();
             updateResumeButton();
             window.scrollTo({ top: 0, behavior: 'instant' });
+            const resume = document.getElementById('resume-analysis-btn');
+            const action = resume.classList.contains('hidden') ? document.getElementById('upload-dropzone') : resume;
+            action.focus({ preventScroll: true });
         }
 
         function openTryAnotherDialog() {
             comicPlayback?.pause();
             document.getElementById('cat-video')?.pause();
+            switchPdfRead?.abort();
+            document.getElementById('switch-upload-status').textContent = '';
             document.getElementById('try-another-modal').showModal();
         }
         function closeTryAnotherDialog() {
@@ -174,6 +185,7 @@
         let currentRun = null;
         let currentFormat = 'video';
         let latestUploadId = 0;
+        let switchPdfRead;
         let livePdfUrl = '';
         const mediaScheduler = new EULALensRuntime.Scheduler({ comic: 2, video: 1, cards: 1 });
         const liveApi = EULALensRuntime.createApi(LIVE_API_BASE);
@@ -545,23 +557,6 @@
             }
         }
 
-        function toggleInsightPanel(tab) {
-            const wrap = document.getElementById(`insight-panel-${tab}-wrap`);
-            const chevron = document.getElementById(`insight-chevron-${tab}`);
-            const isOpen = !wrap.classList.contains('hidden');
-            wrap.classList.toggle('hidden', isOpen);
-            chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-            document.getElementById(`insight-accbtn-${tab}`).setAttribute('aria-expanded', String(!isOpen));
-        }
-
-        function collapseInsightPanels() {
-            ['impact', 'lookouts'].forEach(tab => {
-                document.getElementById(`insight-panel-${tab}-wrap`).classList.add('hidden');
-                document.getElementById(`insight-chevron-${tab}`).style.transform = 'rotate(0deg)';
-                document.getElementById(`insight-accbtn-${tab}`).setAttribute('aria-expanded', 'false');
-            });
-        }
-
         // One category order is shared by the picker and Previous/Next.
         const RISK_ORDER = { high: 0, medium: 1, low: 2 };
         function getSortedCategories() {
@@ -570,6 +565,7 @@
         function selectCategory(id) {
             const cat = categories.find(item => item.id === id);
             if (!cat) return;
+            if (activeDocument === 'live' && currentRun) currentRun.awaitingCategory = false;
             updateCategoryDetails(cat);
             switchRightTab(currentFormat);
         }
@@ -592,6 +588,7 @@
             panel.classList.toggle('hidden', !opening);
             button.setAttribute('aria-expanded', String(opening));
             button.querySelector('.toggle-label').textContent = opening ? 'Back to home' : 'Learn more';
+            button.focus({ preventScroll: true });
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
         function showResearch() {
@@ -600,34 +597,42 @@
         }
 
         function initUploadDropzone() {
+            const staticPreview = ['raw.githack.com', 'rawcdn.githack.com'].includes(window.location.hostname);
+            for (const [buttonId, inputId] of [['upload-dropzone', 'upload-input'], ['switch-upload', 'switch-upload-input']]) {
+                const button = document.getElementById(buttonId);
+                const input = document.getElementById(inputId);
+                if (staticPreview) {
+                    const link = document.createElement('a');
+                    link.href = new URL('/review/', LIVE_API_BASE).href;
+                    for (const { name, value } of button.attributes) {
+                        if (name !== 'type') link.setAttribute(name, value);
+                    }
+                    link.append(...button.childNodes);
+                    button.replaceWith(link);
+                    input.remove();
+                } else {
+                    button.addEventListener('click', () => input.click());
+                    input.addEventListener('change', () => {
+                        const file = input.files[0];
+                        input.value = '';
+                        if (file) void handleUploadedFile(file);
+                    });
+                }
+            }
+            const switcher = document.getElementById('try-another-modal');
+            switcher.addEventListener('close', () => {
+                if (!switcher.open) switchPdfRead?.abort();
+            });
             const zone = document.getElementById('upload-dropzone');
-            const input = document.getElementById('upload-input');
-            if (!zone || !input) return;
-
-            if (['raw.githack.com', 'rawcdn.githack.com'].includes(window.location.hostname)) {
-                const link = document.createElement('a');
-                link.href = new URL('/review/', LIVE_API_BASE).href;
-                link.id = zone.id;
-                link.className = zone.className;
-                link.setAttribute('aria-labelledby', 'upload-heading');
-                link.setAttribute('aria-describedby', 'upload-hint');
-                link.append(...zone.childNodes);
-                zone.replaceWith(link);
-                input.remove();
+            if (staticPreview) {
                 document.getElementById('upload-hint').textContent = 'Open the live PDF uploader';
-                const preventDrop = event => event.preventDefault();
-                link.addEventListener('dragover', preventDrop);
-                link.addEventListener('drop', event => {
+                zone.addEventListener('dragover', event => event.preventDefault());
+                zone.addEventListener('drop', event => {
                     event.preventDefault();
                     setUploadStatus('Open the live uploader to choose your PDF.');
                 });
                 return;
             }
-
-            zone.addEventListener('click', () => input.click());
-            input.addEventListener('change', () => {
-                if (input.files && input.files[0]) handleUploadedFile(input.files[0]);
-            });
 
             ['dragenter', 'dragover'].forEach(evt => {
                 zone.addEventListener(evt, (e) => {
@@ -695,7 +700,8 @@
         }
 
         function convertLiveCategory(cat) {
-            const impact = cat?.lenses?.impact;
+            const items = value => (Array.isArray(value) ? value : [value])
+                .filter(item => typeof item === 'string' && item.trim());
 
             return {
                 id: cat.id || `live-${Date.now()}`,
@@ -704,14 +710,8 @@
                     ? cat.severity
                     : 'medium',
                 summary: cat.summary || '',
-                impact: Array.isArray(impact)
-                    ? impact
-                    : impact
-                        ? [impact]
-                        : [],
-                lookouts: Array.isArray(cat?.lenses?.lookouts)
-                    ? cat.lenses.lookouts
-                    : [],
+                impact: items(cat.lenses?.impact ?? cat.impact),
+                lookouts: items(cat.lenses?.lookouts ?? cat.lookouts),
                 cards: Array.isArray(cat.cards) ? cat.cards.map(convertLiveCard) : [],
                 cardsStatus: cat.cards?.length ? 'ready' : 'generating',
                 comic: '',
@@ -762,6 +762,7 @@
             const liveCategories = (analysis.categories || []).map(convertLiveCategory);
             if (!liveCategories.length) throw new Error('No supported categories were found in this document.');
             run.categories = liveCategories; run.analysisFinished = true;
+            run.awaitingCategory = Boolean(file);
             run.documentTitle = analysis.documentTitle || analysis.fileName || 'Uploaded EULA';
             for (const saved of run.media) {
                 const cat = liveCategories.find(item => item.id === saved.categoryId);
@@ -789,7 +790,7 @@
             // slowest category. The server enforces actual model resource limits.
             void loadLiveCards(run);
             switchRightTab('video');
-            showDocumentWorkspace(Boolean(file));
+            showDocumentWorkspace(run.awaitingCategory);
             for (const cat of run.categories) if (cat.cardsJobId) void loadLiveCards(run, cat);
             for (const cat of getSortedCategories()) {
                 void ensureLiveComic(cat, { priority: 0 });
@@ -874,18 +875,46 @@
         }
 
         async function handleUploadedFile(file) {
-            if (!file || (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'))) {
-                setUploadStatus('Please upload a PDF file.', true); return;
+            if (!file) return;
+            const switcher = document.getElementById('try-another-modal');
+            const status = document.getElementById('switch-upload-status');
+            if (switcher.open) switchPdfRead?.abort();
+            let problem;
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) problem = 'Please upload a PDF file.';
+            else if (file.size > 25 * 1024 * 1024) problem = 'Please use a PDF smaller than 25 MB.';
+            if (problem) {
+                if (switcher.open) status.textContent = problem;
+                else setUploadStatus(problem, true);
+                return;
             }
-            if (file.size > 25 * 1024 * 1024) { setUploadStatus('Please use a PDF smaller than 25 MB.', true); return; }
+            // Keep the current agreement, PDF and jobs until its replacement can be read.
+            let text;
+            if (switcher.open) {
+                const read = new AbortController();
+                switchPdfRead = read;
+                status.textContent = `Reading “${file.name}”…`;
+                try {
+                    text = await extractPdfText(file, read.signal);
+                    if (read.signal.aborted || !switcher.open) return;
+                } catch (error) {
+                    if (!read.signal.aborted) status.textContent = error.message || 'Could not read this PDF.';
+                    return;
+                } finally {
+                    if (switchPdfRead === read) switchPdfRead = undefined;
+                }
+                closeTryAnotherDialog();
+                backToHome();
+            }
             const uploadId = ++latestUploadId;
             const previous = currentRun;
             if (previous) void cancelLiveJobs(previous.categories, previous);
             const run = newLiveRun(); currentRun = run; activeDocument = 'uploading';
             updateCancelButton(); updateResumeButton(); releaseLivePdf();
             try {
-                setUploadStatus(`Extracting text from “${file.name}”…`);
-                const text = await extractPdfText(file, run.controller.signal);
+                if (text === undefined) {
+                    setUploadStatus(`Extracting text from “${file.name}”…`);
+                    text = await extractPdfText(file, run.controller.signal);
+                }
                 if (uploadId !== latestUploadId || !isRunCurrent(run)) return;
                 run.documentTitle = file.name;
                 setUploadStatus(`Analyzing “${file.name}”…`);
@@ -898,9 +927,6 @@
                 const networkError = error.name === 'TypeError' && /fetch|network|load failed/i.test(error.message);
                 setUploadStatus(networkError ? 'Could not reach the analysis service. Check your connection and try again.' : error.message || 'Could not analyze this PDF.', true);
                 updateResumeButton();
-            } finally {
-                const input = document.getElementById('upload-input');
-                if (input) input.value = '';
             }
         }
 
@@ -20517,6 +20543,7 @@
         }
 
         function switchDocument(doc) {
+            comicPlayback?.leave();
             ++latestUploadId;
             const previousRun = currentRun;
             if (previousRun) void cancelLiveJobs(previousRun.categories, previousRun);
@@ -20604,10 +20631,10 @@
             document.getElementById('details-summary').textContent = cat.summary;
             document.getElementById('details-title').textContent = cat.name;
 
-            // Update Impact and Lookouts while preserving expanded panels during generation.
             document.getElementById('cat-impact').innerHTML = cat.impact.map(i => `<li>${escapeHtml(i)}</li>`).join('');
             document.getElementById('cat-lookouts').innerHTML = cat.lookouts.map(i => `<li>${escapeHtml(i)}</li>`).join('');
-            if (!preserveView || !sameCategory) collapseInsightPanels();
+            document.getElementById('insight-box-impact').hidden = !cat.impact.length;
+            document.getElementById('insight-box-lookouts').hidden = !cat.lookouts.length;
 
             // Update Cards
             const cardsContainer = document.getElementById('cat-cards');
@@ -20689,7 +20716,7 @@
   <button type="button" class="quiet-button home-research-link" id="learn-more-toggle" onclick="toggleLearnMore()" aria-expanded="false" aria-controls="learn-more-panel"><span class="toggle-label">Learn more</span><span class="material-symbols-outlined" aria-hidden="true">info</span></button>
   <div class="document-actions">
     <button id="cancel-generation-btn" type="button" onclick="cancelCurrentGeneration()" class="quiet-button danger-button hidden" aria-label="Cancel unfinished analysis and generation"><span class="material-symbols-outlined" aria-hidden="true">stop_circle</span><span>Cancel generation</span></button>
-    <button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()" aria-label="Try another EULA"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span><span>Try another EULA</span></button>
+    <button type="button" class="pill-button" id="try-another-btn" onclick="openTryAnotherDialog()" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span><span>Switch EULA</span></button>
     <button type="button" class="icon-button" id="help-btn" onclick="openHelpDialog()" aria-label="Help"><span class="material-symbols-outlined" aria-hidden="true">help</span></button>
   </div>
 </header>
@@ -20872,11 +20899,17 @@ communicated to end users.
   </div>
   <div id="dialog-notes"><div id="category-notes">
   <p id="details-summary"></p>
+  <div class="insights">
+    <section id="insight-box-impact" aria-labelledby="impact-heading">
+      <h3 id="impact-heading"><span class="material-symbols-outlined" aria-hidden="true">bolt</span>Impact</h3>
+      <ul id="cat-impact"></ul>
+    </section>
+    <section id="insight-box-lookouts" aria-labelledby="lookouts-heading">
+      <h3 id="lookouts-heading"><span class="material-symbols-outlined" aria-hidden="true">visibility</span>Lookouts</h3>
+      <ul id="cat-lookouts"></ul>
+    </section>
+  </div>
   <div id="source-evidence" class="hidden"></div>
-<div class="insights" id="insight-accordion">
-<div id="insight-box-impact"><button type="button" class="insight-button" id="insight-accbtn-impact" onclick="toggleInsightPanel('impact')" aria-expanded="false" aria-controls="insight-panel-impact-wrap"><span>Impact</span><span class="material-symbols-outlined" id="insight-chevron-impact" aria-hidden="true">expand_more</span></button><div class="hidden insight-content" id="insight-panel-impact-wrap"><ul id="cat-impact"></ul></div></div>
-<div id="insight-box-lookouts"><button type="button" class="insight-button" id="insight-accbtn-lookouts" onclick="toggleInsightPanel('lookouts')" aria-expanded="false" aria-controls="insight-panel-lookouts-wrap"><span>Lookouts</span><span class="material-symbols-outlined" id="insight-chevron-lookouts" aria-hidden="true">expand_more</span></button><div class="hidden insight-content" id="insight-panel-lookouts-wrap"><ul id="cat-lookouts"></ul></div></div>
-</div>
   </div></div>
 </dialog>
 <dialog id="category-gallery" class="glass-dialog gallery-dialog" aria-labelledby="gallery-heading" aria-describedby="gallery-document gallery-count">
@@ -20891,7 +20924,17 @@ communicated to end users.
     <p id="gallery-empty" hidden>No matching categories.</p>
   </div>
 </dialog>
-<dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title"><div class="dialog-header"><h2 id="sample-dialog-title">Try another EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close sample EULAs"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div><div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
+<dialog id="try-another-modal" class="glass-dialog" aria-labelledby="sample-dialog-title">
+  <div class="dialog-header"><h2 id="sample-dialog-title">Switch EULA</h2><button type="button" class="icon-button" onclick="closeTryAnotherDialog()" aria-label="Close document switcher"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
+  <button type="button" id="switch-upload" class="switch-upload glass-panel">
+    <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
+    Upload a PDF
+    <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
+  </button>
+  <input type="file" id="switch-upload-input" accept="application/pdf,.pdf" aria-label="Upload another EULA PDF" hidden/>
+  <p id="switch-upload-status" role="status"></p>
+  <h3 class="switch-samples-heading">Sample EULAs</h3>
+  <div class="sample-grid dialog-samples"><button type="button" class="sample-button glass-panel" onclick="selectFromDialog('zoom')" aria-label="Zoom"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">videocam</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Zoom</span><span class="sample-description">Zoom TOS</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('spotify')" aria-label="Spotify"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">music_note</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Spotify</span><span class="sample-description">Spotify TOU</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('windows11')" aria-label="Windows"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">window</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Windows</span><span class="sample-description">Windows 11 Use Terms</span></span></button>
 <button type="button" class="sample-button glass-panel" onclick="selectFromDialog('steam')" aria-label="Steam"><span class="sample-icons"><span class="material-symbols-outlined" aria-hidden="true">sports_esports</span><span class="material-symbols-outlined" aria-hidden="true">arrow_outward</span></span><span><span class="sample-label">Steam</span><span class="sample-description">Steam Subscriber Agreement</span></span></button>
